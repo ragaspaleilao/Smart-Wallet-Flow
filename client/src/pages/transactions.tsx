@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 
 export default function Transactions() {
-  const transactions = useFinancialStore((state) => state.transactions);
+  const transactions = useFinancialStore((state) => state.transactions.filter(t => t.isPersonal));
 
   return (
     <MobileLayout>

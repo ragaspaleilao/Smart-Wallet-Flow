@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Package, DollarSign, BarChart3, Plus, Settings2, Trash2, Edit2, Wallet } from "lucide-react";
+import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Package, DollarSign, BarChart3, Plus, Settings2, Trash2, Edit2, Wallet, ArrowRightLeft, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useState, useMemo } from "react";
@@ -15,10 +15,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { nanoid } from "nanoid";
 import { EditProductDialog } from "@/components/edit-product-dialog";
 import { toast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
 export default function Business() {
   const { businessProducts, businessSettings, addBusinessProduct, updateBusinessSettings, addTransaction, accounts } = useFinancialStore();
   
+  // Filter only business related accounts and transactions
+  const businessAccounts = accounts.filter(a => !a.isPersonal);
+  const businessTransactions = useFinancialStore(state => state.transactions.filter(t => !t.isPersonal));
+
   const metrics = useMemo(() => calculateBusinessMetrics(businessProducts, businessSettings), [businessProducts, businessSettings]);
   const insights = useMemo(() => generateBusinessInsights(metrics), [metrics]);
 
@@ -42,6 +47,48 @@ export default function Business() {
     category: "Vendas" as Category,
     accountId: ""
   });
+
+  // Transfer State
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferData, setTransferData] = useState({
+    amount: "",
+    fromAccountId: "",
+    toAccountId: "",
+    description: "Pro-labore"
+  });
+
+  const handleTransfer = () => {
+    if (!transferData.amount || !transferData.fromAccountId || !transferData.toAccountId) {
+        toast({ title: "Preencha todos os campos", variant: "destructive" });
+        return;
+    }
+
+    // 1. Withdraw from Business Account
+    addTransaction({
+        type: 'expense',
+        amount: Number(transferData.amount),
+        description: `Transferência para Pessoal: ${transferData.description}`,
+        category: 'Outros', // Or specific category for transfers
+        source: 'manual',
+        isPersonal: false,
+        accountId: transferData.fromAccountId
+    });
+
+    // 2. Deposit into Personal Account
+    addTransaction({
+        type: 'income',
+        amount: Number(transferData.amount),
+        description: `Recebido da Empresa: ${transferData.description}`,
+        category: 'Salário', // Or specific category
+        source: 'manual',
+        isPersonal: true,
+        accountId: transferData.toAccountId
+    });
+
+    setTransferOpen(false);
+    setTransferData({ amount: "", fromAccountId: "", toAccountId: "", description: "Pro-labore" });
+    toast({ title: "Transferência realizada com sucesso!" });
+  };
 
   const handleAddCost = () => {
     if (newCostName && newCostValue) {
@@ -115,6 +162,73 @@ export default function Business() {
             </div>
             
             <div className="flex gap-2">
+                {/* Transfer Button (Pro-labore) */}
+                <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+                    <DialogTrigger asChild>
+                        <Button size="icon" variant="outline" className="rounded-full border-purple-200 bg-purple-50 text-purple-600 hover:bg-purple-100">
+                            <ArrowRightLeft className="w-5 h-5" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Transferir para Pessoal (Pro-labore)</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                             <div className="space-y-2">
+                                <Label>Valor a Transferir</Label>
+                                <Input 
+                                    type="number" 
+                                    value={transferData.amount} 
+                                    onChange={(e) => setTransferData({...transferData, amount: e.target.value})}
+                                    placeholder="0.00"
+                                    className="text-lg font-bold"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Conta de Origem (Empresa)</Label>
+                                <Select value={transferData.fromAccountId} onValueChange={(val) => setTransferData({...transferData, fromAccountId: val})}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione conta da empresa..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {businessAccounts.map(acc => (
+                                            <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {acc.balance.toFixed(2)})</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Conta de Destino (Pessoal)</Label>
+                                <Select value={transferData.toAccountId} onValueChange={(val) => setTransferData({...transferData, toAccountId: val})}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione conta pessoal..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {accounts.filter(a => a.isPersonal).map(acc => (
+                                            <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {acc.balance.toFixed(2)})</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                             <div className="space-y-2">
+                                <Label>Descrição / Motivo</Label>
+                                <Input 
+                                    value={transferData.description} 
+                                    onChange={(e) => setTransferData({...transferData, description: e.target.value})}
+                                    placeholder="Ex: Pro-labore Janeiro"
+                                />
+                            </div>
+
+                            <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={handleTransfer}>
+                                Confirmar Transferência
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
                 {/* Daily Entry Button */}
                 <Dialog open={dailyEntryOpen} onOpenChange={setDailyEntryOpen}>
                     <DialogTrigger asChild>
@@ -194,7 +308,7 @@ export default function Business() {
                                         <SelectValue placeholder="Selecione..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {accounts.map(acc => (
+                                        {businessAccounts.map(acc => (
                                             <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
                                         ))}
                                     </SelectContent>
@@ -266,13 +380,46 @@ export default function Business() {
             {/* Business Overview Cards */}
             <div className="grid grid-cols-2 gap-4">
                 <Card className="p-4 bg-blue-600 text-white border-none shadow-lg">
-                    <p className="text-blue-100 text-xs mb-1">Lucro Líquido Estimado</p>
-                    <h2 className="text-2xl font-bold">R$ {metrics.totalMonthlyProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h2>
+                    <p className="text-blue-100 text-xs mb-1">Caixa da Empresa</p>
+                    <h2 className="text-2xl font-bold">R$ {businessAccounts.reduce((acc, curr) => acc + curr.balance, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h2>
+                    <p className="text-[10px] text-blue-200 mt-1">Saldo acumulado</p>
                 </Card>
                 <Card className="p-4 bg-white dark:bg-zinc-900 border-gray-100 dark:border-zinc-800 shadow-sm">
-                    <p className="text-gray-500 text-xs mb-1">Custos Fixos Totais</p>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">R$ {metrics.totalFixedCosts.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h2>
+                    <p className="text-gray-500 text-xs mb-1">Lucro Líquido (Est.)</p>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">R$ {metrics.totalMonthlyProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h2>
+                    <p className="text-[10px] text-green-600 mt-1">Baseado em vendas projetadas</p>
                 </Card>
+            </div>
+
+             {/* Recent Business Transactions */}
+             <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Extrato Empresarial</h3>
+                </div>
+                {businessTransactions.length === 0 ? (
+                    <p className="text-xs text-gray-500 italic">Nenhuma movimentação registrada ainda.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {businessTransactions.slice(0, 3).map(tx => (
+                            <div key={tx.id} className="flex items-center justify-between p-3 bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-100 dark:border-zinc-800">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs ${
+                                        tx.type === 'income' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                                    }`}>
+                                        {tx.type === 'income' ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownLeft className="w-4 h-4" />}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-gray-900 dark:text-white">{tx.description}</p>
+                                        <p className="text-[10px] text-gray-500">{format(new Date(tx.date), 'dd/MM')} • {tx.category}</p>
+                                    </div>
+                                </div>
+                                <span className={`text-sm font-bold ${tx.type === 'income' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
+                                    {tx.type === 'income' ? '+' : '-'} R$ {tx.amount.toFixed(2)}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* AI Insights */}

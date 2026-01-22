@@ -19,7 +19,27 @@ const chartData = [
 ];
 
 export default function Dashboard() {
-  const { balance, income, expense, transactions } = useFinancialStore();
+  const { balance, income, expense, transactions: allTransactions } = useFinancialStore();
+
+  // Filter ONLY personal transactions for the dashboard
+  const transactions = allTransactions.filter(t => t.isPersonal);
+
+  // Recalculate dashboard totals to reflect only personal finance
+  const personalIncome = transactions
+    .filter(t => t.type === 'income')
+    .reduce((acc, curr) => acc + curr.amount, 0);
+    
+  const personalExpense = transactions
+    .filter(t => t.type === 'expense')
+    .reduce((acc, curr) => acc + curr.amount, 0);
+
+  // Approximate personal balance (assuming store balance mixes both, we might want to split it properly later, 
+  // but for now let's just use the store balance as it's the sum of accounts. 
+  // Ideally, dashboard should show "Personal Net Worth")
+  const { accounts } = useFinancialStore();
+  const personalBalance = accounts
+    .filter(a => a.isPersonal)
+    .reduce((acc, curr) => acc + curr.balance, 0);
 
   return (
     <MobileLayout>
@@ -29,9 +49,9 @@ export default function Dashboard() {
         <div className="space-y-6">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Saldo disponível</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Saldo disponível (Pessoal)</p>
               <h1 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mt-1">
-                R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {personalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </h1>
             </div>
             <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
@@ -47,7 +67,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-xs text-green-600/80 dark:text-green-400/80 font-medium">Entradas</p>
-                <p className="text-sm font-bold text-green-700 dark:text-green-300">R$ {income.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+                <p className="text-sm font-bold text-green-700 dark:text-green-300">R$ {personalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
               </div>
             </div>
             <div className="flex-1 bg-red-50 dark:bg-red-950/20 p-3 rounded-2xl flex items-center space-x-3">
@@ -56,7 +76,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-xs text-red-600/80 dark:text-red-400/80 font-medium">Saídas</p>
-                <p className="text-sm font-bold text-red-700 dark:text-red-300">R$ {expense.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+                <p className="text-sm font-bold text-red-700 dark:text-red-300">R$ {personalExpense.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
               </div>
             </div>
           </div>

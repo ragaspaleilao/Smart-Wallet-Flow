@@ -135,7 +135,9 @@ export const useFinancialStore = create<FinancialStore>()(
       ],
       accounts: [
         { id: '1', name: 'Nubank', type: 'bank', balance: 3454.10, initialBalance: 0, color: 'bg-purple-600', isPersonal: true },
-        { id: '2', name: 'Carteira', type: 'cash', balance: 150.00, initialBalance: 150.00, color: 'bg-green-600', isPersonal: true }
+        { id: '2', name: 'Carteira', type: 'cash', balance: 150.00, initialBalance: 150.00, color: 'bg-green-600', isPersonal: true },
+        { id: '3', name: 'Caixa Empresa', type: 'cash', balance: 500.00, initialBalance: 0, color: 'bg-blue-600', isPersonal: false }, // Business Account
+        { id: '4', name: 'Banco PJ', type: 'bank', balance: 2500.00, initialBalance: 0, color: 'bg-indigo-600', isPersonal: false } // Business Account
       ],
       goals: [
         { id: '1', name: "Viagem Fim de Ano", target: 5000, current: 1250, color: "bg-primary" },
