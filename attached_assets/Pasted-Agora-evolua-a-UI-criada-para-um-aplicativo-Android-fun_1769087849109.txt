@@ -1,0 +1,107 @@
+Agora evolua a UI criada para um aplicativo Android funcional de controle financeiro.
+
+OBJETIVO PRINCIPAL:
+Salvar automaticamente despesas e receitas a partir de notificações do celular (Android), além de registros por voz, foto e manual.
+
+PLATAFORMA:
+- Android (prioritário)
+- Linguagem: Kotlin
+- Arquitetura simples e organizada (MVVM ou similar)
+- Persistência local de dados (Room ou equivalente)
+- Foco em funcionalidade antes de complexidade
+
+FUNCIONALIDADE CRÍTICA (PRIORIDADE MÁXIMA):
+Leitura e processamento de notificações do sistema Android.
+
+REQUISITOS DA LEITURA DE NOTIFICAÇÕES:
+1. Implementar NotificationListenerService
+2. Solicitar permissão de acesso às notificações de forma clara ao usuário
+3. Monitorar notificações de:
+   - Bancos
+   - Cartões de crédito
+   - Pix
+   - Apps financeiros
+
+4. Ao detectar uma notificação:
+   - Extrair automaticamente:
+     - Valor (ex: R$ 23,90)
+     - Tipo (débito, crédito, pix)
+     - Nome do estabelecimento (quando possível)
+     - Data e hora
+   - Classificar como:
+     - Despesa ou Receita
+   - Marcar como:
+     - Pessoal ou Negócio (configurável)
+
+5. Criar uma lógica de parsing simples baseada em regex e palavras-chave
+   Exemplos:
+   - "Compra aprovada"
+   - "Pix recebido"
+   - "Pagamento realizado"
+   - "Crédito aprovado"
+
+6. Antes de salvar definitivamente:
+   - Mostrar uma tela ou notificação interna de confirmação:
+     “Detectamos uma despesa de R$ XX,XX. Deseja salvar?”
+   - Opções:
+     - Confirmar
+     - Editar
+     - Ignorar
+
+7. Após confirmação:
+   - Salvar automaticamente a transação no banco de dados local
+   - Atualizar:
+     - Dashboard
+     - Gráficos
+     - Alertas de limite
+
+ARMAZENAMENTO DE DADOS:
+- Criar entidades para:
+  - Transações (despesas e receitas)
+  - Categorias
+  - Objetivos
+  - Investimentos
+  - Veículos
+- Persistir tudo localmente (offline-first)
+
+REGISTROS MANUAIS (SUPORTE):
+- Registro por voz:
+  - Usar Speech-to-Text do Android
+  - Converter fala em texto
+  - Extrair valor, tipo e categoria
+- Registro por foto:
+  - Usar câmera
+  - OCR simples para detectar valor e data
+- Registro manual:
+  - Formulário simples
+
+DASHBOARD:
+- Atualizar automaticamente com base nos dados salvos
+- Mostrar:
+  - Saldo do mês
+  - Entradas x Saídas
+  - Alertas de limite
+  - Objetivo financeiro principal
+
+BOAS PRÁTICAS:
+- Código bem comentado
+- Separar claramente:
+  - Camada de UI
+  - Camada de lógica
+  - Camada de dados
+- Tratar erros (notificação mal interpretada)
+- Permitir desativar leitura de notificações nas configurações
+
+IMPORTANTE:
+Este app NÃO deve:
+- Se conectar automaticamente a bancos
+- Usar Open Finance
+- Fazer qualquer tipo de transação financeira
+
+Ele apenas LÊ notificações locais, com consentimento do usuário, e ORGANIZA os dados.
+
+Construa o app funcional com base nisso, priorizando:
+- Leitura de notificações
+- Salvamento automático
+- Simplicidade
+- Estabilidade
