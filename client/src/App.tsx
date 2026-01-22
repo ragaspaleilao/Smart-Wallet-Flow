@@ -17,6 +17,7 @@ import Goals from "@/pages/goals";
 import Investments from "@/pages/investments";
 import Vehicles from "@/pages/vehicles";
 import Settings from "@/pages/settings";
+import Budget from "@/pages/budget";
 
 function Router() {
   return (
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/investments" component={Investments} />
       <Route path="/vehicles" component={Vehicles} />
       <Route path="/settings" component={Settings} />
+      <Route path="/budget" component={Budget} />
 
       <Route component={NotFound} />
     </Switch>

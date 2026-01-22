@@ -58,13 +58,15 @@ export default function Settings() {
                </div>
              </Link>
 
-             <div className="flex items-center justify-between py-3 cursor-pointer group">
-               <div className="flex items-center gap-3">
-                 <CreditCard className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                 <span className="font-medium group-hover:text-primary transition-colors">Cartões de Crédito</span>
+             <Link href="/budget">
+               <div className="flex items-center justify-between py-3 cursor-pointer group">
+                 <div className="flex items-center gap-3">
+                   <CreditCard className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                   <span className="font-medium group-hover:text-primary transition-colors">Orçamento e Limites</span>
+                 </div>
+                 <ChevronRight className="w-4 h-4 text-gray-400" />
                </div>
-               <ChevronRight className="w-4 h-4 text-gray-400" />
-             </div>
+             </Link>
           </div>
 
           {/* Other */}

@@ -3,11 +3,15 @@ import { useLocation } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Camera, X, Check, Upload, Image as ImageIcon } from "lucide-react";
+import { useFinancialStore } from "@/lib/store";
+import { toast } from "@/hooks/use-toast";
 
 export default function PhotoEntry() {
   const [_, setLocation] = useLocation();
+  const addTransaction = useFinancialStore((state) => state.addTransaction);
   const [image, setImage] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [ocrData, setOcrData] = useState<{ amount: number; description: string } | null>(null);
 
   const handleCapture = () => {
     // Mock capture
@@ -15,7 +19,26 @@ export default function PhotoEntry() {
     setProcessing(true);
     setTimeout(() => {
       setProcessing(false);
+      setOcrData({ amount: 124.90, description: "Supermercado XYZ" });
     }, 2000);
+  };
+
+  const handleSave = () => {
+      if (ocrData) {
+          addTransaction({
+              amount: ocrData.amount,
+              type: "expense",
+              category: "Alimentação", // Mock categorization
+              description: ocrData.description,
+              source: "photo",
+              isPersonal: true
+          });
+          toast({
+              title: "Recibo salvo!",
+              description: `Despesa de R$ ${ocrData.amount.toFixed(2)} registrada.`,
+          });
+          setLocation("/dashboard");
+      }
   };
 
   return (
@@ -35,7 +58,16 @@ export default function PhotoEntry() {
         {/* Viewfinder / Image Display */}
         <div className="flex-1 relative bg-zinc-900 overflow-hidden">
           {image ? (
-            <img src={image} alt="Captured" className="w-full h-full object-cover" />
+            <div className="relative w-full h-full">
+                <img src={image} alt="Captured" className="w-full h-full object-cover opacity-80" />
+                {ocrData && !processing && (
+                    <div className="absolute bottom-32 left-0 right-0 flex justify-center z-30">
+                         <div className="bg-white text-black px-4 py-2 rounded-full shadow-lg animate-in slide-in-from-bottom-5">
+                            <p className="font-bold text-sm">Detectado: R$ {ocrData.amount.toFixed(2)}</p>
+                         </div>
+                    </div>
+                )}
+            </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <p className="text-zinc-500 text-sm">Preview da Câmera</p>
@@ -62,7 +94,7 @@ export default function PhotoEntry() {
                 <Button variant="outline" className="flex-1 h-12 bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700 hover:text-white" onClick={() => setImage(null)}>
                   Tentar Novamente
                 </Button>
-                <Button className="flex-1 h-12 bg-primary text-white hover:bg-primary/90" onClick={() => setLocation("/dashboard")}>
+                <Button className="flex-1 h-12 bg-primary text-white hover:bg-primary/90" onClick={handleSave}>
                   <Check className="w-4 h-4 mr-2" /> Salvar
                 </Button>
               </div>

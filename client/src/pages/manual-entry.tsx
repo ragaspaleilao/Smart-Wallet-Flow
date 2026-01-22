@@ -5,11 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Calculator } from "lucide-react";
 import { useState } from "react";
+import { useFinancialStore, Category } from "@/lib/store";
+import { toast } from "@/hooks/use-toast";
 
 export default function ManualEntry() {
   const [_, setLocation] = useLocation();
+  const addTransaction = useFinancialStore((state) => state.addTransaction);
+  
   const [type, setType] = useState<"expense" | "income">("expense");
   const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState<Category>("Alimentação");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
   const formatCurrency = (val: string) => {
     // Simple mock formatter
@@ -23,6 +30,45 @@ export default function ManualEntry() {
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setAmount(formatCurrency(e.target.value));
+  };
+
+  const handleSave = () => {
+    // Parse amount from formatted string (e.g., "R$ 1.234,56")
+    const numericAmount = Number(amount.replace(/[^0-9,]/g, "").replace(",", ".")) / 100;
+
+    if (!numericAmount || numericAmount <= 0) {
+      toast({
+        title: "Valor inválido",
+        description: "Por favor, insira um valor maior que zero.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!description) {
+       toast({
+        title: "Descrição obrigatória",
+        description: "Por favor, informe uma descrição.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    addTransaction({
+      amount: numericAmount,
+      type,
+      category,
+      description,
+      source: "manual",
+      isPersonal: true, // Defaulting to personal for now
+    });
+
+    toast({
+      title: "Salvo com sucesso!",
+      description: `${type === "expense" ? "Despesa" : "Receita"} de R$ ${numericAmount.toFixed(2)} registrada.`,
+    });
+
+    setLocation("/dashboard");
   };
 
   return (
@@ -82,14 +128,27 @@ export default function ManualEntry() {
         <div className="space-y-6 flex-1">
           <div className="space-y-2">
             <Label>Descrição</Label>
-            <Input placeholder="Ex: Almoço, Uber, Salário" className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800" />
+            <Input 
+              placeholder="Ex: Almoço, Uber, Salário" 
+              className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">
             <Label>Categoria</Label>
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-              {["Alimentação", "Transporte", "Lazer", "Casa", "Saúde"].map(cat => (
-                <button key={cat} className="px-4 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-full text-sm whitespace-nowrap hover:border-primary hover:text-primary transition-colors">
+              {["Alimentação", "Transporte", "Lazer", "Saúde", "Educação", "Salário", "Vendas", "Serviços", "Outros"].map((cat) => (
+                <button 
+                  key={cat} 
+                  className={`px-4 py-2 border rounded-full text-sm whitespace-nowrap transition-colors ${
+                    category === cat 
+                      ? "bg-primary text-white border-primary" 
+                      : "bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 hover:border-primary hover:text-primary"
+                  }`}
+                  onClick={() => setCategory(cat as Category)}
+                >
                   {cat}
                 </button>
               ))}
@@ -98,13 +157,18 @@ export default function ManualEntry() {
 
           <div className="space-y-2">
             <Label>Data</Label>
-            <Input type="date" className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800" />
+            <Input 
+              type="date" 
+              className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800" 
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
           </div>
         </div>
 
         {/* Submit */}
         <div className="pt-6">
-          <Button size="lg" className="w-full h-14 text-lg bg-primary hover:bg-primary/90" onClick={() => setLocation("/dashboard")}>
+          <Button size="lg" className="w-full h-14 text-lg bg-primary hover:bg-primary/90" onClick={handleSave}>
             Salvar
           </Button>
         </div>

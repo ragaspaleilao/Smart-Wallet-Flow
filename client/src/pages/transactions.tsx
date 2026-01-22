@@ -1,11 +1,14 @@
 import { MobileLayout } from "@/components/mobile-layout";
-import { transactions } from "@/lib/mock-data";
 import { ArrowLeft, Search, Filter, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
+import { useFinancialStore } from "@/lib/store";
+import { format } from "date-fns";
 
 export default function Transactions() {
+  const transactions = useFinancialStore((state) => state.transactions);
+
   return (
     <MobileLayout>
       <div className="flex flex-col h-full bg-white dark:bg-black">
@@ -28,20 +31,18 @@ export default function Transactions() {
 
         {/* List */}
         <div className="flex-1 p-6 space-y-6 overflow-y-auto">
-          {/* Group by Date - Mock */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide sticky top-0 bg-white dark:bg-black py-2">Hoje</h3>
-            {transactions.slice(0, 2).map((tx) => (
-              <TransactionItem key={tx.id} tx={tx} />
-            ))}
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide sticky top-0 bg-white dark:bg-black py-2">Ontem</h3>
-            {transactions.slice(2, 4).map((tx) => (
-              <TransactionItem key={tx.id} tx={tx} />
-            ))}
-          </div>
+          {transactions.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              Nenhuma transação encontrada.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide sticky top-0 bg-white dark:bg-black py-2">Recentes</h3>
+              {transactions.map((tx) => (
+                <TransactionItem key={tx.id} tx={tx} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </MobileLayout>
@@ -59,14 +60,15 @@ function TransactionItem({ tx }: { tx: any }) {
         </div>
         <div>
           <p className="font-semibold text-gray-900 dark:text-white group-hover:text-primary transition-colors">{tx.description}</p>
-          <p className="text-xs text-gray-500">{tx.category}</p>
+          <p className="text-xs text-gray-500">
+            {tx.category} • {format(new Date(tx.date), 'dd/MM HH:mm')}
+          </p>
         </div>
       </div>
       <div className="text-right">
         <span className={`font-bold block ${tx.type === 'income' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
           {tx.type === 'income' ? '+' : '-'} R$ {tx.amount.toFixed(2)}
         </span>
-        <span className="text-xs text-gray-400">10:42</span>
       </div>
     </div>
   );

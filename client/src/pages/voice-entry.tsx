@@ -4,12 +4,16 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Mic, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useFinancialStore } from "@/lib/store";
+import { toast } from "@/hooks/use-toast";
 
 export default function VoiceEntry() {
   const [_, setLocation] = useLocation();
+  const addTransaction = useFinancialStore((state) => state.addTransaction);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [stage, setStage] = useState<"idle" | "listening" | "processing" | "confirm">("idle");
+  const [parsedData, setParsedData] = useState<{ amount: number; description: string; category: any } | null>(null);
 
   const startListening = () => {
     setStage("listening");
@@ -19,10 +23,34 @@ export default function VoiceEntry() {
       setIsListening(false);
       setStage("processing");
       setTimeout(() => {
-        setTranscript("Gastei 45 reais na Padaria Estrela");
+        const mockText = "Gastei 45 reais na Padaria Estrela";
+        setTranscript(mockText);
+        setParsedData({
+            amount: 45.00,
+            description: "Padaria Estrela",
+            category: "Alimentação"
+        });
         setStage("confirm");
       }, 1500);
     }, 3000);
+  };
+
+  const handleConfirm = () => {
+    if (parsedData) {
+        addTransaction({
+            amount: parsedData.amount,
+            type: "expense", // Mocking voice as primarily expense for now, could be smarter
+            category: parsedData.category,
+            description: parsedData.description,
+            source: "voice",
+            isPersonal: true
+        });
+        toast({
+            title: "Salvo com sucesso!",
+            description: `Despesa de R$ ${parsedData.amount.toFixed(2)} registrada.`,
+        });
+        setLocation("/dashboard");
+    }
   };
 
   return (
@@ -89,15 +117,15 @@ export default function VoiceEntry() {
                 <p className="text-sm text-gray-500">Entendi que:</p>
                 <h3 className="text-xl font-medium text-gray-900 dark:text-white">"{transcript}"</h3>
                 <div className="flex justify-center gap-2">
-                  <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-bold">Alimentação</span>
-                  <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-bold">R$ 45,00</span>
+                  <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-bold">{parsedData?.category}</span>
+                  <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-bold">R$ {parsedData?.amount.toFixed(2)}</span>
                 </div>
               </div>
               <div className="flex gap-4">
                 <Button variant="outline" className="flex-1 h-12" onClick={() => setStage("idle")}>
                   Cancelar
                 </Button>
-                <Button className="flex-1 h-12 bg-primary hover:bg-primary/90" onClick={() => setLocation("/dashboard")}>
+                <Button className="flex-1 h-12 bg-primary hover:bg-primary/90" onClick={handleConfirm}>
                   <Check className="w-4 h-4 mr-2" /> Confirmar
                 </Button>
               </div>

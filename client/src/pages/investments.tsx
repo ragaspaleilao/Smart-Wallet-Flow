@@ -1,9 +1,45 @@
 import { MobileLayout } from "@/components/mobile-layout";
-import { investments } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { PieChart, TrendingUp, Plus } from "lucide-react";
+import { useFinancialStore } from "@/lib/store";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
 
 export default function Investments() {
+  const investments = useFinancialStore((state) => state.investments);
+  const addInvestment = useFinancialStore((state) => state.addInvestment);
+  
+  const [open, setOpen] = useState(false);
+  const [newInv, setNewInv] = useState({ name: "", value: "", yield: "" });
+
+  const totalInvested = investments.reduce((acc, curr) => acc + curr.value, 0);
+
+  const handleAdd = () => {
+    if (!newInv.name || !newInv.value) {
+        toast({ title: "Preencha todos os campos", variant: "destructive" });
+        return;
+    }
+
+    addInvestment({
+        name: newInv.name,
+        value: Number(newInv.value),
+        yield: newInv.yield || "+0.5%", // Default yield if not provided
+    });
+
+    setNewInv({ name: "", value: "", yield: "" });
+    setOpen(false);
+    toast({ title: "Investimento adicionado!" });
+  };
+
   return (
     <MobileLayout>
       <div className="flex flex-col min-h-full p-6 bg-white dark:bg-black">
@@ -12,18 +48,58 @@ export default function Investments() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Patrimônio</h1>
             <p className="text-gray-500 text-sm">Seu dinheiro rendendo</p>
           </div>
-          <Button size="icon" variant="outline" className="rounded-full">
-            <Plus className="w-5 h-5" />
-          </Button>
+          
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="icon" variant="outline" className="rounded-full">
+                    <Plus className="w-5 h-5" />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Novo Investimento</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label>Nome do Ativo</Label>
+                        <Input 
+                            placeholder="Ex: Tesouro Direto" 
+                            value={newInv.name}
+                            onChange={(e) => setNewInv({...newInv, name: e.target.value})}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Valor Investido (R$)</Label>
+                        <Input 
+                            type="number" 
+                            placeholder="1000" 
+                            value={newInv.value}
+                            onChange={(e) => setNewInv({...newInv, value: e.target.value})}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Rendimento Estimado (Mensal)</Label>
+                        <Input 
+                            placeholder="Ex: +0.85%" 
+                            value={newInv.yield}
+                            onChange={(e) => setNewInv({...newInv, yield: e.target.value})}
+                        />
+                    </div>
+                    <Button className="w-full" onClick={handleAdd}>Salvar Investimento</Button>
+                </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Total Wealth */}
         <div className="text-center py-8 border-b border-gray-100 dark:border-zinc-800">
           <span className="text-sm font-medium text-gray-500">Total Investido</span>
-          <h2 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mt-2">R$ 17.450,00</h2>
+          <h2 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mt-2">
+            R$ {totalInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </h2>
           <div className="flex items-center justify-center gap-2 mt-2 text-green-600 bg-green-50 dark:bg-green-900/20 py-1 px-3 rounded-full w-fit mx-auto">
             <TrendingUp className="w-4 h-4" />
-            <span className="text-sm font-medium">+ R$ 145,30 (0.85%)</span>
+            <span className="text-sm font-medium">+ R$ {(totalInvested * 0.0085).toFixed(2)} (est. 0.85%)</span>
           </div>
         </div>
 
