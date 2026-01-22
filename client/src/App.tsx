@@ -3,6 +3,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
+import { NotificationListenerSimulator } from "@/components/notification-listener-simulator";
 
 // Pages
 import Onboarding from "@/pages/onboarding";
@@ -45,6 +46,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Toaster />
+      <NotificationListenerSimulator />
       <Router />
     </QueryClientProvider>
   );

@@ -1,11 +1,10 @@
 import { Link } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { ArrowUp, ArrowDown, Mic, Camera, Plus, TrendingUp, AlertTriangle } from "lucide-react";
-import { transactions } from "@/lib/mock-data";
+import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
+import { useFinancialStore } from "@/lib/store";
+import { format } from "date-fns";
 
 const chartData = [
   { day: '1', value: 1200 },
@@ -18,6 +17,8 @@ const chartData = [
 ];
 
 export default function Dashboard() {
+  const { balance, income, expense, transactions } = useFinancialStore();
+
   return (
     <MobileLayout>
       <div className="flex flex-col space-y-6 p-6 pt-12 safe-pb">
@@ -28,7 +29,7 @@ export default function Dashboard() {
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Saldo disponível</p>
               <h1 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mt-1">
-                R$ 3.450,20
+                R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </h1>
             </div>
             <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
@@ -44,7 +45,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-xs text-green-600/80 dark:text-green-400/80 font-medium">Entradas</p>
-                <p className="text-sm font-bold text-green-700 dark:text-green-300">R$ 5.200</p>
+                <p className="text-sm font-bold text-green-700 dark:text-green-300">R$ {income.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
               </div>
             </div>
             <div className="flex-1 bg-red-50 dark:bg-red-950/20 p-3 rounded-2xl flex items-center space-x-3">
@@ -53,7 +54,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-xs text-red-600/80 dark:text-red-400/80 font-medium">Saídas</p>
-                <p className="text-sm font-bold text-red-700 dark:text-red-300">R$ 1.749</p>
+                <p className="text-sm font-bold text-red-700 dark:text-red-300">R$ {expense.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
               </div>
             </div>
           </div>
@@ -140,10 +141,10 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-3">
-            {transactions.map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800">
+            {transactions.slice(0, 5).map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 animate-in fade-in slide-in-from-bottom-2">
                 <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${
                     tx.category === 'Alimentação' ? 'bg-orange-100 text-orange-600' :
                     tx.category === 'Transporte' ? 'bg-blue-100 text-blue-600' :
                     tx.category === 'Salário' ? 'bg-green-100 text-green-600' :
@@ -153,7 +154,9 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900 dark:text-white">{tx.description}</p>
-                    <p className="text-xs text-gray-500">{tx.category} • {tx.date}</p>
+                    <p className="text-xs text-gray-500">
+                      {tx.category} • {format(new Date(tx.date), 'dd/MM HH:mm')}
+                    </p>
                   </div>
                 </div>
                 <span className={`font-bold ${tx.type === 'income' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
