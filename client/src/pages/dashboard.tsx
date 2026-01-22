@@ -6,6 +6,7 @@ import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Pa
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 import { useFinancialStore } from "@/lib/store";
 import { format } from "date-fns";
+import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 
 const chartData = [
   { day: '1', value: 1200 },
@@ -186,7 +187,8 @@ export default function Dashboard() {
 
           <div className="space-y-3">
             {transactions.slice(0, 5).map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 animate-in fade-in slide-in-from-bottom-2">
+              <EditTransactionSheet key={tx.id} transaction={tx}>
+              <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 animate-in fade-in slide-in-from-bottom-2">
                 <div className="flex items-center gap-4">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${
                     tx.category === 'Alimentação' ? 'bg-orange-100 text-orange-600' :
@@ -216,6 +218,7 @@ export default function Dashboard() {
                   {tx.type === 'income' ? '+' : '-'} R$ {tx.amount.toFixed(2)}
                 </span>
               </div>
+              </EditTransactionSheet>
             ))}
           </div>
         </div>

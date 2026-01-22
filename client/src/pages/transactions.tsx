@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
 import { useFinancialStore } from "@/lib/store";
 import { format } from "date-fns";
+import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 
 export default function Transactions() {
   const transactions = useFinancialStore((state) => state.transactions);
@@ -54,7 +55,8 @@ function TransactionItem({ tx }: { tx: any }) {
   const account = accounts.find(a => a.id === tx.accountId);
 
   return (
-    <div className="flex items-center justify-between py-2 group">
+    <EditTransactionSheet transaction={tx}>
+    <div className="flex items-center justify-between py-2 group cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-900 rounded-lg px-2 -mx-2 transition-colors">
       <div className="flex items-center gap-4">
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
           tx.type === 'income' ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600'
@@ -80,5 +82,6 @@ function TransactionItem({ tx }: { tx: any }) {
         </span>
       </div>
     </div>
+    </EditTransactionSheet>
   );
 }

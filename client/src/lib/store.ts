@@ -90,6 +90,7 @@ interface FinancialStore {
   expense: number;
   
   addTransaction: (tx: Omit<Transaction, 'id' | 'date'>) => void;
+  updateTransaction: (id: string, tx: Partial<Transaction>) => void;
   removeTransaction: (id: string) => void;
   
   addAccount: (acc: Omit<Account, 'id'>) => void;
@@ -226,6 +227,58 @@ export const useFinancialStore = create<FinancialStore>()(
           .reduce((acc, curr) => acc + curr.amount, 0);
 
         // Global balance is sum of all account balances
+        const globalBalance = newAccounts.reduce((acc, curr) => acc + curr.balance, 0);
+
+        return {
+          transactions: newTransactions,
+          accounts: newAccounts,
+          income,
+          expense,
+          balance: globalBalance
+        };
+      }),
+
+      updateTransaction: (id, txData) => set((state) => {
+        const oldTx = state.transactions.find(t => t.id === id);
+        if (!oldTx) return {};
+
+        const newTransactions = state.transactions.map(t => 
+          t.id === id ? { ...t, ...txData } : t
+        );
+        
+        let newAccounts = [...state.accounts];
+        
+        // Revert old transaction effect on balance
+        if (oldTx.accountId) {
+          newAccounts = newAccounts.map(acc => {
+             if (acc.id === oldTx.accountId) {
+               const amountChange = oldTx.type === 'income' ? -oldTx.amount : oldTx.amount;
+               return { ...acc, balance: acc.balance + amountChange };
+             }
+             return acc;
+          });
+        }
+        
+        // Apply new transaction effect on balance
+        const newTx = newTransactions.find(t => t.id === id)!;
+        if (newTx.accountId) {
+           newAccounts = newAccounts.map(acc => {
+             if (acc.id === newTx.accountId) {
+               const amountChange = newTx.type === 'income' ? newTx.amount : -newTx.amount;
+               return { ...acc, balance: acc.balance + amountChange };
+             }
+             return acc;
+          });
+        }
+
+        const income = newTransactions
+          .filter(t => t.type === 'income')
+          .reduce((acc, curr) => acc + curr.amount, 0);
+          
+        const expense = newTransactions
+          .filter(t => t.type === 'expense')
+          .reduce((acc, curr) => acc + curr.amount, 0);
+        
         const globalBalance = newAccounts.reduce((acc, curr) => acc + curr.balance, 0);
 
         return {
