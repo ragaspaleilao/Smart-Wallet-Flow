@@ -23,6 +23,7 @@ import SetupAccounts from "@/pages/setup-accounts";
 import Analytics from "@/pages/analytics";
 import Business from "@/pages/business";
 import Premium from "@/pages/premium";
+import AiChat from "@/pages/ai-chat";
 
 function Router() {
   return (
@@ -48,6 +49,7 @@ function Router() {
       <Route path="/analytics" component={Analytics} />
       <Route path="/business" component={Business} />
       <Route path="/premium" component={Premium} />
+      <Route path="/ai-chat" component={AiChat} />
 
       <Route component={NotFound} />
     </Switch>
