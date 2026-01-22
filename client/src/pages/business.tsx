@@ -1,20 +1,23 @@
 import { MobileLayout } from "@/components/mobile-layout";
-import { useFinancialStore } from "@/lib/store";
+import { useFinancialStore, Category, TransactionType, AccountType } from "@/lib/store";
 import { calculateBusinessMetrics, generateBusinessInsights } from "@/lib/business-ai";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Package, DollarSign, BarChart3, Plus, Settings2, Trash2 } from "lucide-react";
+import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Package, DollarSign, BarChart3, Plus, Settings2, Trash2, Edit2, Wallet } from "lucide-react";
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { nanoid } from "nanoid";
+import { EditProductDialog } from "@/components/edit-product-dialog";
+import { toast } from "@/hooks/use-toast";
 
 export default function Business() {
-  const { businessProducts, businessSettings, addBusinessProduct, updateBusinessSettings } = useFinancialStore();
+  const { businessProducts, businessSettings, addBusinessProduct, updateBusinessSettings, addTransaction, accounts } = useFinancialStore();
   
   const metrics = useMemo(() => calculateBusinessMetrics(businessProducts, businessSettings), [businessProducts, businessSettings]);
   const insights = useMemo(() => generateBusinessInsights(metrics), [metrics]);
@@ -29,6 +32,16 @@ export default function Business() {
   
   const [newCostName, setNewCostName] = useState("");
   const [newCostValue, setNewCostValue] = useState("");
+
+  // Daily Entry State
+  const [dailyEntryOpen, setDailyEntryOpen] = useState(false);
+  const [dailyEntry, setDailyEntry] = useState({
+    type: 'income' as TransactionType,
+    description: "",
+    amount: "",
+    category: "Vendas" as Category,
+    accountId: ""
+  });
 
   const handleAddCost = () => {
     if (newCostName && newCostValue) {
@@ -50,6 +63,28 @@ export default function Business() {
         directCosts: newProduct.directCosts
     });
     setNewProduct({ name: "", category: "", sellingPrice: "", averageMonthlySales: "", directCosts: [] });
+    toast({ title: "Produto adicionado!" });
+  };
+
+  const handleSaveDailyEntry = () => {
+    if (!dailyEntry.description || !dailyEntry.amount || !dailyEntry.accountId) {
+        toast({ title: "Preencha todos os campos", variant: "destructive" });
+        return;
+    }
+
+    addTransaction({
+        type: dailyEntry.type,
+        amount: Number(dailyEntry.amount),
+        description: dailyEntry.description,
+        category: dailyEntry.category,
+        source: 'manual',
+        isPersonal: false, // Business Transaction
+        accountId: dailyEntry.accountId
+    });
+
+    setDailyEntryOpen(false);
+    setDailyEntry({ type: 'income', description: "", amount: "", category: "Vendas", accountId: "" });
+    toast({ title: "Lançamento registrado!" });
   };
 
   const chartData = metrics.calculatedProducts.map(p => ({
@@ -79,54 +114,150 @@ export default function Business() {
                 </div>
             </div>
             
-            <Dialog>
-                <DialogTrigger asChild>
-                    <Button size="icon" className="rounded-full bg-blue-600 hover:bg-blue-700">
-                        <Plus className="w-6 h-6" />
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className="max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Novo Produto/Serviço</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label>Nome</Label>
-                            <Input value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} placeholder="Ex: Hambúrguer" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Preço de Venda</Label>
-                                <Input type="number" value={newProduct.sellingPrice} onChange={e => setNewProduct({...newProduct, sellingPrice: e.target.value})} placeholder="0.00" />
+            <div className="flex gap-2">
+                {/* Daily Entry Button */}
+                <Dialog open={dailyEntryOpen} onOpenChange={setDailyEntryOpen}>
+                    <DialogTrigger asChild>
+                        <Button size="icon" variant="outline" className="rounded-full border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100">
+                            <DollarSign className="w-5 h-5" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Lançamento Diário</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg">
+                                <button 
+                                    className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${dailyEntry.type === 'income' ? 'bg-white dark:bg-zinc-700 shadow-sm text-green-600' : 'text-gray-500'}`}
+                                    onClick={() => setDailyEntry({...dailyEntry, type: 'income', category: 'Vendas'})}
+                                >
+                                    Venda / Receita
+                                </button>
+                                <button 
+                                    className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${dailyEntry.type === 'expense' ? 'bg-white dark:bg-zinc-700 shadow-sm text-red-600' : 'text-gray-500'}`}
+                                    onClick={() => setDailyEntry({...dailyEntry, type: 'expense', category: 'Outros'})}
+                                >
+                                    Despesa
+                                </button>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Vendas/Mês (Média)</Label>
-                                <Input type="number" value={newProduct.averageMonthlySales} onChange={e => setNewProduct({...newProduct, averageMonthlySales: e.target.value})} placeholder="0" />
-                            </div>
-                        </div>
-                        
-                        <div className="space-y-2 border-t pt-4">
-                            <Label className="text-blue-600 font-bold">Custos Diretos (Por unidade)</Label>
-                            <div className="flex gap-2">
-                                <Input className="flex-1" value={newCostName} onChange={e => setNewCostName(e.target.value)} placeholder="Item (ex: Carne)" />
-                                <Input className="w-24" type="number" value={newCostValue} onChange={e => setNewCostValue(e.target.value)} placeholder="R$" />
-                                <Button onClick={handleAddCost} size="icon" variant="outline"><Plus className="w-4 h-4" /></Button>
-                            </div>
-                            <div className="space-y-2 bg-gray-50 p-2 rounded-md">
-                                {newProduct.directCosts.map((cost, idx) => (
-                                    <div key={idx} className="flex justify-between text-sm">
-                                        <span>{cost.name}</span>
-                                        <span className="font-bold">R$ {cost.value.toFixed(2)}</span>
-                                    </div>
-                                ))}
-                                {newProduct.directCosts.length === 0 && <p className="text-xs text-gray-400 text-center">Nenhum custo adicionado</p>}
-                            </div>
-                        </div>
 
-                        <Button className="w-full bg-blue-600" onClick={handleSaveProduct}>Salvar Produto</Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                            <div className="space-y-2">
+                                <Label>Valor</Label>
+                                <Input 
+                                    type="number" 
+                                    value={dailyEntry.amount} 
+                                    onChange={(e) => setDailyEntry({...dailyEntry, amount: e.target.value})}
+                                    placeholder="0.00"
+                                    className="text-lg font-bold"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Descrição</Label>
+                                <Input 
+                                    value={dailyEntry.description} 
+                                    onChange={(e) => setDailyEntry({...dailyEntry, description: e.target.value})}
+                                    placeholder={dailyEntry.type === 'income' ? "Ex: Venda do dia" : "Ex: Compra de material"}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Categoria</Label>
+                                <Select value={dailyEntry.category} onValueChange={(val: Category) => setDailyEntry({...dailyEntry, category: val})}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {dailyEntry.type === 'income' ? (
+                                            <>
+                                                <SelectItem value="Vendas">Vendas</SelectItem>
+                                                <SelectItem value="Serviços">Serviços</SelectItem>
+                                                <SelectItem value="Outros">Outros</SelectItem>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <SelectItem value="Alimentação">Insumos (Alimentação)</SelectItem>
+                                                <SelectItem value="Transporte">Transporte / Entrega</SelectItem>
+                                                <SelectItem value="Outros">Manutenção / Outros</SelectItem>
+                                                <SelectItem value="Serviços">Serviços Terceirizados</SelectItem>
+                                            </>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Conta de Destino/Origem</Label>
+                                <Select value={dailyEntry.accountId} onValueChange={(val) => setDailyEntry({...dailyEntry, accountId: val})}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {accounts.map(acc => (
+                                            <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleSaveDailyEntry}>
+                                Confirmar Lançamento
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                {/* New Product Button */}
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button size="icon" className="rounded-full bg-blue-600 hover:bg-blue-700">
+                            <Plus className="w-6 h-6" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Novo Produto/Serviço</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label>Nome</Label>
+                                <Input value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} placeholder="Ex: Hambúrguer" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Preço de Venda</Label>
+                                    <Input type="number" value={newProduct.sellingPrice} onChange={e => setNewProduct({...newProduct, sellingPrice: e.target.value})} placeholder="0.00" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Vendas/Mês (Média)</Label>
+                                    <Input type="number" value={newProduct.averageMonthlySales} onChange={e => setNewProduct({...newProduct, averageMonthlySales: e.target.value})} placeholder="0" />
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-2 border-t pt-4">
+                                <Label className="text-blue-600 font-bold">Custos Diretos (Por unidade)</Label>
+                                <div className="flex gap-2">
+                                    <Input className="flex-1" value={newCostName} onChange={e => setNewCostName(e.target.value)} placeholder="Item (ex: Carne)" />
+                                    <Input className="w-24" type="number" value={newCostValue} onChange={e => setNewCostValue(e.target.value)} placeholder="R$" />
+                                    <Button onClick={handleAddCost} size="icon" variant="outline"><Plus className="w-4 h-4" /></Button>
+                                </div>
+                                <div className="space-y-2 bg-gray-50 p-2 rounded-md">
+                                    {newProduct.directCosts.map((cost, idx) => (
+                                        <div key={idx} className="flex justify-between text-sm">
+                                            <span>{cost.name}</span>
+                                            <span className="font-bold">R$ {cost.value.toFixed(2)}</span>
+                                        </div>
+                                    ))}
+                                    {newProduct.directCosts.length === 0 && <p className="text-xs text-gray-400 text-center">Nenhum custo adicionado</p>}
+                                </div>
+                            </div>
+
+                            <Button className="w-full bg-blue-600" onClick={handleSaveProduct}>Salvar Produto</Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            </div>
           </div>
         </div>
 
@@ -170,7 +301,13 @@ export default function Business() {
             <div className="space-y-4">
                 <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Seus Produtos</h3>
                 {metrics.calculatedProducts.map(p => (
-                    <Card key={p.id} className="p-4 overflow-hidden relative">
+                    <EditProductDialog key={p.id} product={p}>
+                    <Card className="p-4 overflow-hidden relative cursor-pointer hover:border-blue-300 transition-all group">
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="p-1 bg-gray-100 rounded-full text-gray-500">
+                                <Edit2 className="w-3 h-3" />
+                            </div>
+                        </div>
                         <div className="flex justify-between items-start mb-4">
                             <div>
                                 <h3 className="font-bold text-lg">{p.name}</h3>
@@ -198,6 +335,7 @@ export default function Business() {
                             </div>
                         </div>
                     </Card>
+                    </EditProductDialog>
                 ))}
             </div>
 
