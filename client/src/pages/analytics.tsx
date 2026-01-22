@@ -1,24 +1,50 @@
 import { MobileLayout } from "@/components/mobile-layout";
-import { useFinancialStore } from "@/lib/store";
+import { useFinancialStore, Category } from "@/lib/store";
 import { generateFinancialInsights, getChartData, getCategoryDistribution, AIInsight } from "@/lib/financial-ai";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Filter, Calendar } from "lucide-react";
+import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Filter, Calendar, X, Check } from "lucide-react";
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { useState, useMemo } from "react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetFooter,
+  SheetClose,
+} from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
 
 const COLORS = ['#8b5cf6', '#f97316', '#10b981', '#ef4444', '#3b82f6', '#eab308', '#ec4899'];
 
 export default function Analytics() {
   const { transactions, accounts, investments, budget } = useFinancialStore();
   const [period, setPeriod] = useState<30 | 90>(30);
+  
+  // Filtros
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<'income' | 'expense' | null>(null);
+
+  // Apply filters
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+        if (selectedCategory && t.category !== selectedCategory) return false;
+        if (selectedType && t.type !== selectedType) return false;
+        return true;
+    });
+  }, [transactions, selectedCategory, selectedType]);
 
   const insights = useMemo(() => generateFinancialInsights(transactions, accounts, investments, budget), [transactions, accounts, investments, budget]);
-  const chartData = useMemo(() => getChartData(transactions, period), [transactions, period]);
-  const categoryData = useMemo(() => getCategoryDistribution(transactions), [transactions]);
+  const chartData = useMemo(() => getChartData(filteredTransactions, period), [filteredTransactions, period]);
+  const categoryData = useMemo(() => getCategoryDistribution(filteredTransactions), [filteredTransactions]);
+
+  const categories = ["Alimentação", "Transporte", "Lazer", "Saúde", "Educação", "Salário", "Vendas", "Serviços", "Outros"];
 
   return (
     <MobileLayout>
@@ -36,16 +62,16 @@ export default function Analytics() {
                     <Brain className="w-6 h-6 text-purple-600" />
                     IA Financeira
                 </h1>
-                <p className="text-xs text-gray-500">Seu assistente inteligente</p>
+                <p className="text-xs text-gray-500">Análise inteligente de dados</p>
             </div>
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar items-center">
              <Button 
                 variant={period === 30 ? "default" : "outline"} 
                 size="sm" 
                 onClick={() => setPeriod(30)}
-                className="rounded-full text-xs"
+                className="rounded-full text-xs h-8"
              >
                 30 Dias
              </Button>
@@ -53,13 +79,76 @@ export default function Analytics() {
                 variant={period === 90 ? "default" : "outline"} 
                 size="sm" 
                 onClick={() => setPeriod(90)}
-                className="rounded-full text-xs"
+                className="rounded-full text-xs h-8"
              >
                 3 Meses
              </Button>
-             <Button variant="outline" size="sm" className="rounded-full text-xs gap-1">
-                <Filter className="w-3 h-3" /> Filtros
-             </Button>
+             
+             <Sheet>
+                <SheetTrigger asChild>
+                    <Button variant={selectedCategory || selectedType ? "secondary" : "outline"} size="sm" className="rounded-full text-xs h-8 gap-1">
+                        <Filter className="w-3 h-3" /> 
+                        {selectedCategory || selectedType ? 'Filtrado' : 'Filtros'}
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="bottom" className="rounded-t-3xl">
+                    <SheetHeader className="mb-4">
+                        <SheetTitle>Filtrar Análise</SheetTitle>
+                        <SheetDescription>Refine os dados para a IA analisar.</SheetDescription>
+                    </SheetHeader>
+                    
+                    <div className="space-y-6 pb-6">
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-medium">Tipo de Transação</h4>
+                            <div className="flex gap-2">
+                                <Button 
+                                    variant={selectedType === 'income' ? 'default' : 'outline'} 
+                                    size="sm" 
+                                    onClick={() => setSelectedType(selectedType === 'income' ? null : 'income')}
+                                    className="rounded-full"
+                                >
+                                    Entradas
+                                </Button>
+                                <Button 
+                                    variant={selectedType === 'expense' ? 'default' : 'outline'} 
+                                    size="sm" 
+                                    onClick={() => setSelectedType(selectedType === 'expense' ? null : 'expense')}
+                                    className="rounded-full"
+                                >
+                                    Saídas
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-medium">Categorias</h4>
+                            <div className="flex flex-wrap gap-2">
+                                {categories.map(cat => (
+                                    <Badge 
+                                        key={cat}
+                                        variant={selectedCategory === cat ? "default" : "outline"}
+                                        className="cursor-pointer px-3 py-1 rounded-full"
+                                        onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
+                                    >
+                                        {cat}
+                                    </Badge>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <SheetFooter>
+                        <SheetClose asChild>
+                            <Button className="w-full h-12 text-lg">Aplicar Filtros</Button>
+                        </SheetClose>
+                    </SheetFooter>
+                </SheetContent>
+             </Sheet>
+
+             {(selectedCategory || selectedType) && (
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => {setSelectedCategory(null); setSelectedType(null);}}>
+                    <X className="w-4 h-4" />
+                </Button>
+             )}
           </div>
         </div>
 
@@ -67,10 +156,13 @@ export default function Analytics() {
             
             {/* AI Insights Section */}
             <div className="space-y-4">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Lightbulb className="w-5 h-5 text-yellow-500" />
-                    Insights
-                </h2>
+                <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <Lightbulb className="w-5 h-5 text-yellow-500" />
+                        Insights
+                    </h2>
+                    <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-bold">BETA</span>
+                </div>
                 
                 {insights.length === 0 ? (
                     <Card className="p-4 bg-gray-50 dark:bg-zinc-900 border-none shadow-sm">
@@ -110,7 +202,7 @@ export default function Analytics() {
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Para onde vai seu dinheiro?</h2>
                 <Card className="p-4 bg-white dark:bg-zinc-900 border-gray-100 dark:border-zinc-800 shadow-sm">
                     <div className="flex flex-col sm:flex-row items-center gap-4">
-                        <div className="h-48 w-48 relative">
+                        <div className="h-48 w-48 relative flex-shrink-0">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
@@ -133,7 +225,7 @@ export default function Analytics() {
                             </div>
                         </div>
                         <div className="flex-1 w-full space-y-2">
-                            {categoryData.slice(0, 5).map((cat, idx) => (
+                            {categoryData.length > 0 ? categoryData.slice(0, 5).map((cat, idx) => (
                                 <div key={cat.name} className="flex items-center justify-between text-sm">
                                     <div className="flex items-center gap-2">
                                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
@@ -141,7 +233,9 @@ export default function Analytics() {
                                     </div>
                                     <span className="font-bold text-gray-900 dark:text-white">R$ {cat.value.toFixed(0)}</span>
                                 </div>
-                            ))}
+                            )) : (
+                                <p className="text-sm text-gray-400 text-center py-4">Sem dados para este filtro.</p>
+                            )}
                         </div>
                     </div>
                 </Card>

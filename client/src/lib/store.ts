@@ -93,8 +93,24 @@ export const useFinancialStore = create<FinancialStore>()(
   persist(
     (set, get) => ({
       transactions: [
+        // Current Month (Assuming active usage)
         { id: '1', amount: 45.90, type: 'expense', category: 'Alimentação', description: 'Padaria Estrela', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
         { id: '2', amount: 3500.00, type: 'income', category: 'Salário', description: 'Pagamento Mensal', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
+        { id: '3', amount: 120.00, type: 'expense', category: 'Lazer', description: 'Cinema e Pipoca', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '2' },
+        { id: '4', amount: 850.00, type: 'expense', category: 'Moradia', description: 'Aluguel (Parte)', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
+        
+        // Spike in Food (to trigger AI alert)
+        { id: '5', amount: 250.00, type: 'expense', category: 'Alimentação', description: 'Jantar Família', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
+        { id: '6', amount: 180.00, type: 'expense', category: 'Alimentação', description: 'Mercado Semanal', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
+
+        // Previous Month (for comparison)
+        { id: '10', amount: 3500.00, type: 'income', category: 'Salário', description: 'Pagamento Mensal', date: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
+        { id: '11', amount: 300.00, type: 'expense', category: 'Alimentação', description: 'Mercado Mensal', date: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
+        { id: '12', amount: 150.00, type: 'expense', category: 'Transporte', description: 'Uber', date: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
+        
+        // 2 Months Ago
+        { id: '20', amount: 3500.00, type: 'income', category: 'Salário', description: 'Pagamento Mensal', date: new Date(new Date().setMonth(new Date().getMonth() - 2)).toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
+        { id: '21', amount: 400.00, type: 'expense', category: 'Lazer', description: 'Show', date: new Date(new Date().setMonth(new Date().getMonth() - 2)).toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
       ],
       accounts: [
         { id: '1', name: 'Nubank', type: 'bank', balance: 3454.10, initialBalance: 0, color: 'bg-purple-600', isPersonal: true },
