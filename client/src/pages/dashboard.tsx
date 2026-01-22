@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
-import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle } from "lucide-react";
+import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 import { useFinancialStore } from "@/lib/store";
 import { format } from "date-fns";
@@ -61,31 +61,40 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions - Floating-ish feel */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-3">
           <Link href="/photo-entry">
-            <Button variant="outline" className="h-auto py-4 flex flex-col gap-2 rounded-2xl border-2 border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group">
-              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-full group-hover:scale-110 transition-transform">
-                <Camera className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1">
+              <div className="p-2.5 bg-purple-100 dark:bg-purple-900/30 rounded-full group-hover:scale-110 transition-transform">
+                <Camera className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
-              <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Foto</span>
+              <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Foto</span>
             </Button>
           </Link>
           
           <Link href="/voice-entry">
-            <Button variant="outline" className="h-auto py-4 flex flex-col gap-2 rounded-2xl border-2 border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group">
-              <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-full group-hover:scale-110 transition-transform">
-                <Mic className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+            <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1">
+              <div className="p-2.5 bg-orange-100 dark:bg-orange-900/30 rounded-full group-hover:scale-110 transition-transform">
+                <Mic className="w-5 h-5 text-orange-600 dark:text-orange-400" />
               </div>
-              <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Voz</span>
+              <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Voz</span>
+            </Button>
+          </Link>
+
+          <Link href="/accounts">
+            <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1">
+              <div className="p-2.5 bg-blue-100 dark:bg-blue-900/30 rounded-full group-hover:scale-110 transition-transform">
+                <Wallet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Contas</span>
             </Button>
           </Link>
 
           <Link href="/manual-entry">
-            <Button variant="outline" className="h-auto py-4 flex flex-col gap-2 rounded-2xl border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all group">
-              <div className="p-3 bg-primary text-white rounded-full group-hover:scale-110 transition-transform shadow-lg shadow-primary/30">
-                <Plus className="w-6 h-6" />
+            <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all group p-1">
+              <div className="p-2.5 bg-primary text-white rounded-full group-hover:scale-110 transition-transform shadow-lg shadow-primary/30">
+                <Plus className="w-5 h-5" />
               </div>
-              <span className="text-xs font-semibold text-primary">Manual</span>
+              <span className="text-[10px] font-semibold text-primary">Manual</span>
             </Button>
           </Link>
         </div>
