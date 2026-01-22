@@ -57,12 +57,27 @@ export interface Vehicle {
   }[];
 }
 
+export interface BusinessProduct {
+  id: string;
+  name: string;
+  category: string;
+  sellingPrice: number;
+  averageMonthlySales: number;
+  directCosts: { id: string; name: string; value: number }[];
+}
+
+export interface BusinessSettings {
+  fixedCosts: { id: string; name: string; value: number }[];
+}
+
 interface FinancialStore {
   transactions: Transaction[];
   accounts: Account[];
   goals: Goal[];
   investments: Investment[];
   vehicles: Vehicle[];
+  businessProducts: BusinessProduct[];
+  businessSettings: BusinessSettings;
   budget: {
     income: number;
     spendingLimit: number;
@@ -83,6 +98,10 @@ interface FinancialStore {
   addGoal: (goal: Omit<Goal, 'id'>) => void;
   addInvestment: (inv: Omit<Investment, 'id'>) => void;
   addVehicle: (veh: Omit<Vehicle, 'id'>) => void;
+  
+  addBusinessProduct: (product: Omit<BusinessProduct, 'id'>) => void;
+  updateBusinessProduct: (id: string, product: Partial<BusinessProduct>) => void;
+  updateBusinessSettings: (settings: Partial<BusinessSettings>) => void;
   
   updateBudget: (budget: Partial<FinancialStore['budget']>) => void;
   
@@ -130,6 +149,42 @@ export const useFinancialStore = create<FinancialStore>()(
           { name: "Seguro", due: "10/05", value: 2100.00, status: "ok" },
         ]},
       ],
+      businessProducts: [
+        { 
+          id: '1', 
+          name: 'Hambúrguer Artesanal', 
+          category: 'Alimentação', 
+          sellingPrice: 32.00, 
+          averageMonthlySales: 150,
+          directCosts: [
+            { id: '1', name: 'Carne (Blend)', value: 8.50 },
+            { id: '2', name: 'Pão Brioche', value: 2.50 },
+            { id: '3', name: 'Queijo Cheddar', value: 1.80 },
+            { id: '4', name: 'Embalagem', value: 1.20 },
+          ]
+        },
+        { 
+          id: '2', 
+          name: 'Batata Frita Especial', 
+          category: 'Alimentação', 
+          sellingPrice: 18.00, 
+          averageMonthlySales: 100,
+          directCosts: [
+            { id: '1', name: 'Batata Congelada', value: 4.00 },
+            { id: '2', name: 'Óleo', value: 0.50 },
+            { id: '3', name: 'Bacon e Cheddar', value: 3.50 },
+            { id: '4', name: 'Embalagem', value: 0.80 },
+          ]
+        }
+      ],
+      businessSettings: {
+        fixedCosts: [
+          { id: '1', name: 'Aluguel Ponto', value: 1200.00 },
+          { id: '2', name: 'Energia Elétrica', value: 450.00 },
+          { id: '3', name: 'Internet', value: 120.00 },
+          { id: '4', name: 'MEI (DAS)', value: 75.00 },
+        ]
+      },
       budget: {
         income: 3500.00,
         spendingLimit: 2500.00,
@@ -246,6 +301,18 @@ export const useFinancialStore = create<FinancialStore>()(
 
       addVehicle: (vehData) => set((state) => ({
         vehicles: [...state.vehicles, { ...vehData, id: nanoid() }]
+      })),
+      
+      addBusinessProduct: (prodData) => set((state) => ({
+        businessProducts: [...state.businessProducts, { ...prodData, id: nanoid() }]
+      })),
+      
+      updateBusinessProduct: (id, prodData) => set((state) => ({
+        businessProducts: state.businessProducts.map(p => p.id === id ? { ...p, ...prodData } : p)
+      })),
+      
+      updateBusinessSettings: (settings) => set((state) => ({
+        businessSettings: { ...state.businessSettings, ...settings }
       })),
 
       updateBudget: (budgetData) => set((state) => ({
