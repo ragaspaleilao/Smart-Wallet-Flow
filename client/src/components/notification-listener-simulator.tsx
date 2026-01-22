@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { Bell, CreditCard, Check, X, Smartphone } from "lucide-react";
+import { Bell, CreditCard, Check, X, Smartphone, PlusCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useFinancialStore } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 // Types of notifications to simulate
 const SAMPLE_NOTIFICATIONS = [
@@ -41,7 +43,11 @@ export function NotificationListenerSimulator() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   
-  const { addTransaction, accounts } = useFinancialStore();
+  // Quick Account Create State
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [newAccountName, setNewAccountName] = useState("");
+  
+  const { addTransaction, addAccount, accounts } = useFinancialStore();
 
   useEffect(() => {
     // Attempt to auto-select an account based on the notification app name
@@ -54,9 +60,8 @@ export function NotificationListenerSimulator() {
         if (matchingAccount) {
             setSelectedAccountId(matchingAccount.id);
         } else {
-            // Default to the first bank account or just the first account
-            const defaultAcc = accounts.find(acc => acc.type === 'bank') || accounts[0];
-            setSelectedAccountId(defaultAcc?.id || "");
+            // DO NOT default select anymore - force user to choose if no match found
+            setSelectedAccountId("");
         }
     }
   }, [activeNotification, accounts]);
@@ -65,11 +70,41 @@ export function NotificationListenerSimulator() {
     setActiveNotification(notif);
     setShowConfirmation(true);
     setIsOpen(false);
+    setIsCreatingAccount(false);
+    setNewAccountName("");
+  };
+
+  const handleCreateAccount = () => {
+    if (!newAccountName) return;
+
+    addAccount({
+        name: newAccountName,
+        type: 'bank',
+        balance: 0,
+        initialBalance: 0,
+        color: 'bg-purple-600',
+        isPersonal: true
+    });
+
+    // We need to find the ID of the newly created account. 
+    // Since addAccount doesn't return ID (void), we rely on finding it by name in the updated store.
+    // However, store update is async-ish in React render cycle. 
+    // For this mockup, let's just use a timeout or find it in the next render.
+    // Better yet: we know we just added it. Let's look for it in the store directly after a small delay or use a more robust ID gen here if we could.
+    // For simplicity: We will manually select it after creation in the UI by the user, OR simpler:
+    // We can filter accounts by name.
+    
+    // Hack for immediate selection: find the account with this name (it will be there on re-render).
+    // Actually, let's just close the creation mode and let the user pick it (it will be in the list).
+    setIsCreatingAccount(false);
+    toast({ title: "Conta criada!", description: "Selecione-a na lista agora." });
   };
 
   const handleConfirm = () => {
-    if (!activeNotification || !selectedAccountId) {
-        toast({ title: "Selecione uma conta", variant: "destructive" });
+    if (!activeNotification) return;
+
+    if (!selectedAccountId) {
+        toast({ title: "Selecione uma conta", description: "É obrigatório vincular uma conta.", variant: "destructive" });
         return;
     }
 
@@ -168,21 +203,58 @@ export function NotificationListenerSimulator() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-500 ml-1">Vincular à conta</label>
-                <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-                    <SelectTrigger className="w-full bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700">
-                        <SelectValue placeholder="Selecione a conta" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {accounts.map(acc => (
-                            <SelectItem key={acc.id} value={acc.id}>
-                                {acc.name} (R$ {acc.balance.toLocaleString('pt-BR')})
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-              </div>
+              {isCreatingAccount ? (
+                <div className="space-y-4 bg-gray-50 dark:bg-zinc-800 p-4 rounded-xl border border-gray-100 dark:border-zinc-700">
+                    <div className="flex items-center justify-between mb-2">
+                        <Label className="text-sm font-semibold">Nova Conta</Label>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setIsCreatingAccount(false)}>
+                            <X className="w-4 h-4" />
+                        </Button>
+                    </div>
+                    <div className="space-y-2">
+                        <Input 
+                            placeholder="Nome (ex: Itaú)" 
+                            value={newAccountName}
+                            onChange={(e) => setNewAccountName(e.target.value)}
+                            className="bg-white dark:bg-zinc-900"
+                        />
+                        <Button size="sm" className="w-full" onClick={handleCreateAccount}>
+                            Criar e Voltar
+                        </Button>
+                    </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <label className="text-xs font-medium text-gray-500 ml-1">Vincular à conta</label>
+                        <button 
+                            className="text-xs text-primary font-medium flex items-center gap-1 hover:underline"
+                            onClick={() => setIsCreatingAccount(true)}
+                        >
+                            <PlusCircle className="w-3 h-3" />
+                            Criar conta
+                        </button>
+                    </div>
+                    <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                        <SelectTrigger className={cn(
+                            "w-full border-gray-200 dark:border-zinc-700",
+                            !selectedAccountId ? "bg-red-50 border-red-200 text-red-600 dark:bg-red-900/10 dark:border-red-900/30" : "bg-gray-50 dark:bg-zinc-800"
+                        )}>
+                            <SelectValue placeholder="Selecione a conta (Obrigatório)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {accounts.map(acc => (
+                                <SelectItem key={acc.id} value={acc.id}>
+                                    {acc.name} (R$ {acc.balance.toLocaleString('pt-BR')})
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {!selectedAccountId && (
+                        <p className="text-xs text-red-500 ml-1">Você precisa selecionar uma conta.</p>
+                    )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <Button 
@@ -195,15 +267,12 @@ export function NotificationListenerSimulator() {
                 <Button 
                   className="h-12 bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20"
                   onClick={handleConfirm}
+                  disabled={!selectedAccountId || isCreatingAccount}
                 >
                   <Check className="w-4 h-4 mr-2" />
                   Salvar
                 </Button>
               </div>
-              
-              <button className="w-full text-center text-xs text-gray-400 hover:text-gray-600">
-                Editar detalhes antes de salvar
-              </button>
             </div>
           </Card>
         </div>

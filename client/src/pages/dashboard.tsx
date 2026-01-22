@@ -154,8 +154,17 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900 dark:text-white">{tx.description}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
                       {tx.category} • {format(new Date(tx.date), 'dd/MM HH:mm')}
+                      {(() => {
+                        const account = useFinancialStore.getState().accounts.find(a => a.id === tx.accountId);
+                        return account ? (
+                          <>
+                             <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-zinc-700" />
+                             <span className="font-medium text-gray-600 dark:text-gray-400">{account.name}</span>
+                          </>
+                        ) : null;
+                      })()}
                     </p>
                   </div>
                 </div>

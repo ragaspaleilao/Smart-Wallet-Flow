@@ -50,6 +50,9 @@ export default function Transactions() {
 }
 
 function TransactionItem({ tx }: { tx: any }) {
+  const accounts = useFinancialStore(state => state.accounts);
+  const account = accounts.find(a => a.id === tx.accountId);
+
   return (
     <div className="flex items-center justify-between py-2 group">
       <div className="flex items-center gap-4">
@@ -60,8 +63,14 @@ function TransactionItem({ tx }: { tx: any }) {
         </div>
         <div>
           <p className="font-semibold text-gray-900 dark:text-white group-hover:text-primary transition-colors">{tx.description}</p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 flex items-center gap-1">
             {tx.category} • {format(new Date(tx.date), 'dd/MM HH:mm')}
+            {account && (
+              <>
+                <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-zinc-700" />
+                <span className="font-medium text-gray-600 dark:text-gray-400">{account.name}</span>
+              </>
+            )}
           </p>
         </div>
       </div>
