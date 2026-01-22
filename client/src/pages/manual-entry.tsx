@@ -5,17 +5,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Calculator } from "lucide-react";
 import { useState } from "react";
-import { useFinancialStore, Category } from "@/lib/store";
+import { useFinancialStore, Category, Account } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function ManualEntry() {
   const [_, setLocation] = useLocation();
-  const addTransaction = useFinancialStore((state) => state.addTransaction);
+  const { addTransaction, accounts } = useFinancialStore();
   
   const [type, setType] = useState<"expense" | "income">("expense");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<Category>("Alimentação");
+  const [accountId, setAccountId] = useState<string>(accounts[0]?.id || "");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
   const formatCurrency = (val: string) => {
@@ -53,6 +55,15 @@ export default function ManualEntry() {
       });
       return;
     }
+    
+    if (!accountId) {
+       toast({
+        title: "Conta obrigatória",
+        description: "Selecione de onde saiu ou para onde foi o dinheiro.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     addTransaction({
       amount: numericAmount,
@@ -60,7 +71,8 @@ export default function ManualEntry() {
       category,
       description,
       source: "manual",
-      isPersonal: true, // Defaulting to personal for now
+      isPersonal: true,
+      accountId
     });
 
     toast({
@@ -134,6 +146,20 @@ export default function ManualEntry() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Conta</Label>
+            <Select value={accountId} onValueChange={setAccountId}>
+              <SelectTrigger className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
+                <SelectValue placeholder="Selecione a conta" />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.map(acc => (
+                  <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {acc.balance.toLocaleString('pt-BR')})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

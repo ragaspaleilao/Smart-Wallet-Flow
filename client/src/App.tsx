@@ -18,12 +18,15 @@ import Investments from "@/pages/investments";
 import Vehicles from "@/pages/vehicles";
 import Settings from "@/pages/settings";
 import Budget from "@/pages/budget";
+import Accounts from "@/pages/accounts";
+import SetupAccounts from "@/pages/setup-accounts";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Onboarding} />
       <Route path="/permissions" component={Permissions} />
+      <Route path="/setup-accounts" component={SetupAccounts} />
       <Route path="/dashboard" component={Dashboard} />
       
       {/* Entry screens */}
@@ -38,6 +41,7 @@ function Router() {
       <Route path="/vehicles" component={Vehicles} />
       <Route path="/settings" component={Settings} />
       <Route path="/budget" component={Budget} />
+      <Route path="/accounts" component={Accounts} />
 
       <Route component={NotFound} />
     </Switch>

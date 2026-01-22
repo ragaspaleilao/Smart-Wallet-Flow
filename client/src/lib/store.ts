@@ -5,6 +5,18 @@ import { nanoid } from 'nanoid';
 export type TransactionType = 'income' | 'expense';
 export type Category = 'Alimentação' | 'Transporte' | 'Lazer' | 'Saúde' | 'Educação' | 'Outros' | 'Salário' | 'Vendas' | 'Serviços';
 
+export type AccountType = 'bank' | 'wallet' | 'cash' | 'other';
+
+export interface Account {
+  id: string;
+  name: string;
+  type: AccountType;
+  balance: number;
+  initialBalance: number;
+  color: string;
+  isPersonal: boolean;
+}
+
 export interface Transaction {
   id: string;
   amount: number;
@@ -14,6 +26,7 @@ export interface Transaction {
   date: string; // ISO string
   source: 'manual' | 'notification' | 'voice' | 'photo';
   isPersonal: boolean; // true = personal, false = business
+  accountId?: string; // Optional for backward compatibility, but should be used going forward
 }
 
 export interface Goal {
@@ -45,6 +58,7 @@ export interface Vehicle {
 
 interface FinancialStore {
   transactions: Transaction[];
+  accounts: Account[];
   goals: Goal[];
   investments: Investment[];
   vehicles: Vehicle[];
@@ -55,12 +69,15 @@ interface FinancialStore {
     alertThresholds: number[];
   };
   
-  balance: number;
+  balance: number; // Global balance (sum of all accounts)
   income: number;
   expense: number;
   
   addTransaction: (tx: Omit<Transaction, 'id' | 'date'>) => void;
   removeTransaction: (id: string) => void;
+  
+  addAccount: (acc: Omit<Account, 'id'>) => void;
+  updateAccountBalance: (id: string, newBalance: number) => void;
   
   addGoal: (goal: Omit<Goal, 'id'>) => void;
   addInvestment: (inv: Omit<Investment, 'id'>) => void;
@@ -75,8 +92,12 @@ export const useFinancialStore = create<FinancialStore>()(
   persist(
     (set, get) => ({
       transactions: [
-        { id: '1', amount: 45.90, type: 'expense', category: 'Alimentação', description: 'Padaria Estrela', date: new Date().toISOString(), source: 'manual', isPersonal: true },
-        { id: '2', amount: 3500.00, type: 'income', category: 'Salário', description: 'Pagamento Mensal', date: new Date().toISOString(), source: 'manual', isPersonal: true },
+        { id: '1', amount: 45.90, type: 'expense', category: 'Alimentação', description: 'Padaria Estrela', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
+        { id: '2', amount: 3500.00, type: 'income', category: 'Salário', description: 'Pagamento Mensal', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
+      ],
+      accounts: [
+        { id: '1', name: 'Nubank', type: 'bank', balance: 3454.10, initialBalance: 0, color: 'bg-purple-600', isPersonal: true },
+        { id: '2', name: 'Carteira', type: 'cash', balance: 150.00, initialBalance: 150.00, color: 'bg-green-600', isPersonal: true }
       ],
       goals: [
         { id: '1', name: "Viagem Fim de Ano", target: 5000, current: 1250, color: "bg-primary" },
@@ -98,7 +119,7 @@ export const useFinancialStore = create<FinancialStore>()(
         creditLimit: 5000.00,
         alertThresholds: [70, 90],
       },
-      balance: 3454.10,
+      balance: 3604.10, // Sum of accounts
       income: 3500.00,
       expense: 45.90,
 
@@ -111,7 +132,19 @@ export const useFinancialStore = create<FinancialStore>()(
 
         const newTransactions = [newTx, ...state.transactions];
         
-        // Recalculate totals
+        // Update account balance if accountId is provided
+        let newAccounts = [...state.accounts];
+        if (txData.accountId) {
+          newAccounts = newAccounts.map(acc => {
+            if (acc.id === txData.accountId) {
+              const amountChange = txData.type === 'income' ? txData.amount : -txData.amount;
+              return { ...acc, balance: acc.balance + amountChange };
+            }
+            return acc;
+          });
+        }
+        
+        // Recalculate global totals
         const income = newTransactions
           .filter(t => t.type === 'income')
           .reduce((acc, curr) => acc + curr.amount, 0);
@@ -120,17 +153,34 @@ export const useFinancialStore = create<FinancialStore>()(
           .filter(t => t.type === 'expense')
           .reduce((acc, curr) => acc + curr.amount, 0);
 
+        // Global balance is sum of all account balances
+        const globalBalance = newAccounts.reduce((acc, curr) => acc + curr.balance, 0);
+
         return {
           transactions: newTransactions,
+          accounts: newAccounts,
           income,
           expense,
-          balance: income - expense
+          balance: globalBalance
         };
       }),
 
       removeTransaction: (id) => set((state) => {
+        const txToRemove = state.transactions.find(t => t.id === id);
         const newTransactions = state.transactions.filter(t => t.id !== id);
         
+        let newAccounts = [...state.accounts];
+        if (txToRemove && txToRemove.accountId) {
+           newAccounts = newAccounts.map(acc => {
+            if (acc.id === txToRemove.accountId) {
+              // Reverse the operation
+              const amountChange = txToRemove.type === 'income' ? -txToRemove.amount : txToRemove.amount;
+              return { ...acc, balance: acc.balance + amountChange };
+            }
+            return acc;
+          });
+        }
+
         const income = newTransactions
           .filter(t => t.type === 'income')
           .reduce((acc, curr) => acc + curr.amount, 0);
@@ -138,13 +188,35 @@ export const useFinancialStore = create<FinancialStore>()(
         const expense = newTransactions
           .filter(t => t.type === 'expense')
           .reduce((acc, curr) => acc + curr.amount, 0);
+        
+        const globalBalance = newAccounts.reduce((acc, curr) => acc + curr.balance, 0);
 
         return {
           transactions: newTransactions,
+          accounts: newAccounts,
           income,
           expense,
-          balance: income - expense
+          balance: globalBalance
         };
+      }),
+
+      addAccount: (accData) => set((state) => {
+        const newAccount = { ...accData, id: nanoid() };
+        const newAccounts = [...state.accounts, newAccount];
+        const globalBalance = newAccounts.reduce((acc, curr) => acc + curr.balance, 0);
+        
+        return {
+          accounts: newAccounts,
+          balance: globalBalance
+        };
+      }),
+
+      updateAccountBalance: (id, newBalance) => set((state) => {
+        const newAccounts = state.accounts.map(acc => 
+          acc.id === id ? { ...acc, balance: newBalance } : acc
+        );
+        const globalBalance = newAccounts.reduce((acc, curr) => acc + curr.balance, 0);
+        return { accounts: newAccounts, balance: globalBalance };
       }),
 
       addGoal: (goalData) => set((state) => ({

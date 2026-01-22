@@ -2,7 +2,7 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { User, Moon, HelpCircle, LogOut, Car, Shield, CreditCard, ChevronRight } from "lucide-react";
+import { User, Moon, HelpCircle, LogOut, Car, Shield, CreditCard, ChevronRight, Wallet } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Settings() {
@@ -48,6 +48,16 @@ export default function Settings() {
           <div className="space-y-4">
              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Módulos</h3>
              
+             <Link href="/accounts">
+               <div className="flex items-center justify-between py-3 cursor-pointer group">
+                 <div className="flex items-center gap-3">
+                   <Wallet className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                   <span className="font-medium group-hover:text-primary transition-colors">Minhas Contas</span>
+                 </div>
+                 <ChevronRight className="w-4 h-4 text-gray-400" />
+               </div>
+             </Link>
+
              <Link href="/vehicles">
                <div className="flex items-center justify-between py-3 cursor-pointer group">
                  <div className="flex items-center gap-3">

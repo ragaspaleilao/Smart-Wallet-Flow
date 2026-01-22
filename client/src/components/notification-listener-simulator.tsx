@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { useFinancialStore } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Types of notifications to simulate
 const SAMPLE_NOTIFICATIONS = [
@@ -38,8 +39,27 @@ export function NotificationListenerSimulator() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeNotification, setActiveNotification] = useState<typeof SAMPLE_NOTIFICATIONS[0] | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   
-  const addTransaction = useFinancialStore(state => state.addTransaction);
+  const { addTransaction, accounts } = useFinancialStore();
+
+  useEffect(() => {
+    // Attempt to auto-select an account based on the notification app name
+    if (activeNotification && accounts.length > 0) {
+        const matchingAccount = accounts.find(acc => 
+            acc.name.toLowerCase().includes(activeNotification.app.toLowerCase()) || 
+            activeNotification.app.toLowerCase().includes(acc.name.toLowerCase())
+        );
+        
+        if (matchingAccount) {
+            setSelectedAccountId(matchingAccount.id);
+        } else {
+            // Default to the first bank account or just the first account
+            const defaultAcc = accounts.find(acc => acc.type === 'bank') || accounts[0];
+            setSelectedAccountId(defaultAcc?.id || "");
+        }
+    }
+  }, [activeNotification, accounts]);
 
   const triggerNotification = (notif: typeof SAMPLE_NOTIFICATIONS[0]) => {
     setActiveNotification(notif);
@@ -48,7 +68,10 @@ export function NotificationListenerSimulator() {
   };
 
   const handleConfirm = () => {
-    if (!activeNotification) return;
+    if (!activeNotification || !selectedAccountId) {
+        toast({ title: "Selecione uma conta", variant: "destructive" });
+        return;
+    }
 
     addTransaction({
       amount: activeNotification.amount,
@@ -56,12 +79,15 @@ export function NotificationListenerSimulator() {
       category: activeNotification.type === 'income' ? 'Vendas' : 'Alimentação', // Simple auto-categorization
       description: activeNotification.merchant,
       source: 'notification',
-      isPersonal: true // Default to personal
+      isPersonal: true,
+      accountId: selectedAccountId
     });
+
+    const accountName = accounts.find(acc => acc.id === selectedAccountId)?.name;
 
     toast({
       title: "Transação salva!",
-      description: `${activeNotification.type === 'expense' ? 'Despesa' : 'Receita'} de R$ ${activeNotification.amount.toFixed(2)} registrada.`,
+      description: `${activeNotification.type === 'expense' ? 'Despesa' : 'Receita'} de R$ ${activeNotification.amount.toFixed(2)} registrada na conta ${accountName}.`,
     });
 
     setShowConfirmation(false);
@@ -140,6 +166,22 @@ export function NotificationListenerSimulator() {
                     {activeNotification.type === 'income' ? 'Vendas' : 'Alimentação'}
                   </span>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-500 ml-1">Vincular à conta</label>
+                <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                    <SelectTrigger className="w-full bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700">
+                        <SelectValue placeholder="Selecione a conta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {accounts.map(acc => (
+                            <SelectItem key={acc.id} value={acc.id}>
+                                {acc.name} (R$ {acc.balance.toLocaleString('pt-BR')})
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

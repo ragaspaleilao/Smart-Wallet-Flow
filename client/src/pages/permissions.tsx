@@ -58,13 +58,13 @@ export default function Permissions() {
           <Button 
             size="lg" 
             className="w-full h-14 text-lg font-medium rounded-2xl shadow-lg shadow-primary/20"
-            onClick={() => setLocation("/dashboard")}
+            onClick={() => setLocation("/setup-accounts")}
           >
             Permitir e continuar
           </Button>
           <button 
             className="mt-4 text-sm text-gray-400 hover:text-gray-600"
-            onClick={() => setLocation("/dashboard")}
+            onClick={() => setLocation("/setup-accounts")}
           >
             Agora não
           </button>
