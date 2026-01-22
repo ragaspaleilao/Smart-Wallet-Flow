@@ -22,6 +22,7 @@ import Accounts from "@/pages/accounts";
 import SetupAccounts from "@/pages/setup-accounts";
 import Analytics from "@/pages/analytics";
 import Business from "@/pages/business";
+import Premium from "@/pages/premium";
 
 function Router() {
   return (
@@ -46,6 +47,7 @@ function Router() {
       <Route path="/accounts" component={Accounts} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/business" component={Business} />
+      <Route path="/premium" component={Premium} />
 
       <Route component={NotFound} />
     </Switch>
