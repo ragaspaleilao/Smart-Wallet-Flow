@@ -20,6 +20,7 @@ import Settings from "@/pages/settings";
 import Budget from "@/pages/budget";
 import Accounts from "@/pages/accounts";
 import SetupAccounts from "@/pages/setup-accounts";
+import Analytics from "@/pages/analytics";
 
 function Router() {
   return (
@@ -42,6 +43,7 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/budget" component={Budget} />
       <Route path="/accounts" component={Accounts} />
+      <Route path="/analytics" component={Analytics} />
 
       <Route component={NotFound} />
     </Switch>

@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
-import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet } from "lucide-react";
+import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 import { useFinancialStore } from "@/lib/store";
 import { format } from "date-fns";
@@ -102,7 +102,15 @@ export default function Dashboard() {
         {/* Chart Area */}
         <div className="pt-2">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Fluxo Mensal</h3>
+            <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Fluxo Mensal</h3>
+                <Link href="/analytics">
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-purple-600 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 rounded-full text-[10px] font-bold">
+                        <Brain className="w-3 h-3 mr-1" />
+                        IA
+                    </Button>
+                </Link>
+            </div>
             <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">+12% vs mês anterior</span>
           </div>
           <div className="h-32 w-full -ml-2">
