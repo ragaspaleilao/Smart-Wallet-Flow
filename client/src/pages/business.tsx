@@ -18,11 +18,11 @@ import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
 export default function Business() {
-  const { businessProducts, businessSettings, addBusinessProduct, updateBusinessSettings, addTransaction, accounts } = useFinancialStore();
+  const { businessProducts, businessSettings, addBusinessProduct, updateBusinessSettings, addTransaction, accounts, transactions } = useFinancialStore();
   
   // Filter only business related accounts and transactions
   const businessAccounts = accounts.filter(a => !a.isPersonal);
-  const businessTransactions = useFinancialStore(state => state.transactions.filter(t => !t.isPersonal));
+  const businessTransactions = useMemo(() => transactions.filter(t => !t.isPersonal), [transactions]);
 
   const metrics = useMemo(() => calculateBusinessMetrics(businessProducts, businessSettings), [businessProducts, businessSettings]);
   const insights = useMemo(() => generateBusinessInsights(metrics), [metrics]);
