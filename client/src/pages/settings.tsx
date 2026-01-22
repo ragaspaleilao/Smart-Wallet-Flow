@@ -1,0 +1,85 @@
+import { MobileLayout } from "@/components/mobile-layout";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { User, Moon, HelpCircle, LogOut, Car, Shield, CreditCard, ChevronRight } from "lucide-react";
+import { Link } from "wouter";
+
+export default function Settings() {
+  return (
+    <MobileLayout>
+      <div className="flex flex-col min-h-full p-6 bg-white dark:bg-black">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white pt-6 mb-8">Ajustes</h1>
+
+        <div className="space-y-8">
+          {/* Profile Section */}
+          <div className="flex items-center gap-4 pb-6 border-b border-gray-100 dark:border-zinc-800">
+            <div className="w-16 h-16 bg-gray-200 dark:bg-zinc-800 rounded-full flex items-center justify-center">
+              <User className="w-8 h-8 text-gray-500" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">João Silva</h2>
+              <p className="text-sm text-gray-500">joao.silva@email.com</p>
+            </div>
+          </div>
+
+          {/* Preferences */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Preferências</h3>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Moon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                <span className="font-medium">Modo Escuro</span>
+              </div>
+              <Switch />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Shield className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                <span className="font-medium">Usar Biometria</span>
+              </div>
+              <Switch defaultChecked />
+            </div>
+          </div>
+
+          {/* Modules */}
+          <div className="space-y-4">
+             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Módulos</h3>
+             
+             <Link href="/vehicles">
+               <div className="flex items-center justify-between py-3 cursor-pointer group">
+                 <div className="flex items-center gap-3">
+                   <Car className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                   <span className="font-medium group-hover:text-primary transition-colors">Meus Veículos</span>
+                 </div>
+                 <ChevronRight className="w-4 h-4 text-gray-400" />
+               </div>
+             </Link>
+
+             <div className="flex items-center justify-between py-3 cursor-pointer group">
+               <div className="flex items-center gap-3">
+                 <CreditCard className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                 <span className="font-medium group-hover:text-primary transition-colors">Cartões de Crédito</span>
+               </div>
+               <ChevronRight className="w-4 h-4 text-gray-400" />
+             </div>
+          </div>
+
+          {/* Other */}
+          <div className="pt-8 space-y-4">
+            <Button variant="ghost" className="w-full justify-start text-gray-600 dark:text-gray-400 hover:text-primary pl-0">
+              <HelpCircle className="w-5 h-5 mr-3" />
+              Ajuda e Suporte
+            </Button>
+            <Button variant="ghost" className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 pl-0">
+              <LogOut className="w-5 h-5 mr-3" />
+              Sair da conta
+            </Button>
+          </div>
+        </div>
+      </div>
+    </MobileLayout>
+  );
+}

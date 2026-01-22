@@ -1,0 +1,90 @@
+import { useState, useRef } from "react";
+import { useLocation } from "wouter";
+import { MobileLayout } from "@/components/mobile-layout";
+import { Button } from "@/components/ui/button";
+import { Camera, X, Check, Upload, Image as ImageIcon } from "lucide-react";
+
+export default function PhotoEntry() {
+  const [_, setLocation] = useLocation();
+  const [image, setImage] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
+
+  const handleCapture = () => {
+    // Mock capture
+    setImage("https://placehold.co/400x600/e2e8f0/475569?text=Recibo+Capturado");
+    setProcessing(true);
+    setTimeout(() => {
+      setProcessing(false);
+    }, 2000);
+  };
+
+  return (
+    <MobileLayout>
+      <div className="flex-1 bg-black relative flex flex-col">
+        {/* Overlay Controls */}
+        <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-20 text-white">
+          <Button variant="ghost" size="icon" onClick={() => setLocation("/dashboard")} className="text-white hover:bg-white/10">
+            <X className="w-6 h-6" />
+          </Button>
+          <span className="font-medium text-sm opacity-90">Digitalizar Recibo</span>
+          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
+            <Upload className="w-6 h-6" />
+          </Button>
+        </div>
+
+        {/* Viewfinder / Image Display */}
+        <div className="flex-1 relative bg-zinc-900 overflow-hidden">
+          {image ? (
+            <img src={image} alt="Captured" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <p className="text-zinc-500 text-sm">Preview da Câmera</p>
+              <div className="absolute inset-12 border-2 border-white/20 rounded-3xl pointer-events-none">
+                <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-xl" />
+                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-xl" />
+                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-xl" />
+                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-xl" />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Controls */}
+        <div className="bg-black p-8 pb-12 flex justify-center items-center gap-8 z-20">
+          {image ? (
+            processing ? (
+              <div className="flex flex-col items-center gap-4 text-white">
+                 <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                 <p className="text-xs">Lendo dados...</p>
+              </div>
+            ) : (
+              <div className="flex gap-4 w-full">
+                <Button variant="outline" className="flex-1 h-12 bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700 hover:text-white" onClick={() => setImage(null)}>
+                  Tentar Novamente
+                </Button>
+                <Button className="flex-1 h-12 bg-primary text-white hover:bg-primary/90" onClick={() => setLocation("/dashboard")}>
+                  <Check className="w-4 h-4 mr-2" /> Salvar
+                </Button>
+              </div>
+            )
+          ) : (
+            <>
+              <Button variant="ghost" size="icon" className="text-white/70 hover:text-white hover:bg-white/10">
+                <ImageIcon className="w-6 h-6" />
+              </Button>
+              
+              <button 
+                onClick={handleCapture}
+                className="w-20 h-20 rounded-full border-4 border-white/30 flex items-center justify-center p-1"
+              >
+                <div className="w-full h-full bg-white rounded-full hover:scale-95 transition-transform" />
+              </button>
+              
+              <div className="w-10" /> {/* Spacer */}
+            </>
+          )}
+        </div>
+      </div>
+    </MobileLayout>
+  );
+}
