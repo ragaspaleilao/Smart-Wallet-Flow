@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 
 export type TransactionType = 'income' | 'expense';
-export type Category = 'Alimentação' | 'Transporte' | 'Lazer' | 'Saúde' | 'Educação' | 'Outros' | 'Salário' | 'Vendas' | 'Serviços';
+export type Category = 'Alimentação' | 'Transporte' | 'Lazer' | 'Saúde' | 'Educação' | 'Moradia' | 'Outros' | 'Salário' | 'Vendas' | 'Serviços';
 
 export type AccountType = 'bank' | 'wallet' | 'cash' | 'other';
 
