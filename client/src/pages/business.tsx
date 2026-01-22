@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Package, DollarSign, BarChart3, Plus, Settings2, Trash2, Edit2, Wallet, ArrowRightLeft, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,8 +18,18 @@ import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
 export default function Business() {
-  const { businessProducts, businessSettings, addBusinessProduct, updateBusinessSettings, addTransaction, accounts, transactions } = useFinancialStore();
+  const { businessProducts, businessSettings, addBusinessProduct, updateBusinessSettings, addTransaction, accounts, transactions, addAccount } = useFinancialStore();
   
+  // Ensure business accounts exist (for users with old data)
+  useEffect(() => {
+    const hasBusinessAccounts = accounts.some(a => !a.isPersonal);
+    if (!hasBusinessAccounts) {
+        addAccount({ name: 'Caixa Empresa', type: 'cash', balance: 500.00, initialBalance: 0, color: 'bg-blue-600', isPersonal: false });
+        addAccount({ name: 'Banco PJ', type: 'bank', balance: 2500.00, initialBalance: 0, color: 'bg-indigo-600', isPersonal: false });
+        toast({ title: "Contas empresariais criadas!" });
+    }
+  }, [accounts, addAccount]);
+
   // Filter only business related accounts and transactions
   const businessAccounts = accounts.filter(a => !a.isPersonal);
   const businessTransactions = useMemo(() => transactions.filter(t => !t.isPersonal), [transactions]);
