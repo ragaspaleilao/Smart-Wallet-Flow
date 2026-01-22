@@ -102,6 +102,7 @@ interface FinancialStore {
   
   addBusinessProduct: (product: Omit<BusinessProduct, 'id'>) => void;
   updateBusinessProduct: (id: string, product: Partial<BusinessProduct>) => void;
+  removeBusinessProduct: (id: string) => void;
   updateBusinessSettings: (settings: Partial<BusinessSettings>) => void;
   
   updateBudget: (budget: Partial<FinancialStore['budget']>) => void;
@@ -364,6 +365,10 @@ export const useFinancialStore = create<FinancialStore>()(
         businessProducts: state.businessProducts.map(p => p.id === id ? { ...p, ...prodData } : p)
       })),
       
+      removeBusinessProduct: (id) => set((state) => ({
+        businessProducts: state.businessProducts.filter(p => p.id !== id)
+      })),
+
       updateBusinessSettings: (settings) => set((state) => ({
         businessSettings: { ...state.businessSettings, ...settings }
       })),

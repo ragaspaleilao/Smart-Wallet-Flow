@@ -20,7 +20,7 @@ interface EditProductDialogProps {
 }
 
 export function EditProductDialog({ product, children }: EditProductDialogProps) {
-  const { updateBusinessProduct } = useFinancialStore();
+  const { updateBusinessProduct, removeBusinessProduct } = useFinancialStore();
   const [open, setOpen] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -77,6 +77,14 @@ export function EditProductDialog({ product, children }: EditProductDialogProps)
     toast({ title: "Produto atualizado!" });
   };
 
+  const handleDelete = () => {
+    if (confirm("Tem certeza que deseja excluir este produto?")) {
+        removeBusinessProduct(product.id);
+        setOpen(false);
+        toast({ title: "Produto excluído!" });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -130,7 +138,16 @@ export function EditProductDialog({ product, children }: EditProductDialogProps)
                 </div>
             </div>
 
-            <Button className="w-full bg-blue-600" onClick={handleSave}>Salvar Alterações</Button>
+            <div className="flex gap-2">
+                <Button className="flex-1 bg-blue-600" onClick={handleSave}>Salvar Alterações</Button>
+                <Button 
+                    variant="outline" 
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={handleDelete}
+                >
+                    <Trash2 className="w-4 h-4" />
+                </Button>
+            </div>
         </div>
       </DialogContent>
     </Dialog>
