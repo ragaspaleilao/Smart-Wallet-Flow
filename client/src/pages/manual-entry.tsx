@@ -19,6 +19,7 @@ export default function ManualEntry() {
   const [category, setCategory] = useState<Category>("Alimentação");
   const [accountId, setAccountId] = useState<string>(accounts[0]?.id || "");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [status, setStatus] = useState<'paid' | 'pending'>('paid');
 
   const formatCurrency = (val: string) => {
     // Simple mock formatter
@@ -72,7 +73,8 @@ export default function ManualEntry() {
       description,
       source: "manual",
       isPersonal: true,
-      accountId
+      accountId,
+      status
     });
 
     toast({
@@ -183,12 +185,28 @@ export default function ManualEntry() {
 
           <div className="space-y-2">
             <Label>Data</Label>
-            <Input 
-              type="date" 
-              className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800" 
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
+            <div className="flex gap-2">
+                <Input 
+                  type="date" 
+                  className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 flex-1" 
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+                <div className="flex bg-gray-50 dark:bg-zinc-900 rounded-md border border-gray-200 dark:border-zinc-800 p-1">
+                    <button
+                        className={`px-3 py-1 rounded text-sm font-medium transition-all ${status === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'text-gray-500'}`}
+                        onClick={() => setStatus('paid')}
+                    >
+                        Pago
+                    </button>
+                    <button
+                        className={`px-3 py-1 rounded text-sm font-medium transition-all ${status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'text-gray-500'}`}
+                        onClick={() => setStatus('pending')}
+                    >
+                        Pendente
+                    </button>
+                </div>
+            </div>
           </div>
         </div>
 

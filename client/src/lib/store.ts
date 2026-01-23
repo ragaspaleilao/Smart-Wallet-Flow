@@ -48,6 +48,7 @@ export interface Investment {
   name: string;
   value: number;
   yield: string;
+  isPersonal: boolean;
 }
 
 export interface Vehicle {
@@ -200,8 +201,8 @@ export const useFinancialStore = create<FinancialStore>()(
         { id: '2', name: "Reserva de Emergência", target: 10000, current: 3500, color: "bg-blue-500" },
       ],
       investments: [
-        { id: '1', name: "Tesouro Selic", value: 12450.00, yield: "+0.85%" },
-        { id: '2', name: "CDB Banco X", value: 5000.00, yield: "+0.92%" },
+        { id: '1', name: "Tesouro Selic", value: 12450.00, yield: "+0.85%", isPersonal: true },
+        { id: '2', name: "CDB Banco X", value: 5000.00, yield: "+0.92%", isPersonal: true },
       ],
       vehicles: [
         { id: '1', name: "Honda Civic 2018", plate: "ABC-1234", expenses: [
