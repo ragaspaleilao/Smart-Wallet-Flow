@@ -77,6 +77,14 @@ export interface Referral {
   date: string;
 }
 
+export interface Backup {
+  id: string;
+  date: string;
+  size: string;
+  device: string;
+  auto: boolean;
+}
+
 interface FinancialStore {
   transactions: Transaction[];
   accounts: Account[];
@@ -97,6 +105,13 @@ interface FinancialStore {
   referrals: Referral[];
   premiumUntil: string | null; // ISO string if premium
   addReferral: (referral: Omit<Referral, 'id' | 'date' | 'status'>) => void;
+
+  // Backup System
+  backups: Backup[];
+  lastBackupDate: string | null;
+  isAutoBackupEnabled: boolean;
+  addBackup: (backup: Backup) => void;
+  toggleAutoBackup: (enabled: boolean) => void;
 
   balance: number; // Global balance (sum of all accounts)
   income: number;
@@ -216,6 +231,11 @@ export const useFinancialStore = create<FinancialStore>()(
           { id: '2', name: 'Ana Souza', status: 'pending', date: new Date().toISOString() },
       ], 
       premiumUntil: null, // Not premium yet
+      
+      // Backup System Initial State
+      backups: [],
+      lastBackupDate: null,
+      isAutoBackupEnabled: false,
       
       balance: 3604.10, // Sum of accounts
       income: 3500.00,
@@ -389,6 +409,15 @@ export const useFinancialStore = create<FinancialStore>()(
         referrals: [...state.referrals, { ...refData, id: nanoid(), status: 'pending', date: new Date().toISOString() }]
       })),
       
+      addBackup: (backup) => set((state) => ({
+        backups: [backup, ...state.backups],
+        lastBackupDate: backup.date
+      })),
+      
+      toggleAutoBackup: (enabled) => set(() => ({
+        isAutoBackupEnabled: enabled
+      })),
+
       updateBusinessProduct: (id, prodData) => set((state) => ({
         businessProducts: state.businessProducts.map(p => p.id === id ? { ...p, ...prodData } : p)
       })),

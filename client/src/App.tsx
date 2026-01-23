@@ -25,6 +25,7 @@ import Business from "@/pages/business";
 import Premium from "@/pages/premium";
 import AiChat from "@/pages/ai-chat";
 import ReferAndEarn from "@/pages/refer-and-earn";
+import Backup from "@/pages/backup";
 
 function Router() {
   return (
@@ -52,6 +53,7 @@ function Router() {
       <Route path="/premium" component={Premium} />
       <Route path="/ai-chat" component={AiChat} />
       <Route path="/refer-and-earn" component={ReferAndEarn} />
+      <Route path="/backup" component={Backup} />
 
       <Route component={NotFound} />
     </Switch>
