@@ -4,12 +4,55 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
 import { useFinancialStore } from "@/lib/store";
-import { format, isBefore, startOfDay } from "date-fns";
+import { format, isBefore, startOfDay, endOfDay, startOfMonth, endOfMonth, addMonths } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
+import { useState, useMemo } from "react";
 
 export default function Transactions() {
   const allTransactions = useFinancialStore((state) => state.transactions);
-  const transactions = allTransactions.filter(t => t.isPersonal);
+  
+  // Filter State
+  const [filterPeriod, setFilterPeriod] = useState<'all' | 'this-month' | 'next-month' | 'future'>('this-month');
+
+  const transactions = useMemo(() => {
+    let filtered = allTransactions.filter(t => t.isPersonal);
+    const now = new Date();
+
+    if (filterPeriod === 'this-month') {
+        const start = startOfMonth(now);
+        const end = endOfMonth(now);
+        filtered = filtered.filter(t => {
+            const d = new Date(t.date);
+            return d >= start && d <= end;
+        });
+    } else if (filterPeriod === 'next-month') {
+        const nextMonth = addMonths(now, 1);
+        const start = startOfMonth(nextMonth);
+        const end = endOfMonth(nextMonth);
+        filtered = filtered.filter(t => {
+            const d = new Date(t.date);
+            return d >= start && d <= end;
+        });
+    } else if (filterPeriod === 'future') {
+        filtered = filtered.filter(t => new Date(t.date) > now);
+    }
+    
+    // Sort logic
+    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [allTransactions, filterPeriod]);
+
+  // Projections
+  const projections = useMemo(() => {
+      const pendingIncome = transactions
+        .filter(t => t.type === 'income' && t.status === 'pending')
+        .reduce((acc, curr) => acc + curr.amount, 0);
+      
+      const pendingExpense = transactions
+        .filter(t => t.type === 'expense' && t.status === 'pending')
+        .reduce((acc, curr) => acc + curr.amount, 0);
+        
+      return { pendingIncome, pendingExpense, net: pendingIncome - pendingExpense };
+  }, [transactions]);
 
   return (
     <MobileLayout>
@@ -25,11 +68,61 @@ export default function Transactions() {
                         Planilha
                     </Button>
                 </Link>
-                <Button variant="ghost" size="icon">
-                  <Filter className="w-5 h-5" />
-                </Button>
             </div>
           </div>
+          
+          {/* Period Filter Chips */}
+          <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar">
+            <button 
+                onClick={() => setFilterPeriod('all')}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${filterPeriod === 'all' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'}`}
+            >
+                Tudo
+            </button>
+            <button 
+                onClick={() => setFilterPeriod('this-month')}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${filterPeriod === 'this-month' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'}`}
+            >
+                Este Mês
+            </button>
+            <button 
+                onClick={() => setFilterPeriod('next-month')}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${filterPeriod === 'next-month' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'}`}
+            >
+                Próximo Mês
+            </button>
+            <button 
+                onClick={() => setFilterPeriod('future')}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${filterPeriod === 'future' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'}`}
+            >
+                Futuro
+            </button>
+          </div>
+
+          {/* Projections Card */}
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 dark:from-zinc-900 dark:to-black rounded-2xl p-4 text-white shadow-lg mb-4">
+            <div className="flex justify-between items-start mb-3">
+                <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Projeção do Período</h3>
+                <Clock className="w-4 h-4 text-gray-400" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <span className="text-[10px] text-gray-400 block">A Receber</span>
+                    <span className="text-lg font-bold text-green-400">R$ {projections.pendingIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div>
+                    <span className="text-[10px] text-gray-400 block">A Pagar</span>
+                    <span className="text-lg font-bold text-red-400">R$ {projections.pendingExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-white/10 flex justify-between items-center">
+                 <span className="text-xs text-gray-400">Saldo Projetado</span>
+                 <span className={`font-bold ${projections.net >= 0 ? 'text-blue-300' : 'text-red-300'}`}>
+                    R$ {projections.net.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                 </span>
+            </div>
+          </div>
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input 

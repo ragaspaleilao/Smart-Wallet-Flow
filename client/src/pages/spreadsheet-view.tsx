@@ -50,6 +50,10 @@ export default function SpreadsheetView() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [filterType, setFilterType] = useState<string>("all");
+  
+  // Date Filters
+  const [startDate, setStartDate] = useState(format(startOfDay(new Date()), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(new Date(new Date().setMonth(new Date().getMonth() + 1)), 'yyyy-MM-dd'));
 
   // Payment Confirmation State
   const [paymentConfirmOpen, setPaymentConfirmOpen] = useState(false);
@@ -81,9 +85,15 @@ export default function SpreadsheetView() {
         (t.notes || "").toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = filterType === "all" || t.type === filterType;
       
-      return matchesContext && matchesSearch && matchesType;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, searchTerm, filterType, context]);
+      const txDate = new Date(t.date);
+      const start = startDate ? new Date(startDate) : null;
+      const end = endDate ? new Date(endDate) : null;
+      
+      const matchesDate = (!start || txDate >= start) && (!end || txDate <= end);
+      
+      return matchesContext && matchesSearch && matchesType && matchesDate;
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Sort Ascending for Spreadsheet (oldest to newest usually better for projections, or keep newest first? User asked for projections, usually chronological order is better)
+  }, [transactions, searchTerm, filterType, context, startDate, endDate]);
 
   const filteredAccounts = useMemo(() => {
     return accounts.filter(a => context === "personal" ? a.isPersonal : !a.isPersonal);
@@ -101,7 +111,15 @@ export default function SpreadsheetView() {
     const expense = filteredTransactions
         .filter(t => t.type === 'expense')
         .reduce((acc, curr) => acc + curr.amount, 0);
-    return { income, expense, balance: income - expense };
+    
+    const pendingIncome = filteredTransactions
+        .filter(t => t.type === 'income' && t.status === 'pending')
+        .reduce((acc, curr) => acc + curr.amount, 0);
+    const pendingExpense = filteredTransactions
+        .filter(t => t.type === 'expense' && t.status === 'pending')
+        .reduce((acc, curr) => acc + curr.amount, 0);
+
+    return { income, expense, balance: income - expense, pendingIncome, pendingExpense };
   }, [filteredTransactions]);
 
   // Actions
@@ -284,6 +302,29 @@ export default function SpreadsheetView() {
                         </SelectContent>
                      </Select>
                      
+                     <div className="w-px h-4 bg-gray-300 dark:bg-zinc-700 mx-1"></div>
+                     
+                     <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-zinc-800 rounded px-2 py-0.5">
+                            <span className="text-[10px] text-gray-500">De:</span>
+                            <input 
+                                type="date" 
+                                className="bg-transparent text-xs border-none p-0 focus:ring-0 w-24"
+                                value={startDate}
+                                onChange={e => setStartDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-zinc-800 rounded px-2 py-0.5">
+                            <span className="text-[10px] text-gray-500">Até:</span>
+                            <input 
+                                type="date" 
+                                className="bg-transparent text-xs border-none p-0 focus:ring-0 w-24"
+                                value={endDate}
+                                onChange={e => setEndDate(e.target.value)}
+                            />
+                        </div>
+                     </div>
+
                      {selectedRows.length > 0 && (
                         <>
                             <div className="w-px h-4 bg-gray-300 dark:bg-zinc-700 mx-1"></div>
@@ -443,23 +484,34 @@ export default function SpreadsheetView() {
                  
                  {/* Footer Totals */}
                  <div className="bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 p-3 shadow-lg z-20">
-                    <div className="flex justify-between items-center max-w-4xl mx-auto">
-                        <div className="flex gap-6">
+                    <div className="flex justify-between items-center max-w-5xl mx-auto px-4">
+                        <div className="flex gap-8">
                             <div className="flex flex-col">
-                                <span className="text-[10px] text-gray-500 uppercase font-semibold">Receitas</span>
+                                <span className="text-[10px] text-gray-500 uppercase font-semibold">Total Receitas</span>
                                 <span className="text-sm font-bold text-green-600">R$ {totals.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                <span className="text-[10px] text-green-600/70">A receber: R$ {totals.pendingIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[10px] text-gray-500 uppercase font-semibold">Despesas</span>
+                                <span className="text-[10px] text-gray-500 uppercase font-semibold">Total Despesas</span>
                                 <span className="text-sm font-bold text-red-600">R$ {totals.expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                <span className="text-[10px] text-red-600/70">A pagar: R$ {totals.pendingExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[10px] text-gray-500 uppercase font-semibold">Saldo do Período</span>
+                                <span className={`text-sm font-bold ${totals.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                    R$ {totals.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
                             </div>
                         </div>
+                        
                         <div className="h-8 w-px bg-gray-200 dark:bg-zinc-700"></div>
+                        
                         <div className="flex flex-col items-end">
-                            <span className="text-[10px] text-gray-500 uppercase font-semibold">Saldo Final</span>
+                            <span className="text-[10px] text-gray-500 uppercase font-semibold">Previsão de Caixa</span>
                             <span className={`text-lg font-bold ${totals.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                                R$ {totals.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                R$ {(totals.pendingIncome - totals.pendingExpense).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </span>
+                            <span className="text-[10px] text-gray-400"> (Receber - Pagar)</span>
                         </div>
                     </div>
                  </div>
