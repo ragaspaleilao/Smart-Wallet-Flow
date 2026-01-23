@@ -12,7 +12,9 @@ export default function Transactions() {
   const allTransactions = useFinancialStore((state) => state.transactions);
   
   // Filter State
-  const [filterPeriod, setFilterPeriod] = useState<'all' | 'this-month' | 'next-month' | 'future'>('this-month');
+  const [filterPeriod, setFilterPeriod] = useState<'all' | 'this-month' | 'next-month' | 'future' | 'custom'>('this-month');
+  const [customStart, setCustomStart] = useState(format(startOfDay(new Date()), 'yyyy-MM-dd'));
+  const [customEnd, setCustomEnd] = useState(format(addMonths(new Date(), 1), 'yyyy-MM-dd'));
 
   const transactions = useMemo(() => {
     let filtered = allTransactions.filter(t => t.isPersonal);
@@ -35,11 +37,18 @@ export default function Transactions() {
         });
     } else if (filterPeriod === 'future') {
         filtered = filtered.filter(t => new Date(t.date) > now);
+    } else if (filterPeriod === 'custom') {
+        const start = startOfDay(new Date(customStart));
+        const end = endOfDay(new Date(customEnd));
+        filtered = filtered.filter(t => {
+            const d = new Date(t.date);
+            return d >= start && d <= end;
+        });
     }
     
     // Sort logic
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [allTransactions, filterPeriod]);
+  }, [allTransactions, filterPeriod, customStart, customEnd]);
 
   // Projections
   const projections = useMemo(() => {
@@ -97,7 +106,36 @@ export default function Transactions() {
             >
                 Futuro
             </button>
+            <button 
+                onClick={() => setFilterPeriod('custom')}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${filterPeriod === 'custom' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'}`}
+            >
+                Personalizado
+            </button>
           </div>
+          
+          {filterPeriod === 'custom' && (
+              <div className="flex items-center gap-2 mb-4 animate-in fade-in slide-in-from-top-2">
+                <div className="flex-1">
+                    <span className="text-[10px] text-gray-500 mb-1 block">De</span>
+                    <Input 
+                        type="date" 
+                        value={customStart}
+                        onChange={e => setCustomStart(e.target.value)}
+                        className="h-9 text-xs bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800"
+                    />
+                </div>
+                <div className="flex-1">
+                    <span className="text-[10px] text-gray-500 mb-1 block">Até</span>
+                    <Input 
+                        type="date" 
+                        value={customEnd}
+                        onChange={e => setCustomEnd(e.target.value)}
+                        className="h-9 text-xs bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800"
+                    />
+                </div>
+              </div>
+          )}
 
           {/* Projections Card */}
           <div className="bg-gradient-to-br from-gray-900 to-gray-800 dark:from-zinc-900 dark:to-black rounded-2xl p-4 text-white shadow-lg mb-4">
