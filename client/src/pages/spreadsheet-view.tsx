@@ -29,7 +29,8 @@ import {
   DollarSign,
   AlertCircle,
   Calendar as CalendarIcon,
-  XCircle
+  XCircle,
+  BarChart3
 } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useMemo } from "react";
@@ -37,7 +38,7 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { format, isBefore, startOfDay } from "date-fns";
+import { format, isBefore, startOfDay, getMonth, getYear, parseISO } from "date-fns";
 import { AddTransactionSheet } from "@/components/add-transaction-sheet";
 
 export default function SpreadsheetView() {
@@ -55,6 +56,9 @@ export default function SpreadsheetView() {
   // Date Filters
   const [startDate, setStartDate] = useState(format(startOfDay(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(new Date().setMonth(new Date().getMonth() + 1)), 'yyyy-MM-dd'));
+
+  // Projection Filters
+  const [projectionYear, setProjectionYear] = useState(new Date().getFullYear().toString());
 
   // Payment Confirmation State
   const [paymentConfirmOpen, setPaymentConfirmOpen] = useState(false);
@@ -103,6 +107,37 @@ export default function SpreadsheetView() {
   const filteredInvestments = useMemo(() => {
     return investments.filter(i => context === "personal" ? i.isPersonal : !i.isPersonal);
   }, [investments, context]);
+
+  // Projections Logic
+  const projectionData = useMemo(() => {
+    const months = Array.from({ length: 12 }, (_, i) => i); // 0-11
+    const year = parseInt(projectionYear);
+    
+    // Initialize structure
+    const data = months.map(month => ({
+      month,
+      monthName: new Date(year, month, 1).toLocaleString('pt-BR', { month: 'short' }),
+      income: 0,
+      expense: 0,
+      balance: 0
+    }));
+
+    transactions.filter(t => {
+        const tDate = new Date(t.date);
+        return tDate.getFullYear() === year && (context === "personal" ? t.isPersonal : !t.isPersonal);
+    }).forEach(t => {
+        const month = t.date.includes('T') ? new Date(t.date).getMonth() : new Date(t.date + 'T00:00:00').getMonth();
+        if (data[month]) {
+            if (t.type === 'income') data[month].income += t.amount;
+            else data[month].expense += t.amount;
+        }
+    });
+
+    // Calculate balances
+    data.forEach(d => d.balance = d.income - d.expense);
+    
+    return data;
+  }, [transactions, projectionYear, context]);
 
   // Totals Calculation
   const totals = useMemo(() => {
@@ -278,6 +313,12 @@ export default function SpreadsheetView() {
                     className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-9 px-2 text-xs"
                 >
                     <DollarSign className="w-3.5 h-3.5 mr-1.5" /> Transações
+                </TabsTrigger>
+                <TabsTrigger 
+                    value="projections" 
+                    className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-9 px-2 text-xs"
+                >
+                    <BarChart3 className="w-3.5 h-3.5 mr-1.5" /> Projeções
                 </TabsTrigger>
                 <TabsTrigger 
                     value="accounts" 
@@ -524,6 +565,89 @@ export default function SpreadsheetView() {
                         </div>
                     </div>
                  </div>
+            </TabsContent>
+
+            {/* PROJECTIONS VIEW */}
+            <TabsContent value="projections" className="h-full m-0 p-0 flex flex-col bg-white dark:bg-black">
+                <div className="p-2 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                         <span className="text-sm font-medium text-gray-500">Ano Base:</span>
+                         <Select value={projectionYear} onValueChange={setProjectionYear}>
+                            <SelectTrigger className="w-[100px] h-8">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i).map(year => (
+                                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500"></div> Receitas</span>
+                        <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500"></div> Despesas</span>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-auto">
+                    <Table className="border-collapse w-full min-w-[1200px]">
+                        <TableHeader className="bg-gray-50 dark:bg-zinc-900 sticky top-0 z-10">
+                            <TableRow className="border-b border-gray-200 dark:border-zinc-800">
+                                <TableHead className="w-[150px] font-bold text-xs h-10 sticky left-0 bg-gray-50 dark:bg-zinc-900 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Categoria</TableHead>
+                                {projectionData.map(m => (
+                                    <TableHead key={m.month} className="text-center min-w-[100px] text-xs h-10">{m.monthName}</TableHead>
+                                ))}
+                                <TableHead className="text-right min-w-[120px] font-bold text-xs h-10 bg-gray-100 dark:bg-zinc-800">TOTAL</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {/* Income Row */}
+                            <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-12 hover:bg-gray-50">
+                                <TableCell className="font-semibold text-xs sticky left-0 bg-white dark:bg-black z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-green-600">
+                                    Receitas
+                                </TableCell>
+                                {projectionData.map(m => (
+                                    <TableCell key={m.month} className="text-center text-xs text-green-600 font-medium">
+                                        {m.income > 0 ? m.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}
+                                    </TableCell>
+                                ))}
+                                <TableCell className="text-right text-xs font-bold text-green-700 bg-gray-50 dark:bg-zinc-900">
+                                    {projectionData.reduce((acc, curr) => acc + curr.income, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </TableCell>
+                            </TableRow>
+
+                            {/* Expense Row */}
+                            <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-12 hover:bg-gray-50">
+                                <TableCell className="font-semibold text-xs sticky left-0 bg-white dark:bg-black z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-red-600">
+                                    Despesas
+                                </TableCell>
+                                {projectionData.map(m => (
+                                    <TableCell key={m.month} className="text-center text-xs text-red-600 font-medium">
+                                        {m.expense > 0 ? m.expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}
+                                    </TableCell>
+                                ))}
+                                <TableCell className="text-right text-xs font-bold text-red-700 bg-gray-50 dark:bg-zinc-900">
+                                    {projectionData.reduce((acc, curr) => acc + curr.expense, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </TableCell>
+                            </TableRow>
+
+                            {/* Balance Row */}
+                            <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-14 bg-gray-50/50 font-medium">
+                                <TableCell className="font-bold text-xs sticky left-0 bg-gray-50 dark:bg-zinc-900 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                    RESULTADO
+                                </TableCell>
+                                {projectionData.map(m => (
+                                    <TableCell key={m.month} className={`text-center text-xs font-bold ${m.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                        {m.balance !== 0 ? m.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}
+                                    </TableCell>
+                                ))}
+                                <TableCell className={`text-right text-xs font-bold bg-gray-100 dark:bg-zinc-800 ${projectionData.reduce((acc,curr) => acc + curr.balance, 0) >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                                    {projectionData.reduce((acc, curr) => acc + curr.balance, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </div>
             </TabsContent>
 
             {/* ACCOUNTS VIEW */}
