@@ -85,6 +85,22 @@ export interface Backup {
   auto: boolean;
 }
 
+export interface CalendarSettings {
+  isEnabled: boolean;
+  isConnected: boolean; // Simulates Google OAuth connection
+  syncCategories: Category[];
+  reminderDaysBefore: number;
+}
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;
+  amount: number;
+  type: TransactionType;
+  synced: boolean;
+}
+
 interface FinancialStore {
   transactions: Transaction[];
   accounts: Account[];
@@ -112,6 +128,13 @@ interface FinancialStore {
   isAutoBackupEnabled: boolean;
   addBackup: (backup: Backup) => void;
   toggleAutoBackup: (enabled: boolean) => void;
+
+  // Calendar Integration
+  calendarSettings: CalendarSettings;
+  calendarEvents: CalendarEvent[];
+  updateCalendarSettings: (settings: Partial<CalendarSettings>) => void;
+  connectCalendar: () => void;
+  disconnectCalendar: () => void;
 
   balance: number; // Global balance (sum of all accounts)
   income: number;
@@ -237,6 +260,15 @@ export const useFinancialStore = create<FinancialStore>()(
       lastBackupDate: null,
       isAutoBackupEnabled: false,
       
+      // Calendar Integration Initial State
+      calendarSettings: {
+        isEnabled: false,
+        isConnected: false,
+        syncCategories: ['Alimentação', 'Moradia', 'Transporte', 'Saúde', 'Educação'],
+        reminderDaysBefore: 1
+      },
+      calendarEvents: [],
+
       balance: 3604.10, // Sum of accounts
       income: 3500.00,
       expense: 45.90,
@@ -416,6 +448,25 @@ export const useFinancialStore = create<FinancialStore>()(
       
       toggleAutoBackup: (enabled) => set(() => ({
         isAutoBackupEnabled: enabled
+      })),
+
+      updateCalendarSettings: (settings) => set((state) => ({
+        calendarSettings: { ...state.calendarSettings, ...settings }
+      })),
+      
+      connectCalendar: () => set((state) => ({
+        calendarSettings: { ...state.calendarSettings, isConnected: true, isEnabled: true },
+        // Simulate syncing some initial events
+        calendarEvents: [
+            { id: '1', title: 'Aluguel', date: new Date(new Date().setDate(new Date().getDate() + 5)).toISOString(), amount: 1200, type: 'expense', synced: true },
+            { id: '2', title: 'Netflix', date: new Date(new Date().setDate(new Date().getDate() + 10)).toISOString(), amount: 55.90, type: 'expense', synced: true },
+            { id: '3', title: 'Salário', date: new Date(new Date().setDate(new Date().getDate() + 2)).toISOString(), amount: 3500, type: 'income', synced: true },
+        ]
+      })),
+      
+      disconnectCalendar: () => set((state) => ({
+        calendarSettings: { ...state.calendarSettings, isConnected: false, isEnabled: false },
+        calendarEvents: []
       })),
 
       updateBusinessProduct: (id, prodData) => set((state) => ({

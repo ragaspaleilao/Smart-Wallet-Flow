@@ -2,7 +2,7 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { User, Moon, HelpCircle, LogOut, Car, Shield, CreditCard, ChevronRight, Wallet, Crown, Star, Gift, Cloud } from "lucide-react";
+import { User, Moon, HelpCircle, LogOut, Car, Shield, CreditCard, ChevronRight, Wallet, Crown, Star, Gift, Cloud, Calendar } from "lucide-react";
 import { Link } from "wouter";
 
 import { ShareButton } from "@/components/share-button";
@@ -92,6 +92,23 @@ export default function Settings() {
                         <Cloud className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     </div>
                     <span className="font-medium group-hover:text-blue-600 transition-colors">Backup e Segurança</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+              </div>
+            </Link>
+
+            <Link href="/calendar-integration">
+              <div className="flex items-center justify-between py-2 cursor-pointer group">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-orange-50 dark:bg-orange-900/20 p-1.5 rounded-lg">
+                        <Calendar className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                            <span className="font-medium group-hover:text-orange-600 transition-colors">Agenda Financeira</span>
+                            <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-[9px] font-bold text-white px-1.5 py-0.5 rounded-full">PREMIUM</div>
+                        </div>
+                    </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-400" />
               </div>
