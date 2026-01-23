@@ -38,6 +38,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { format, isBefore, startOfDay } from "date-fns";
+import { AddTransactionSheet } from "@/components/add-transaction-sheet";
 
 export default function SpreadsheetView() {
   const { transactions, accounts, investments, addTransaction, updateTransaction, removeTransaction, addAccount, updateAccountBalance, addInvestment } = useFinancialStore();
@@ -250,9 +251,17 @@ export default function SpreadsheetView() {
            </div>
            
            <div className="flex gap-1">
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={activeTab === 'transactions' ? handleAddNewTransaction : activeTab === 'accounts' ? handleAddAccount : handleAddInvestment}>
-                    <Plus className="w-3 h-3" /> <span className="hidden sm:inline">Adicionar</span>
-                </Button>
+                {activeTab === 'transactions' ? (
+                    <AddTransactionSheet context={context}>
+                        <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
+                            <Plus className="w-3 h-3" /> <span className="hidden sm:inline">Adicionar</span>
+                        </Button>
+                    </AddTransactionSheet>
+                ) : (
+                    <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={activeTab === 'accounts' ? handleAddAccount : handleAddInvestment}>
+                        <Plus className="w-3 h-3" /> <span className="hidden sm:inline">Adicionar</span>
+                    </Button>
+                )}
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                     <Download className="w-4 h-4" />
                 </Button>
