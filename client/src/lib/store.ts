@@ -70,6 +70,13 @@ export interface BusinessSettings {
   fixedCosts: { id: string; name: string; value: number }[];
 }
 
+export interface Referral {
+  id: string;
+  name: string;
+  status: 'pending' | 'confirmed';
+  date: string;
+}
+
 interface FinancialStore {
   transactions: Transaction[];
   accounts: Account[];
@@ -85,6 +92,12 @@ interface FinancialStore {
     alertThresholds: number[];
   };
   
+  // Referral System
+  referralCode: string;
+  referrals: Referral[];
+  premiumUntil: string | null; // ISO string if premium
+  addReferral: (referral: Omit<Referral, 'id' | 'date' | 'status'>) => void;
+
   balance: number; // Global balance (sum of all accounts)
   income: number;
   expense: number;
@@ -195,6 +208,15 @@ export const useFinancialStore = create<FinancialStore>()(
         creditLimit: 5000.00,
         alertThresholds: [70, 90],
       },
+      
+      // Referral System Initial State
+      referralCode: `USER${Math.floor(1000 + Math.random() * 9000)}`,
+      referrals: [
+          { id: '1', name: 'Carlos Mendes', status: 'confirmed', date: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString() },
+          { id: '2', name: 'Ana Souza', status: 'pending', date: new Date().toISOString() },
+      ], 
+      premiumUntil: null, // Not premium yet
+      
       balance: 3604.10, // Sum of accounts
       income: 3500.00,
       expense: 45.90,
@@ -361,6 +383,10 @@ export const useFinancialStore = create<FinancialStore>()(
       
       addBusinessProduct: (prodData) => set((state) => ({
         businessProducts: [...state.businessProducts, { ...prodData, id: nanoid() }]
+      })),
+
+      addReferral: (refData) => set((state) => ({
+        referrals: [...state.referrals, { ...refData, id: nanoid(), status: 'pending', date: new Date().toISOString() }]
       })),
       
       updateBusinessProduct: (id, prodData) => set((state) => ({

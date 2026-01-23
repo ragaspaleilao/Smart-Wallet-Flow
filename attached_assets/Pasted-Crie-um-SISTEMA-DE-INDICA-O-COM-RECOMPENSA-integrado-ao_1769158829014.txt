@@ -1,0 +1,101 @@
+Crie um SISTEMA DE INDICAÇÃO COM RECOMPENSA integrado ao aplicativo financeiro.
+
+OBJETIVO:
+Permitir que usuários indiquem o app para amigos e ganhem acesso
+premium gratuito por tempo limitado, incentivando uso real e recorrente.
+
+━━━━━━━━━━━━━━━━━━
+1️⃣ LINK DE INDICAÇÃO ÚNICO
+━━━━━━━━━━━━━━━━━━
+Cada usuário deve possuir:
+- Um link exclusivo de convite
+- Um código identificador único
+
+Exemplo:
+appfinanceiro.com/convite/USER123
+
+O link deve:
+- Direcionar para download do app
+- Registrar automaticamente quem indicou
+
+━━━━━━━━━━━━━━━━━━
+2️⃣ TELA “INDIQUE E GANHE”
+━━━━━━━━━━━━━━━━━━
+Criar uma tela dedicada contendo:
+
+Título:
+“Indique amigos e ganhe Premium”
+
+Descrição simples:
+“Convide amigos para usar o app.
+Cada amigo ativo te dá acesso premium.”
+
+Exibir:
+- Indicações pendentes
+- Indicações confirmadas
+- Tempo premium acumulado
+
+━━━━━━━━━━━━━━━━━━
+3️⃣ CONDIÇÃO DE INDICAÇÃO VÁLIDA (ANTIFRAUDE)
+━━━━━━━━━━━━━━━━━━
+Uma indicação só será considerada válida quando o indicado:
+
+✔️ Instalar o app
+✔️ Criar uma conta
+✔️ Realizar pelo menos 3 lançamentos financeiros reais
+
+Após validação:
+→ Recompensa liberada automaticamente
+
+━━━━━━━━━━━━━━━━━━
+4️⃣ RECOMPENSAS (SEM VITALÍCIO)
+━━━━━━━━━━━━━━━━━━
+Configurar recompensas cumulativas:
+
+- 1 indicação válida → +7 dias Premium
+- 3 indicações → +30 dias Premium
+- 12 indicações → +1 ANO Premium (todas as funções liberadas)
+
+⚠️ Não oferecer plano vitalício.
+
+O sistema deve:
+- Somar períodos automaticamente
+- Mostrar progresso visual (ex: 8/12 indicações)
+
+━━━━━━━━━━━━━━━━━━
+5️⃣ BOTÃO DE COMPARTILHAMENTO
+━━━━━━━━━━━━━━━━━━
+Adicionar botão:
+“Compartilhar convite”
+
+Ao clicar:
+- Abrir menu nativo do celular
+- Mensagem pré-preenchida:
+
+“Estou usando um app que facilitou muito minha vida financeira.
+Baixa aqui 👇 [link]”
+
+Permitir edição antes do envio.
+
+━━━━━━━━━━━━━━━━━━
+6️⃣ UX E TRANSPARÊNCIA
+━━━━━━━━━━━━━━━━━━
+- Explicar regras claramente
+- Mostrar status de cada indicação
+- Linguagem simples e amigável
+- Sem letras miúdas
+
+━━━━━━━━━━━━━━━━━━
+7️⃣ PREPARAÇÃO PARA O FUTURO
+━━━━━━━━━━━━━━━━━━
+Estruturar o sistema para:
+- Limite de indicações por período
+- Recompensas temporárias
+- Campanhas sazonais
+
+Não ativar agora, apenas preparar estrutura.
+
+━━━━━━━━━━━━━━━━━━
+OBJETIVO FINAL:
+Usuário gostar do app, indicar amigos
+e sentir que está sendo recompensado de forma justa.

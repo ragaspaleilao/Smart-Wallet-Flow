@@ -15,14 +15,17 @@ export function ShareButton({
   size = "icon", 
   className,
   showText = false,
-  text = "Compartilhar com amigos"
-}: ShareButtonProps) {
+  text = "Compartilhar com amigos",
+  customUrl,
+  customTitle,
+  customMessage
+}: ShareButtonProps & { customUrl?: string, customTitle?: string, customMessage?: string }) {
   
   const handleShare = async () => {
     const shareData = {
-      title: 'FinSmart App',
-      text: 'Gostei muito desse app para organizar minhas finanças. Baixa aqui 👇',
-      url: window.location.origin // In a real app this would be the store link
+      title: customTitle || 'FinSmart App',
+      text: customMessage || 'Gostei muito desse app para organizar minhas finanças. Baixa aqui 👇',
+      url: customUrl || window.location.origin 
     };
 
     try {

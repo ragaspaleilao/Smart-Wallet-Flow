@@ -2,7 +2,7 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { User, Moon, HelpCircle, LogOut, Car, Shield, CreditCard, ChevronRight, Wallet, Crown, Star } from "lucide-react";
+import { User, Moon, HelpCircle, LogOut, Car, Shield, CreditCard, ChevronRight, Wallet, Crown, Star, Gift } from "lucide-react";
 import { Link } from "wouter";
 
 import { ShareButton } from "@/components/share-button";
@@ -25,23 +25,38 @@ export default function Settings() {
             </div>
           </div>
           
-          {/* Premium Banner */}
-          <Link href="/premium">
-             <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-4 rounded-xl text-white shadow-lg shadow-purple-200 dark:shadow-none cursor-pointer transform transition-transform active:scale-95">
-                <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-white/20 rounded-lg">
-                            <Crown className="w-6 h-6 text-yellow-300 fill-yellow-300" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold">Seja Premium</h3>
-                            <p className="text-xs text-purple-100">Desbloqueie IA e Gestão de Negócios</p>
-                        </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-white/50 mt-2" />
+             <Link href="/premium">
+                <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-4 rounded-xl text-white shadow-lg shadow-purple-200 dark:shadow-none cursor-pointer transform transition-transform active:scale-95">
+                   <div className="flex items-start justify-between">
+                       <div className="flex items-center gap-3">
+                           <div className="p-2 bg-white/20 rounded-lg">
+                               <Crown className="w-6 h-6 text-yellow-300 fill-yellow-300" />
+                           </div>
+                           <div>
+                               <h3 className="font-bold">Seja Premium</h3>
+                               <p className="text-xs text-purple-100">Desbloqueie IA e Gestão de Negócios</p>
+                           </div>
+                       </div>
+                       <ChevronRight className="w-5 h-5 text-white/50 mt-2" />
+                   </div>
                 </div>
-             </div>
-          </Link>
+             </Link>
+             
+             {/* Refer and Earn Banner - NEW */}
+             <Link href="/refer-and-earn">
+                <div className="bg-white dark:bg-zinc-900 border border-green-100 dark:border-green-900/30 p-4 rounded-xl cursor-pointer hover:border-green-300 transition-colors">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                            <Gift className="w-5 h-5 text-green-600" />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-bold text-gray-900 dark:text-white text-sm">Indique e Ganhe Premium</h3>
+                            <p className="text-xs text-gray-500">Ganhe até 1 ano de acesso grátis</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                    </div>
+                </div>
+             </Link>
 
           {/* Share App Section - New */}
           <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30">
