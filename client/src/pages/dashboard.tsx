@@ -2,10 +2,10 @@ import { Link } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon } from "lucide-react";
+import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 import { useFinancialStore } from "@/lib/store";
-import { format } from "date-fns";
+import { format, isBefore, startOfDay } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 
 import { ShareButton } from "@/components/share-button";
@@ -42,6 +42,13 @@ export default function Dashboard() {
   const personalBalance = accounts
     .filter(a => a.isPersonal)
     .reduce((acc, curr) => acc + curr.balance, 0);
+
+  // Overdue Logic
+  const overdueTransactions = transactions.filter(t => 
+    t.status === 'pending' && isBefore(new Date(t.date), startOfDay(new Date()))
+  );
+  
+  const overdueTotal = overdueTransactions.reduce((acc, curr) => acc + curr.amount, 0);
 
   return (
     <MobileLayout>
@@ -193,6 +200,19 @@ export default function Dashboard() {
         </div>
 
         {/* Alerts */}
+        {overdueTransactions.length > 0 && (
+            <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-2xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-4">
+            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <div>
+                <h4 className="font-semibold text-sm text-red-700 dark:text-red-400">Contas Atrasadas!</h4>
+                <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-1">
+                    Você tem {overdueTransactions.length} contas vencidas totalizando 
+                    <span className="font-bold"> R$ {overdueTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>.
+                </p>
+            </div>
+            </div>
+        )}
+
         <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 rounded-2xl p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
           <div>
@@ -219,20 +239,30 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-3">
-            {transactions.slice(0, 5).map((tx) => (
+            {transactions.slice(0, 5).map((tx) => {
+              const isOverdue = tx.status === 'pending' && isBefore(new Date(tx.date), startOfDay(new Date()));
+              return (
               <EditTransactionSheet key={tx.id} transaction={tx}>
-              <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 animate-in fade-in slide-in-from-bottom-2">
+              <div className={`flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 animate-in fade-in slide-in-from-bottom-2 ${isOverdue ? 'border-red-200 dark:border-red-900/50 bg-red-50/10' : ''}`}>
                 <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg relative ${
                     tx.category === 'Alimentação' ? 'bg-orange-100 text-orange-600' :
                     tx.category === 'Transporte' ? 'bg-blue-100 text-blue-600' :
                     tx.category === 'Salário' ? 'bg-green-100 text-green-600' :
                     'bg-purple-100 text-purple-600'
                   }`}>
                     {tx.category.charAt(0)}
+                    {isOverdue && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center border border-white dark:border-zinc-950">
+                            <AlertCircle className="w-2.5 h-2.5 text-white" />
+                        </div>
+                    )}
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">{tx.description}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-900 dark:text-white">{tx.description}</p>
+                        {isOverdue && <span className="text-[9px] font-bold text-red-600 bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded">ATRASADO</span>}
+                    </div>
                     <p className="text-xs text-gray-500 flex items-center gap-1">
                       {tx.category} • {format(new Date(tx.date), 'dd/MM HH:mm')}
                       {(() => {
@@ -247,12 +277,21 @@ export default function Dashboard() {
                     </p>
                   </div>
                 </div>
-                <span className={`font-bold ${tx.type === 'income' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
-                  {tx.type === 'income' ? '+' : '-'} R$ {tx.amount.toFixed(2)}
-                </span>
+                <div className="text-right">
+                    <span className={`font-bold block ${tx.type === 'income' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
+                    {tx.type === 'income' ? '+' : '-'} R$ {tx.amount.toFixed(2)}
+                    </span>
+                    {tx.status === 'pending' ? (
+                         <span className={`text-[10px] font-medium ${isOverdue ? 'text-red-500' : 'text-yellow-600'}`}>
+                             {isOverdue ? 'Vencido' : 'Pendente'}
+                         </span>
+                    ) : (
+                         <span className="text-[10px] text-green-600 font-medium">Pago</span>
+                    )}
+                </div>
               </div>
               </EditTransactionSheet>
-            ))}
+            )})}
           </div>
         </div>
       </div>

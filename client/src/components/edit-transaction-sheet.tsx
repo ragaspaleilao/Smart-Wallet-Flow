@@ -32,7 +32,8 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
     category: transaction.category,
     type: transaction.type,
     accountId: transaction.accountId || "",
-    date: transaction.date.split('T')[0] // YYYY-MM-DD
+    date: transaction.date.split('T')[0], // YYYY-MM-DD
+    status: transaction.status || 'paid'
   });
 
   // Reset form when opening
@@ -44,7 +45,8 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
         category: transaction.category,
         type: transaction.type,
         accountId: transaction.accountId || "",
-        date: transaction.date.split('T')[0]
+        date: transaction.date.split('T')[0],
+        status: transaction.status || 'paid'
       });
     }
   }, [open, transaction]);
@@ -56,7 +58,8 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
       category: formData.category,
       type: formData.type,
       accountId: formData.accountId,
-      date: new Date(formData.date).toISOString()
+      date: new Date(formData.date).toISOString(),
+      status: formData.status as 'paid' | 'pending'
     });
     setOpen(false);
     toast({ title: "Transação atualizada!" });
@@ -86,6 +89,28 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
         </SheetHeader>
         
         <div className="space-y-6 pb-24">
+            
+            {/* Status Toggle */}
+            <div className="bg-gray-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-dashed border-gray-200 dark:border-zinc-700 flex items-center justify-between">
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    Status do Lançamento
+                </div>
+                <div className="flex bg-white dark:bg-zinc-800 rounded-lg p-1 shadow-sm border border-gray-100 dark:border-zinc-700">
+                    <button
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${formData.status === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'text-gray-500 hover:text-gray-700'}`}
+                        onClick={() => setFormData({...formData, status: 'paid'})}
+                    >
+                        PAGO
+                    </button>
+                    <button
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${formData.status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'text-gray-500 hover:text-gray-700'}`}
+                        onClick={() => setFormData({...formData, status: 'pending'})}
+                    >
+                        PENDENTE
+                    </button>
+                </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
                  <div className="space-y-2">
                     <Label>Tipo</Label>

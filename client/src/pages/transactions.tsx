@@ -1,10 +1,10 @@
 import { MobileLayout } from "@/components/mobile-layout";
-import { ArrowLeft, Search, Filter, ArrowUpRight, ArrowDownLeft, Table as TableIcon } from "lucide-react";
+import { ArrowLeft, Search, Filter, ArrowUpRight, ArrowDownLeft, Table as TableIcon, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
 import { useFinancialStore } from "@/lib/store";
-import { format } from "date-fns";
+import { format, isBefore, startOfDay } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 
 export default function Transactions() {
@@ -62,18 +62,37 @@ export default function Transactions() {
 function TransactionItem({ tx }: { tx: any }) {
   const accounts = useFinancialStore(state => state.accounts);
   const account = accounts.find(a => a.id === tx.accountId);
+  
+  const isOverdue = tx.status === 'pending' && isBefore(new Date(tx.date), startOfDay(new Date()));
+  const isPending = tx.status === 'pending';
 
   return (
     <EditTransactionSheet transaction={tx}>
-    <div className="flex items-center justify-between py-2 group cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-900 rounded-lg px-2 -mx-2 transition-colors">
+    <div className={`flex items-center justify-between py-3 group cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-900 rounded-xl px-3 -mx-3 transition-colors ${isOverdue ? 'bg-red-50/50 dark:bg-red-900/10' : ''}`}>
       <div className="flex items-center gap-4">
-        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center relative ${
           tx.type === 'income' ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600'
         }`}>
           {tx.type === 'income' ? <ArrowUpRight className="w-6 h-6" /> : <ArrowDownLeft className="w-6 h-6" />}
+          
+          {/* Status Badge on Icon */}
+          {isOverdue && (
+            <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-950">
+                <AlertCircle className="w-3 h-3 text-white" />
+            </div>
+          )}
+          {!isOverdue && isPending && (
+             <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-950">
+                <Clock className="w-3 h-3 text-white" />
+            </div>
+          )}
         </div>
         <div>
-          <p className="font-semibold text-gray-900 dark:text-white group-hover:text-primary transition-colors">{tx.description}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-gray-900 dark:text-white group-hover:text-primary transition-colors">{tx.description}</p>
+            {isOverdue && <span className="text-[10px] font-bold text-red-600 bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded">ATRASADO</span>}
+            {!isOverdue && isPending && <span className="text-[10px] font-bold text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PENDENTE</span>}
+          </div>
           <p className="text-xs text-gray-500 flex items-center gap-1">
             {tx.category} • {format(new Date(tx.date), 'dd/MM HH:mm')}
             {account && (
@@ -89,6 +108,13 @@ function TransactionItem({ tx }: { tx: any }) {
         <span className={`font-bold block ${tx.type === 'income' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
           {tx.type === 'income' ? '+' : '-'} R$ {tx.amount.toFixed(2)}
         </span>
+        {isPending ? (
+            <span className="text-[10px] text-gray-400 font-medium">Previsto</span>
+        ) : (
+            <span className="text-[10px] text-green-600 font-medium flex items-center justify-end gap-0.5">
+                <CheckCircle2 className="w-3 h-3" /> Pago
+            </span>
+        )}
       </div>
     </div>
     </EditTransactionSheet>
