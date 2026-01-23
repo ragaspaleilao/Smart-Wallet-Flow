@@ -27,6 +27,7 @@ import AiChat from "@/pages/ai-chat";
 import ReferAndEarn from "@/pages/refer-and-earn";
 import Backup from "@/pages/backup";
 import CalendarIntegration from "@/pages/calendar-integration";
+import SpreadsheetView from "@/pages/spreadsheet-view";
 
 function Router() {
   return (
@@ -56,6 +57,7 @@ function Router() {
       <Route path="/refer-and-earn" component={ReferAndEarn} />
       <Route path="/backup" component={Backup} />
       <Route path="/calendar-integration" component={CalendarIntegration} />
+      <Route path="/spreadsheet" component={SpreadsheetView} />
 
       <Route component={NotFound} />
     </Switch>

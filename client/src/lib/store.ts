@@ -28,6 +28,11 @@ export interface Transaction {
   isPersonal: boolean; // true = personal, false = business
   accountId?: string; // Optional for backward compatibility, but should be used going forward
   paymentMethod?: 'debit' | 'credit' | 'cash' | 'pix' | 'transfer';
+  
+  // New fields for Spreadsheet View
+  status?: 'paid' | 'pending';
+  tags?: string[];
+  notes?: string;
 }
 
 export interface Goal {

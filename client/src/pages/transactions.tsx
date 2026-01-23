@@ -1,5 +1,5 @@
 import { MobileLayout } from "@/components/mobile-layout";
-import { ArrowLeft, Search, Filter, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { ArrowLeft, Search, Filter, ArrowUpRight, ArrowDownLeft, Table as TableIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
@@ -18,9 +18,17 @@ export default function Transactions() {
         <div className="p-6 pb-2 sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-xl z-10 border-b border-gray-100 dark:border-zinc-800">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Extrato</h1>
-            <Button variant="ghost" size="icon">
-              <Filter className="w-5 h-5" />
-            </Button>
+            <div className="flex gap-2">
+                <Link href="/spreadsheet">
+                    <Button variant="outline" size="sm" className="h-9 gap-2 bg-green-50 border-green-200 text-green-700 hover:bg-green-100">
+                        <TableIcon className="w-4 h-4" />
+                        Planilha
+                    </Button>
+                </Link>
+                <Button variant="ghost" size="icon">
+                  <Filter className="w-5 h-5" />
+                </Button>
+            </div>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

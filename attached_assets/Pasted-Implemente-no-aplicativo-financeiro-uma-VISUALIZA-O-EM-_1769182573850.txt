@@ -1,0 +1,73 @@
+Implemente no aplicativo financeiro uma VISUALIZAÇÃO EM PLANILHA (ESTILO EXCEL), totalmente integrada aos dados do usuário.
+
+OBJETIVO:
+Permitir que o usuário visualize, edite, adicione e gerencie todas as suas receitas, despesas e transferências em formato de tabela tradicional, semelhante ao Excel, sem sair do aplicativo.
+
+ACESSO:
+- Botão visível no Dashboard e no Extrato:
+  “📊 Ver em Planilha”
+- Abertura em tela dedicada ou modal em tela cheia
+
+ESTRUTURA DA PLANILHA:
+- Linhas representam lançamentos financeiros
+- Colunas editáveis:
+  - Data
+  - Tipo (Receita / Despesa / Transferência)
+  - Descrição
+  - Categoria
+  - Subcategoria
+  - Conta (Banco, Dinheiro, Investimento)
+  - Instituição financeira (ex: Nubank, Santander, Dinheiro)
+  - Forma de pagamento
+  - Parcelamento (se aplicável)
+  - Valor
+  - Produto (para pessoa jurídica)
+  - Veículo (se houver)
+  - Tags personalizadas
+  - Observações
+  - Status (Pago / Pendente)
+
+FUNCIONALIDADES:
+- Edição direta em cada célula
+- Adição de novas linhas (lançamentos)
+- Exclusão de linhas
+- Duplicação de lançamentos
+- Seleção múltipla
+- Ações em massa (excluir, alterar categoria, conta etc.)
+- Copiar e colar dados
+- Ordenação por qualquer coluna
+- Filtros avançados por:
+  - Data
+  - Conta
+  - Tipo
+  - Categoria
+  - Valor
+  - Texto
+- Busca rápida global
+
+COMPORTAMENTO:
+- Alterações refletem automaticamente:
+  - Dashboard
+  - Gráficos
+  - Relatórios
+  - IA financeira
+- Autosave ativado
+- Histórico de alterações (undo / redo)
+
+EXPERIÊNCIA:
+- Interface semelhante ao Excel / Google Sheets
+- Scroll horizontal e vertical
+- Cabeçalho fixo
+- Performance otimizada para grandes volumes de dados
+
+PLANOS:
+- Visualização disponível no plano gratuito
+- Edição completa, ações em massa e filtros avançados no plano premium
+
+GARANTIAS:
+- Não quebrar funcionalidades existentes
+- Manter consistência total dos dados
+- Compatível com modo claro e escuro
+- Mobile-first com suporte a tablets
+
+Implementar mantendo arquitetura modular e preparada para expansão futura.
