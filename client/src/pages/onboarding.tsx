@@ -1,7 +1,7 @@
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { MobileLayout } from "@/components/mobile-layout";
-import heroImage from "@/assets/onboarding-hero.png";
+import heroImage from "@/assets/sloth-hero.jpg";
 
 export default function Onboarding() {
   const [_, setLocation] = useLocation();
@@ -18,17 +18,18 @@ export default function Onboarding() {
           <div className="relative w-full aspect-square max-w-[280px]">
             <img 
               src={heroImage} 
-              alt="Financial Freedom" 
-              className="w-full h-full object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-500"
+              alt="Xô Preguiça" 
+              className="w-full h-full object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-500 rounded-3xl"
             />
           </div>
           
           <div className="space-y-4 text-center">
             <h1 className="text-4xl font-heading font-bold tracking-tight text-gray-900 dark:text-white leading-tight">
-              Controle sua vida financeira <span className="text-primary">sem planilhas</span>
+              Xô Preguiça <br />
+              <span className="text-2xl text-gray-500 font-normal">Orçamento Pessoal</span>
             </h1>
             <p className="text-lg text-gray-500 dark:text-gray-400 leading-relaxed">
-              Registre gastos por voz, foto ou automaticamente. Simples assim.
+              Controle sua vida financeira sem planilhas. Registre gastos por voz, foto ou automaticamente.
             </p>
           </div>
         </div>

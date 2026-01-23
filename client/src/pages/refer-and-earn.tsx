@@ -40,7 +40,7 @@ export default function ReferAndEarn() {
       progress = (confirmedReferrals / 1) * 100;
   }
 
-  const referralLink = `finsmart.app/convite/${referralCode}`;
+  const referralLink = `xopreguica.app/convite/${referralCode}`;
 
   const copyLink = () => {
     navigator.clipboard.writeText(referralLink);
@@ -120,7 +120,7 @@ export default function ReferAndEarn() {
                 text="Compartilhar convite" 
                 variant="default" 
                 className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-6 shadow-md shadow-purple-200 dark:shadow-none"
-                customTitle="Convite FinSmart"
+                customTitle="Convite Xô Preguiça"
                 customMessage={`Estou usando um app que facilitou muito minha vida financeira. Use meu código ${referralCode} e ganhe benefícios! Baixa aqui 👇`}
                 customUrl={referralLink}
             />

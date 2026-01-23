@@ -23,7 +23,7 @@ export function ShareButton({
   
   const handleShare = async () => {
     const shareData = {
-      title: customTitle || 'FinSmart App',
+      title: customTitle || 'Xô Preguiça App',
       text: customMessage || 'Gostei muito desse app para organizar minhas finanças. Baixa aqui 👇',
       url: customUrl || window.location.origin 
     };
