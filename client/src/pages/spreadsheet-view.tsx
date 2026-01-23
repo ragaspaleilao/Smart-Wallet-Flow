@@ -26,13 +26,18 @@ import {
   Briefcase,
   User,
   Building2,
-  DollarSign
+  DollarSign,
+  AlertCircle,
+  Calendar as CalendarIcon,
+  XCircle
 } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useMemo } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { format, isBefore, startOfDay } from "date-fns";
 
 export default function SpreadsheetView() {
   const { transactions, accounts, investments, addTransaction, updateTransaction, removeTransaction, addAccount, updateAccountBalance, addInvestment } = useFinancialStore();
@@ -45,6 +50,11 @@ export default function SpreadsheetView() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [filterType, setFilterType] = useState<string>("all");
+
+  // Payment Confirmation State
+  const [paymentConfirmOpen, setPaymentConfirmOpen] = useState(false);
+  const [pendingPaymentIds, setPendingPaymentIds] = useState<string[]>([]);
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Selection Logic
   const toggleSelection = (id: string) => {
@@ -83,6 +93,17 @@ export default function SpreadsheetView() {
     return investments.filter(i => context === "personal" ? i.isPersonal : !i.isPersonal);
   }, [investments, context]);
 
+  // Totals Calculation
+  const totals = useMemo(() => {
+    const income = filteredTransactions
+        .filter(t => t.type === 'income')
+        .reduce((acc, curr) => acc + curr.amount, 0);
+    const expense = filteredTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((acc, curr) => acc + curr.amount, 0);
+    return { income, expense, balance: income - expense };
+  }, [filteredTransactions]);
+
   // Actions
   const handleAddNewTransaction = () => {
     const newTx = {
@@ -107,10 +128,31 @@ export default function SpreadsheetView() {
     }
   };
 
-  const handleBulkStatusChange = (status: 'paid' | 'pending') => {
-    selectedRows.forEach(id => updateTransaction(id, { status }));
-    toast({ title: "Status atualizado", description: `${selectedRows.length} itens atualizados.` });
-    setSelectedRows([]);
+  const initiatePayment = (ids: string[]) => {
+      setPendingPaymentIds(ids);
+      setPaymentDate(new Date().toISOString().split('T')[0]);
+      setPaymentConfirmOpen(true);
+  };
+
+  const confirmPayment = () => {
+      pendingPaymentIds.forEach(id => {
+          updateTransaction(id, { 
+              status: 'paid',
+              date: new Date(paymentDate).toISOString() // Update date to payment date
+          });
+      });
+      toast({ title: "Pagamento registrado", description: `${pendingPaymentIds.length} transações atualizadas.` });
+      setPaymentConfirmOpen(false);
+      setPendingPaymentIds([]);
+      if (selectedRows.length > 0) setSelectedRows([]);
+  };
+
+  const handleStatusToggle = (id: string, currentStatus: 'paid' | 'pending') => {
+      if (currentStatus === 'pending') {
+          initiatePayment([id]);
+      } else {
+          updateTransaction(id, { status: 'pending' });
+      }
   };
 
   const handleAddAccount = () => {
@@ -132,6 +174,12 @@ export default function SpreadsheetView() {
           isPersonal: context === "personal"
       });
   }
+  
+  // Check overdue
+  const isOverdue = (dateStr: string, status?: string) => {
+      if (status === 'paid') return false;
+      return isBefore(new Date(dateStr), startOfDay(new Date()));
+  };
 
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-black">
@@ -242,7 +290,7 @@ export default function SpreadsheetView() {
                             <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleDeleteSelected}>
                                 <Trash2 className="w-3 h-3 mr-1" /> Excluir ({selectedRows.length})
                             </Button>
-                            <Button variant="ghost" size="sm" className="h-7 text-xs text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleBulkStatusChange('paid')}>
+                            <Button variant="ghost" size="sm" className="h-7 text-xs text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => initiatePayment(selectedRows)}>
                                 <CheckCircle2 className="w-3 h-3 mr-1" /> Marcar Pago
                             </Button>
                         </>
@@ -269,12 +317,15 @@ export default function SpreadsheetView() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredTransactions.map((row) => (
+                            {filteredTransactions.map((row) => {
+                                const overdue = isOverdue(row.date, row.status);
+                                return (
                                 <TableRow 
                                     key={row.id} 
                                     className={`
                                         border-b border-gray-100 dark:border-zinc-800 h-9 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 group text-xs
                                         ${selectedRows.includes(row.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
+                                        ${overdue ? 'bg-red-50/50 dark:bg-red-900/10' : ''}
                                     `}
                                 >
                                     <TableCell className="px-2 text-center py-1">
@@ -284,12 +335,19 @@ export default function SpreadsheetView() {
                                         />
                                     </TableCell>
                                     <TableCell className="p-0">
-                                        <input 
-                                            type="date"
-                                            className="w-full h-full bg-transparent px-2 text-xs focus:bg-white dark:focus:bg-black focus:outline-none focus:ring-1 focus:ring-green-500"
-                                            value={row.date.split('T')[0]}
-                                            onChange={(e) => updateTransaction(row.id, { date: new Date(e.target.value).toISOString() })}
-                                        />
+                                        <div className="relative w-full h-full flex items-center">
+                                            <input 
+                                                type="date"
+                                                className={`w-full h-full bg-transparent px-2 text-xs focus:bg-white dark:focus:bg-black focus:outline-none focus:ring-1 focus:ring-green-500 ${overdue ? 'text-red-600 font-medium' : ''}`}
+                                                value={row.date.split('T')[0]}
+                                                onChange={(e) => updateTransaction(row.id, { date: new Date(e.target.value).toISOString() })}
+                                            />
+                                            {overdue && (
+                                                <div className="absolute right-0 top-1/2 -translate-y-1/2 pr-1 pointer-events-none" title="Atrasado">
+                                                    <AlertCircle className="w-3 h-3 text-red-500" />
+                                                </div>
+                                            )}
+                                        </div>
                                     </TableCell>
                                     <TableCell className="p-0">
                                         <input 
@@ -337,14 +395,22 @@ export default function SpreadsheetView() {
                                     </TableCell>
                                     <TableCell className="p-0 text-center">
                                         <button 
-                                            className={`w-full h-full text-[10px] font-medium transition-colors ${
+                                            className={`w-full h-full text-[10px] font-medium transition-colors flex items-center justify-center gap-1 ${
                                                 (row.status || 'paid') === 'paid' 
                                                     ? 'bg-green-50 text-green-700 hover:bg-green-100' 
-                                                    : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                                                    : overdue 
+                                                        ? 'bg-red-50 text-red-700 hover:bg-red-100 font-bold' 
+                                                        : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
                                             }`}
-                                            onClick={() => updateTransaction(row.id, { status: (row.status || 'paid') === 'paid' ? 'pending' : 'paid' })}
+                                            onClick={() => handleStatusToggle(row.id, row.status || 'paid')}
                                         >
-                                            {(row.status || 'paid') === 'paid' ? 'PAGO' : 'PENDENTE'}
+                                            {(row.status || 'paid') === 'paid' ? (
+                                                <>PAGO</>
+                                            ) : overdue ? (
+                                                <><XCircle className="w-3 h-3" /> ATRASADO</>
+                                            ) : (
+                                                <>PENDENTE</>
+                                            )}
                                         </button>
                                     </TableCell>
                                     <TableCell className="p-0">
@@ -356,9 +422,32 @@ export default function SpreadsheetView() {
                                         />
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            )})}
                         </TableBody>
                     </Table>
+                 </div>
+                 
+                 {/* Footer Totals */}
+                 <div className="bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 p-3 shadow-lg z-20">
+                    <div className="flex justify-between items-center max-w-4xl mx-auto">
+                        <div className="flex gap-6">
+                            <div className="flex flex-col">
+                                <span className="text-[10px] text-gray-500 uppercase font-semibold">Receitas</span>
+                                <span className="text-sm font-bold text-green-600">R$ {totals.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[10px] text-gray-500 uppercase font-semibold">Despesas</span>
+                                <span className="text-sm font-bold text-red-600">R$ {totals.expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                        </div>
+                        <div className="h-8 w-px bg-gray-200 dark:bg-zinc-700"></div>
+                        <div className="flex flex-col items-end">
+                            <span className="text-[10px] text-gray-500 uppercase font-semibold">Saldo Final</span>
+                            <span className={`text-lg font-bold ${totals.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                R$ {totals.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                        </div>
+                    </div>
                  </div>
             </TabsContent>
 
@@ -448,14 +537,42 @@ export default function SpreadsheetView() {
         </div>
       </Tabs>
       
-      {/* Footer Status */}
-      <div className="bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 p-2 text-[10px] text-gray-500 flex justify-between items-center z-20">
-        <div className="flex gap-4">
+      {/* Footer Status Bar */}
+      <div className="bg-gray-50 dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 p-1 text-[10px] text-gray-500 flex justify-between items-center z-20">
+        <div className="flex gap-4 px-2">
             <span>Perfil: <span className="font-semibold text-gray-700 dark:text-gray-300">{context === 'personal' ? 'Pessoal' : 'Empresarial'}</span></span>
-            <span>Total Transações: {filteredTransactions.length}</span>
+            <span>Total Linhas: {filteredTransactions.length}</span>
         </div>
-        <span>Autosave ativado</span>
+        <span className="px-2">Autosave ativado</span>
       </div>
+
+      {/* Payment Confirmation Dialog */}
+      <Dialog open={paymentConfirmOpen} onOpenChange={setPaymentConfirmOpen}>
+        <DialogContent className="max-w-xs rounded-xl">
+            <DialogHeader>
+                <DialogTitle>Confirmar Pagamento</DialogTitle>
+                <DialogDescription>
+                    Quando este pagamento foi/será realizado?
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+                <label className="text-sm font-medium text-gray-500 mb-1.5 block">Data do Pagamento</label>
+                <div className="relative">
+                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input 
+                        type="date" 
+                        value={paymentDate} 
+                        onChange={(e) => setPaymentDate(e.target.value)} 
+                        className="pl-9"
+                    />
+                </div>
+            </div>
+            <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setPaymentConfirmOpen(false)}>Cancelar</Button>
+                <Button onClick={confirmPayment} className="bg-green-600 hover:bg-green-700">Confirmar Pagamento</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
