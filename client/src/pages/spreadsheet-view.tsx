@@ -314,6 +314,7 @@ export default function SpreadsheetView() {
                                 <TableHead className="w-[100px] text-xs font-semibold h-9 text-right">Valor</TableHead>
                                 <TableHead className="w-[100px] text-xs font-semibold h-9 text-center">Status</TableHead>
                                 <TableHead className="w-[150px] text-xs font-semibold h-9">Observações</TableHead>
+                                <TableHead className="w-[40px] h-9"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -420,6 +421,19 @@ export default function SpreadsheetView() {
                                             placeholder="Adicionar nota..."
                                             onChange={(e) => updateTransaction(row.id, { notes: e.target.value })}
                                         />
+                                    </TableCell>
+                                    <TableCell className="p-0 text-center">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-full w-full rounded-none hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if(confirm('Excluir este lançamento?')) removeTransaction(row.id);
+                                            }}
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             )})}
