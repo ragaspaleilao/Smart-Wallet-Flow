@@ -8,6 +8,8 @@ import { useFinancialStore } from "@/lib/store";
 import { format } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 
+import { ShareButton } from "@/components/share-button";
+
 const chartData = [
   { day: '1', value: 1200 },
   { day: '5', value: 1800 },
@@ -54,8 +56,11 @@ export default function Dashboard() {
                 R$ {personalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </h1>
             </div>
-            <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse" />
+            <div className="flex gap-2">
+                <ShareButton variant="outline" className="rounded-full border-gray-200 dark:border-zinc-800" />
+                <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                  <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse" />
+                </div>
             </div>
           </div>
           

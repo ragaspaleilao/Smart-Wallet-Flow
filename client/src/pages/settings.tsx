@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { User, Moon, HelpCircle, LogOut, Car, Shield, CreditCard, ChevronRight, Wallet, Crown, Star } from "lucide-react";
 import { Link } from "wouter";
 
+import { ShareButton } from "@/components/share-button";
+
 export default function Settings() {
   return (
     <MobileLayout>
@@ -40,6 +42,13 @@ export default function Settings() {
                 </div>
              </div>
           </Link>
+
+          {/* Share App Section - New */}
+          <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30">
+            <h3 className="font-bold text-blue-800 dark:text-blue-300 mb-1">Gostou do app?</h3>
+            <p className="text-xs text-blue-600 dark:text-blue-400 mb-3">Compartilhe com seus amigos e ajude eles a organizarem as finanças!</p>
+            <ShareButton showText variant="default" className="w-full bg-blue-600 hover:bg-blue-700 text-white" />
+          </div>
 
           {/* Preferences */}
           <div className="space-y-4">
