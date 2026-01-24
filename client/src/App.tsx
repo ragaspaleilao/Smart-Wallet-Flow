@@ -29,6 +29,8 @@ import Backup from "@/pages/backup";
 import CalendarIntegration from "@/pages/calendar-integration";
 import SpreadsheetView from "@/pages/spreadsheet-view";
 
+import Simulator from "@/pages/simulator";
+
 function Router() {
   return (
     <Switch>
@@ -41,6 +43,7 @@ function Router() {
       <Route path="/voice-entry" component={VoiceEntry} />
       <Route path="/photo-entry" component={PhotoEntry} />
       <Route path="/manual-entry" component={ManualEntry} />
+      <Route path="/simulator" component={Simulator} />
 
       {/* Main sections */}
       <Route path="/transactions" component={Transactions} />

@@ -165,11 +165,84 @@ interface FinancialStore {
   updateBudget: (budget: Partial<FinancialStore['budget']>) => void;
   
   getTransactionsByMonth: (month: number, year: number) => Transaction[];
+
+  // Simulation System
+  simulations: Simulation[];
+  addSimulation: (sim: Omit<Simulation, 'id' | 'createdAt'>) => void;
+  updateSimulation: (id: string, sim: Partial<Simulation>) => void;
+  removeSimulation: (id: string) => void;
+  convertSimulationToReal: (id: string) => void;
+}
+
+export interface Simulation {
+  id: string;
+  name: string;
+  totalValue: number;
+  downPayment: number;
+  installments: number;
+  startDate: string; // ISO
+  category: Category;
+  type: 'purchase'; // Expandable later
+  createdAt: string;
 }
 
 export const useFinancialStore = create<FinancialStore>()(
   persist(
     (set, get) => ({
+      // ... existing state ...
+      simulations: [],
+      
+      addSimulation: (simData) => set((state) => ({
+        simulations: [...state.simulations, { ...simData, id: nanoid(), createdAt: new Date().toISOString() }]
+      })),
+
+      updateSimulation: (id, simData) => set((state) => ({
+        simulations: state.simulations.map(s => s.id === id ? { ...s, ...simData } : s)
+      })),
+
+      removeSimulation: (id) => set((state) => ({
+        simulations: state.simulations.filter(s => s.id !== id)
+      })),
+
+      convertSimulationToReal: (id) => {
+          const sim = get().simulations.find(s => s.id === id);
+          if (!sim) return;
+
+          // Create the down payment transaction if exists
+          if (sim.downPayment > 0) {
+              get().addTransaction({
+                  amount: sim.downPayment,
+                  type: 'expense',
+                  category: sim.category,
+                  description: `${sim.name} (Entrada)`,
+                  date: sim.startDate,
+                  source: 'manual',
+                  isPersonal: true, // Default to personal for now
+                  status: 'paid'
+              });
+          }
+
+          // Create installments
+          const installmentValue = (sim.totalValue - sim.downPayment) / sim.installments;
+          for (let i = 0; i < sim.installments; i++) {
+              const date = new Date(sim.startDate);
+              date.setMonth(date.getMonth() + i + (sim.downPayment > 0 ? 1 : 0)); // If down payment, 1st installment is next month usually
+              
+              get().addTransaction({
+                  amount: installmentValue,
+                  type: 'expense',
+                  category: sim.category,
+                  description: `${sim.name} (${i+1}/${sim.installments})`,
+                  date: date.toISOString(),
+                  source: 'manual',
+                  isPersonal: true,
+                  status: 'pending'
+              });
+          }
+          
+          get().removeSimulation(id);
+      },
+
       transactions: [
         // Current Month (Assuming active usage)
         { id: '1', amount: 45.90, type: 'expense', category: 'Alimentação', description: 'Padaria Estrela', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },

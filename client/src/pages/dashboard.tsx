@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock } from "lucide-react";
+import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 import { useFinancialStore } from "@/lib/store";
 import { format, isBefore, startOfDay } from "date-fns";
@@ -226,6 +226,12 @@ export default function Dashboard() {
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white">Últimos registros</h3>
             <div className="flex gap-2">
+                <Link href="/simulator">
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs bg-purple-50 dark:bg-purple-900/20 border-purple-200 hover:bg-purple-100 text-purple-700 dark:text-purple-300">
+                        <Calculator className="w-3.5 h-3.5" />
+                        Simular Compra
+                    </Button>
+                </Link>
                 <Link href="/spreadsheet">
                     <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs bg-white dark:bg-zinc-900 border-green-200 hover:bg-green-50 text-green-700">
                         <TableIcon className="w-3.5 h-3.5" />
