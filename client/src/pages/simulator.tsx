@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useFinancialStore, Category, Simulation } from "@/lib/store";
-import { ArrowLeft, Calculator, Calendar, CreditCard, DollarSign, Plus, Save, Trash2, CheckCircle2, AlertTriangle, TrendingDown } from "lucide-react";
+import { ArrowLeft, Calculator, Calendar, CreditCard, DollarSign, Plus, Save, Trash2, CheckCircle2, AlertTriangle, TrendingDown, Pencil } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { format, addMonths, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
@@ -14,10 +14,11 @@ import { toast } from "@/hooks/use-toast";
 
 export default function Simulator() {
   const [location, setLocation] = useLocation();
-  const { transactions, accounts, simulations, addSimulation, removeSimulation, convertSimulationToReal } = useFinancialStore();
+  const { transactions, accounts, simulations, addSimulation, removeSimulation, convertSimulationToReal, updateSimulation } = useFinancialStore();
   
   // State for new simulation form
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     totalValue: "",
@@ -198,19 +199,28 @@ export default function Simulator() {
         return;
     }
     
-    addSimulation({
+    const payload = {
         name: formData.name,
         totalValue: Number(formData.totalValue),
         downPayment: Number(formData.downPayment || 0),
         installments: Number(formData.installments),
         startDate: formData.startDate,
         category: formData.category,
-        type: 'purchase',
+        type: 'purchase' as const,
         interestRate: formData.interestRate ? Number(formData.interestRate) : undefined,
         manualInstallmentValue: formData.manualInstallmentValue ? Number(formData.manualInstallmentValue) : undefined
-    });
+    };
+
+    if (editingId) {
+        updateSimulation(editingId, payload);
+        toast({ title: "Simulação atualizada!" });
+    } else {
+        addSimulation(payload);
+        toast({ title: "Simulação salva!" });
+    }
     
     setShowForm(false);
+    setEditingId(null);
     setFormData({
         name: "",
         totalValue: "",
@@ -221,7 +231,21 @@ export default function Simulator() {
         interestRate: "",
         manualInstallmentValue: ""
     });
-    toast({ title: "Simulação salva!" });
+  };
+
+  const handleEdit = (sim: Simulation) => {
+    setFormData({
+        name: sim.name,
+        totalValue: sim.totalValue.toString(),
+        downPayment: sim.downPayment.toString(),
+        installments: sim.installments.toString(),
+        startDate: sim.startDate,
+        category: sim.category,
+        interestRate: sim.interestRate?.toString() || "",
+        manualInstallmentValue: sim.manualInstallmentValue?.toString() || ""
+    });
+    setEditingId(sim.id);
+    setShowForm(true);
   };
 
   const handleApply = (id: string) => {
@@ -256,7 +280,20 @@ export default function Simulator() {
             {!showForm ? (
                 <Button 
                     className="w-full h-14 text-lg bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-200 dark:shadow-none"
-                    onClick={() => setShowForm(true)}
+                    onClick={() => {
+                        setEditingId(null);
+                        setFormData({
+                            name: "",
+                            totalValue: "",
+                            downPayment: "",
+                            installments: "1",
+                            startDate: new Date().toISOString().split('T')[0],
+                            category: "Outros" as Category,
+                            interestRate: "",
+                            manualInstallmentValue: ""
+                        });
+                        setShowForm(true);
+                    }}
                 >
                     <Plus className="w-5 h-5 mr-2" />
                     Nova Simulação
@@ -361,9 +398,22 @@ export default function Simulator() {
                         </div>
 
                         <div className="pt-2 flex gap-3">
-                            <Button variant="ghost" className="flex-1" onClick={() => setShowForm(false)}>Cancelar</Button>
+                            <Button variant="ghost" className="flex-1" onClick={() => {
+                                setShowForm(false);
+                                setEditingId(null);
+                                setFormData({
+                                    name: "",
+                                    totalValue: "",
+                                    downPayment: "",
+                                    installments: "1",
+                                    startDate: new Date().toISOString().split('T')[0],
+                                    category: "Outros" as Category,
+                                    interestRate: "",
+                                    manualInstallmentValue: ""
+                                });
+                            }}>Cancelar</Button>
                             <Button className="flex-1 bg-purple-600 hover:bg-purple-700" onClick={handleSave}>
-                                <Save className="w-4 h-4 mr-2" /> Salvar
+                                <Save className="w-4 h-4 mr-2" /> {editingId ? 'Atualizar' : 'Salvar'}
                             </Button>
                         </div>
                     </CardContent>
@@ -483,24 +533,35 @@ export default function Simulator() {
                             <div className="flex justify-between items-start">
                                 <div>
                                     <h4 className="font-bold text-gray-900 dark:text-white">{sim.name}</h4>
-                                    <p className="text-xs text-gray-500">
-                                        {sim.installments}x de R$ {(
-                                            (() => {
-                                                if (sim.manualInstallmentValue) return sim.manualInstallmentValue;
-                                                if (sim.interestRate && sim.interestRate > 0) {
-                                                    const pv = sim.totalValue - sim.downPayment;
-                                                    const i = sim.interestRate / 100;
-                                                    const n = sim.installments;
-                                                    return pv * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1);
-                                                }
-                                                return (sim.totalValue - sim.downPayment) / sim.installments;
-                                            })()
-                                        ).toLocaleString('pt-BR', {minimumFractionDigits:2})}
-                                        {sim.interestRate ? ` (${sim.interestRate}% a.m.)` : ''}
-                                    </p>
+                                    <div className="flex flex-col gap-0.5 mt-1">
+                                        <p className="text-xs text-gray-500">
+                                            Valor Inicial: R$ {sim.totalValue.toLocaleString('pt-BR', {minimumFractionDigits:2})}
+                                        </p>
+                                        {sim.downPayment > 0 && (
+                                            <p className="text-xs text-green-600 dark:text-green-400">
+                                                Entrada: R$ {sim.downPayment.toLocaleString('pt-BR', {minimumFractionDigits:2})}
+                                            </p>
+                                        )}
+                                        <p className="text-xs text-gray-500">
+                                            {sim.installments}x de R$ {(
+                                                (() => {
+                                                    if (sim.manualInstallmentValue) return sim.manualInstallmentValue;
+                                                    if (sim.interestRate && sim.interestRate > 0) {
+                                                        const pv = sim.totalValue - sim.downPayment;
+                                                        const i = sim.interestRate / 100;
+                                                        const n = sim.installments;
+                                                        return pv * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1);
+                                                    }
+                                                    return (sim.totalValue - sim.downPayment) / sim.installments;
+                                                })()
+                                            ).toLocaleString('pt-BR', {minimumFractionDigits:2})}
+                                            {sim.interestRate ? ` (${sim.interestRate}% a.m.)` : ''}
+                                        </p>
+                                    </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="font-bold text-purple-600">R$ {(
+                                    <p className="text-xs text-gray-400 mb-0.5">Valor Final</p>
+                                    <p className="font-bold text-purple-600 text-lg">R$ {(
                                         // Display Total Cost (with interest if applicable)
                                         sim.downPayment + (sim.installments * (() => {
                                             if (sim.manualInstallmentValue) return sim.manualInstallmentValue;
@@ -513,25 +574,34 @@ export default function Simulator() {
                                             return (sim.totalValue - sim.downPayment) / sim.installments;
                                         })())
                                     ).toLocaleString('pt-BR', {minimumFractionDigits:2})}</p>
-                                    <p className="text-[10px] text-gray-400">{new Date(sim.startDate).toLocaleDateString()}</p>
+                                    <p className="text-[10px] text-gray-400 mt-1">{new Date(sim.startDate).toLocaleDateString()}</p>
                                 </div>
                             </div>
                             
                             <div className="flex gap-2 pt-2 border-t border-gray-50 dark:border-zinc-800">
                                 <Button 
-                                    variant="ghost" 
                                     size="sm" 
-                                    className="flex-1 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                    onClick={() => removeSimulation(sim.id)}
+                                    variant="outline" 
+                                    className="flex-1 text-xs border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-900 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                                    onClick={() => handleApply(sim.id)}
                                 >
-                                    <Trash2 className="w-4 h-4 mr-1" /> Excluir
+                                    <CheckCircle2 className="w-3 h-3 mr-1.5" /> Efetivar
                                 </Button>
                                 <Button 
                                     size="sm" 
-                                    className="flex-[2] bg-green-600 hover:bg-green-700 text-white"
-                                    onClick={() => handleApply(sim.id)}
+                                    variant="outline" 
+                                    className="px-3 border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-zinc-700 dark:text-gray-300 dark:hover:bg-zinc-800"
+                                    onClick={() => handleEdit(sim)}
                                 >
-                                    <CheckCircle2 className="w-4 h-4 mr-1" /> Efetivar Compra
+                                    <Pencil className="w-3 h-3" />
+                                </Button>
+                                <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="px-3 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                    onClick={() => removeSimulation(sim.id)}
+                                >
+                                    <Trash2 className="w-3 h-3" />
                                 </Button>
                             </div>
                         </div>
