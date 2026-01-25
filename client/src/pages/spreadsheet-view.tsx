@@ -38,11 +38,11 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { format, isBefore, startOfDay, getMonth, getYear, parseISO } from "date-fns";
+import { format, isBefore, startOfDay, getMonth, getYear, parseISO, addMonths } from "date-fns";
 import { AddTransactionSheet } from "@/components/add-transaction-sheet";
 
 export default function SpreadsheetView() {
-  const { transactions, accounts, investments, addTransaction, updateTransaction, removeTransaction, addAccount, updateAccountBalance, addInvestment } = useFinancialStore();
+  const { transactions, accounts, investments, creditCards, creditPurchases, addTransaction, updateTransaction, removeTransaction, addAccount, updateAccountBalance, addInvestment } = useFinancialStore();
   
   // View State
   const [activeTab, setActiveTab] = useState("transactions");
@@ -119,9 +119,11 @@ export default function SpreadsheetView() {
       monthName: new Date(year, month, 1).toLocaleString('pt-BR', { month: 'short' }),
       income: 0,
       expense: 0,
+      creditCardBill: 0,
       balance: 0
     }));
 
+    // 1. Transactions Logic
     transactions.filter(t => {
         const tDate = new Date(t.date);
         return tDate.getFullYear() === year && (context === "personal" ? t.isPersonal : !t.isPersonal);
@@ -133,11 +135,49 @@ export default function SpreadsheetView() {
         }
     });
 
+    // 2. Credit Card Logic
+    // Filter cards by context (linked account)
+    const filteredCards = creditCards.filter(card => {
+        const linkedAccount = accounts.find(a => a.id === card.linkedAccountId);
+        const isPersonalCard = linkedAccount ? linkedAccount.isPersonal : true; // Default to personal if not linked
+        return context === "personal" ? isPersonalCard : !isPersonalCard;
+    });
+    
+    const relevantCardIds = filteredCards.map(c => c.id);
+
+    creditPurchases.filter(p => relevantCardIds.includes(p.creditCardId) && p.status === 'active').forEach(purchase => {
+         const card = creditCards.find(c => c.id === purchase.creditCardId);
+         if (!card) return;
+
+         const pDate = new Date(purchase.purchaseDate);
+         
+         // Helper to get invoice date
+         const getInvoiceDate = (date: Date) => {
+             const d = new Date(date);
+             if (d.getDate() >= card.closingDay) {
+                 return addMonths(d, 1);
+             }
+             return d;
+         };
+
+         let currentInvoiceDate = getInvoiceDate(pDate);
+
+         for (let i = 1; i <= purchase.installments; i++) {
+             if (currentInvoiceDate.getFullYear() === year) {
+                 const m = currentInvoiceDate.getMonth();
+                 if (data[m]) {
+                     data[m].creditCardBill += purchase.installmentValue;
+                 }
+             }
+             currentInvoiceDate = addMonths(currentInvoiceDate, 1);
+         }
+    });
+
     // Calculate balances
-    data.forEach(d => d.balance = d.income - d.expense);
+    data.forEach(d => d.balance = d.income - d.expense - d.creditCardBill);
     
     return data;
-  }, [transactions, projectionYear, context]);
+  }, [transactions, projectionYear, context, creditCards, creditPurchases, accounts]);
 
   // Totals Calculation
   const totals = useMemo(() => {
@@ -628,6 +668,21 @@ export default function SpreadsheetView() {
                                 ))}
                                 <TableCell className="text-right text-xs font-bold text-red-700 bg-gray-50 dark:bg-zinc-900">
                                     {projectionData.reduce((acc, curr) => acc + curr.expense, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </TableCell>
+                            </TableRow>
+
+                            {/* Credit Card Bill Row */}
+                            <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-12 hover:bg-gray-50">
+                                <TableCell className="font-semibold text-xs sticky left-0 bg-white dark:bg-black z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-purple-600 flex items-center gap-1.5 h-12">
+                                    <CreditCard className="w-3 h-3" /> Faturas Cartão
+                                </TableCell>
+                                {projectionData.map(m => (
+                                    <TableCell key={m.month} className="text-center text-xs text-purple-600 font-medium">
+                                        {m.creditCardBill > 0 ? m.creditCardBill.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}
+                                    </TableCell>
+                                ))}
+                                <TableCell className="text-right text-xs font-bold text-purple-700 bg-gray-50 dark:bg-zinc-900">
+                                    {projectionData.reduce((acc, curr) => acc + curr.creditCardBill, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </TableCell>
                             </TableRow>
 
