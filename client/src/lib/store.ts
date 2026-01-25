@@ -52,6 +52,7 @@ export interface Investment {
   startDate?: string; // ISO date
   hasTax?: boolean; // Whether IR applies
   isPersonal: boolean;
+  accountId?: string; // Link to a wallet/account
 }
 
 export interface Vehicle {

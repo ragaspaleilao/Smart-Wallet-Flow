@@ -17,8 +17,11 @@ import { useState, useMemo } from "react";
 import { toast } from "@/hooks/use-toast";
 import { format, addMonths, differenceInDays, differenceInMonths } from "date-fns";
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 export default function Investments() {
   const investments = useFinancialStore((state) => state.investments);
+  const accounts = useFinancialStore((state) => state.accounts); // Get accounts
   const addInvestment = useFinancialStore((state) => state.addInvestment);
   const updateInvestment = useFinancialStore((state) => state.updateInvestment);
   const removeInvestment = useFinancialStore((state) => state.removeInvestment);
@@ -32,34 +35,52 @@ export default function Investments() {
     yieldRate: string;
     startDate: string;
     hasTax: boolean;
+    accountId: string; // New field
   }>({ 
     name: "", 
     value: "", 
     yield: "", 
     yieldRate: "0.85", // Default ~10% a.a
     startDate: new Date().toISOString().split('T')[0],
-    hasTax: false
+    hasTax: false,
+    accountId: "none"
   });
 
   // Projection State
   const [projectionDate, setProjectionDate] = useState(format(addMonths(new Date(), 12), 'yyyy-MM-dd'));
 
-  const totalInvested = investments.reduce((acc, curr) => acc + curr.value, 0);
+  // Calculate total: If linked, use Account Balance. Else use manual value.
+  const totalInvested = investments.reduce((acc, curr) => {
+      if (curr.accountId) {
+          const account = accounts.find(a => a.id === curr.accountId);
+          return acc + (account ? account.balance : curr.value);
+      }
+      return acc + curr.value;
+  }, 0);
 
   const handleSave = () => {
-    if (!formData.name || !formData.value) {
+    // If account linked, name and value might be optional or auto-filled
+    if ((!formData.accountId || formData.accountId === "none") && (!formData.name || !formData.value)) {
         toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
         return;
     }
 
+    const linkedAccount = formData.accountId !== "none" ? accounts.find(a => a.id === formData.accountId) : null;
+    
+    // If linked, value comes from account. 
+    // We store the current value anyway, but UI will prefer account balance.
+    const finalValue = linkedAccount ? linkedAccount.balance : Number(formData.value);
+    const finalName = linkedAccount ? (formData.name || linkedAccount.name) : formData.name;
+
     const payload = {
-        name: formData.name,
-        value: Number(formData.value),
+        name: finalName,
+        value: finalValue,
         yield: `+${formData.yieldRate}%`,
         yieldRate: Number(formData.yieldRate),
         startDate: formData.startDate,
         hasTax: formData.hasTax,
-        isPersonal: true
+        isPersonal: true,
+        accountId: formData.accountId !== "none" ? formData.accountId : undefined
     };
 
     if (editingId) {
@@ -74,13 +95,17 @@ export default function Investments() {
   };
 
   const handleEdit = (inv: Investment) => {
+    // If linked, we should probably load the latest account balance into 'value' for display
+    const linkedAccount = inv.accountId ? accounts.find(a => a.id === inv.accountId) : null;
+    
     setFormData({
         name: inv.name,
-        value: inv.value.toString(),
+        value: linkedAccount ? linkedAccount.balance.toString() : inv.value.toString(),
         yield: inv.yield,
         yieldRate: inv.yieldRate?.toString() || "0.85",
         startDate: inv.startDate || new Date().toISOString().split('T')[0],
-        hasTax: !!inv.hasTax
+        hasTax: !!inv.hasTax,
+        accountId: inv.accountId || "none"
     });
     setEditingId(inv.id);
     setOpen(true);
@@ -95,12 +120,17 @@ export default function Investments() {
         yield: "", 
         yieldRate: "0.85", 
         startDate: new Date().toISOString().split('T')[0],
-        hasTax: false 
+        hasTax: false,
+        accountId: "none"
     });
   };
 
   // Projection Logic
   const projection = useMemo(() => {
+    // If linked, use account balance from store (real-time) or formData value (snapshot)?
+    // Let's use formData.value as it's updated on Edit open. 
+    // Wait, if user changes account dropdown, we should update value.
+    
     if (!formData.value || !formData.yieldRate || !formData.startDate || !projectionDate) return null;
 
     const start = new Date(formData.startDate);
@@ -166,6 +196,36 @@ export default function Investments() {
                     {/* Basic Info */}
                     <div className="space-y-4">
                         <div className="space-y-2">
+                            <Label>Vincular a Carteira/Conta (Opcional)</Label>
+                            <Select 
+                                value={formData.accountId} 
+                                onValueChange={(val) => {
+                                    setFormData(prev => {
+                                        const account = accounts.find(a => a.id === val);
+                                        return {
+                                            ...prev, 
+                                            accountId: val,
+                                            // Auto-fill value if linking
+                                            value: account ? account.balance.toString() : prev.value,
+                                            // Auto-fill name if empty
+                                            name: (prev.name === "" && account) ? account.name : prev.name
+                                        };
+                                    });
+                                }}
+                            >
+                                <SelectTrigger className="bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
+                                    <SelectValue placeholder="Selecione uma conta..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Nenhuma (Manual)</SelectItem>
+                                    {accounts.filter(a => a.isPersonal).map(acc => (
+                                        <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {acc.balance.toFixed(2)})</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
                             <Label>Nome do Ativo</Label>
                             <Input 
                                 placeholder="Ex: Tesouro Direto" 
@@ -181,6 +241,8 @@ export default function Investments() {
                                     placeholder="0.00" 
                                     value={formData.value}
                                     onChange={(e) => setFormData({...formData, value: e.target.value})}
+                                    disabled={formData.accountId !== "none"}
+                                    className={formData.accountId !== "none" ? "bg-gray-100 dark:bg-zinc-800 opacity-70" : ""}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -303,15 +365,25 @@ export default function Investments() {
         <div className="mt-8 space-y-6">
           <h3 className="font-semibold text-gray-900 dark:text-white">Meus Ativos</h3>
           <div className="space-y-4">
-            {investments.map((inv) => (
+            {investments.map((inv) => {
+              // Determine display value: Real-time from account if linked, else stored value
+              const linkedAccount = inv.accountId ? accounts.find(a => a.id === inv.accountId) : null;
+              const displayValue = linkedAccount ? linkedAccount.balance : inv.value;
+
+              return (
               <div 
                 key={inv.id} 
                 className="flex items-center justify-between p-4 bg-gray-50 dark:bg-zinc-900 rounded-2xl cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                 onClick={() => handleEdit(inv)}
               >
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-white dark:bg-black rounded-xl shadow-sm">
+                  <div className="p-3 bg-white dark:bg-black rounded-xl shadow-sm relative">
                     <PieChart className="w-6 h-6 text-primary" />
+                    {linkedAccount && (
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white dark:border-zinc-900 flex items-center justify-center" title="Vinculado à Carteira">
+                            <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                        </div>
+                    )}
                   </div>
                   <div>
                     <h4 className="font-bold text-gray-900 dark:text-white">{inv.name}</h4>
@@ -322,13 +394,13 @@ export default function Investments() {
                   </div>
                 </div>
                 <div className="text-right">
-                    <span className="font-bold text-gray-900 dark:text-white block">R$ {inv.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    <span className="font-bold text-gray-900 dark:text-white block">R$ {displayValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     <span className="text-[10px] text-gray-500">
                         Início: {inv.startDate ? format(new Date(inv.startDate), 'dd/MM/yy') : '-'}
                     </span>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
           
           <div className="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-900/30">
