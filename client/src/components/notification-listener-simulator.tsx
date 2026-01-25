@@ -28,6 +28,15 @@ const SAMPLE_NOTIFICATIONS = [
     type: "income" as const
   },
   {
+    app: "Nubank",
+    title: "Compra aprovada",
+    text: "Compra de R$ 320,00 em Amazon (Crédito)",
+    amount: 320.00,
+    merchant: "Amazon.com.br",
+    type: "expense" as const,
+    isCredit: true
+  },
+  {
     app: "iFood",
     title: "Pagamento realizado",
     text: "Seu pedido de R$ 89,90 foi confirmado",
@@ -41,30 +50,40 @@ export function NotificationListenerSimulator() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeNotification, setActiveNotification] = useState<typeof SAMPLE_NOTIFICATIONS[0] | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [selectedAccountId, setSelectedAccountId] = useState<string>("");
+  const [selectedSourceId, setSelectedSourceId] = useState<string>("");
   
+  // Payment Method Selection
+  const [paymentType, setPaymentType] = useState<"debit" | "credit">("debit");
+
   // Quick Account Create State
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
   const [newAccountName, setNewAccountName] = useState("");
   
-  const { addTransaction, addAccount, accounts } = useFinancialStore();
+  const { addTransaction, addAccount, addCreditPurchase, accounts, creditCards } = useFinancialStore();
 
   useEffect(() => {
-    // Attempt to auto-select an account based on the notification app name
-    if (activeNotification && accounts.length > 0) {
-        const matchingAccount = accounts.find(acc => 
-            acc.name.toLowerCase().includes(activeNotification.app.toLowerCase()) || 
-            activeNotification.app.toLowerCase().includes(acc.name.toLowerCase())
-        );
-        
-        if (matchingAccount) {
-            setSelectedAccountId(matchingAccount.id);
-        } else {
-            // DO NOT default select anymore - force user to choose if no match found
-            setSelectedAccountId("");
-        }
-    }
-  }, [activeNotification, accounts]);
+      // Auto-switch payment type based on notification content (mock)
+      if (activeNotification) {
+          if (activeNotification.isCredit) {
+              setPaymentType("credit");
+          } else {
+              setPaymentType("debit");
+          }
+      }
+  }, [activeNotification]);
+
+  useEffect(() => {
+      // Auto-select source based on type
+      if (paymentType === "debit" && accounts.length > 0) {
+          // Attempt to find matching account name
+          const match = accounts.find(a => activeNotification?.app.includes(a.name) || a.name.includes(activeNotification?.app || ""));
+          setSelectedSourceId(match?.id || accounts[0].id);
+      } else if (paymentType === "credit" && creditCards.length > 0) {
+          const match = creditCards.find(c => activeNotification?.app.includes(c.name) || c.name.includes(activeNotification?.app || ""));
+          setSelectedSourceId(match?.id || creditCards[0].id);
+      }
+  }, [paymentType, accounts, creditCards, activeNotification]);
+
 
   const triggerNotification = (notif: typeof SAMPLE_NOTIFICATIONS[0]) => {
     setActiveNotification(notif);
@@ -86,16 +105,6 @@ export function NotificationListenerSimulator() {
         isPersonal: true
     });
 
-    // We need to find the ID of the newly created account. 
-    // Since addAccount doesn't return ID (void), we rely on finding it by name in the updated store.
-    // However, store update is async-ish in React render cycle. 
-    // For this mockup, let's just use a timeout or find it in the next render.
-    // Better yet: we know we just added it. Let's look for it in the store directly after a small delay or use a more robust ID gen here if we could.
-    // For simplicity: We will manually select it after creation in the UI by the user, OR simpler:
-    // We can filter accounts by name.
-    
-    // Hack for immediate selection: find the account with this name (it will be there on re-render).
-    // Actually, let's just close the creation mode and let the user pick it (it will be in the list).
     setIsCreatingAccount(false);
     toast({ title: "Conta criada!", description: "Selecione-a na lista agora." });
   };
@@ -103,27 +112,40 @@ export function NotificationListenerSimulator() {
   const handleConfirm = () => {
     if (!activeNotification) return;
 
-    if (!selectedAccountId) {
-        toast({ title: "Selecione uma conta", description: "É obrigatório vincular uma conta.", variant: "destructive" });
+    if (!selectedSourceId) {
+        toast({ title: "Selecione a origem", description: "É obrigatório vincular.", variant: "destructive" });
         return;
     }
 
-    addTransaction({
-      amount: activeNotification.amount,
-      type: activeNotification.type,
-      category: activeNotification.type === 'income' ? 'Vendas' : 'Alimentação', // Simple auto-categorization
-      description: activeNotification.merchant,
-      source: 'notification',
-      isPersonal: true,
-      accountId: selectedAccountId
-    });
-
-    const accountName = accounts.find(acc => acc.id === selectedAccountId)?.name;
-
-    toast({
-      title: "Transação salva!",
-      description: `${activeNotification.type === 'expense' ? 'Despesa' : 'Receita'} de R$ ${activeNotification.amount.toFixed(2)} registrada na conta ${accountName}.`,
-    });
+    if (paymentType === "credit") {
+        addCreditPurchase({
+            creditCardId: selectedSourceId,
+            description: activeNotification.merchant,
+            totalAmount: activeNotification.amount,
+            installments: 1, // Default 1x
+            installmentValue: activeNotification.amount,
+            category: "Alimentação", // Mock
+            purchaseDate: new Date().toISOString()
+        });
+        toast({
+            title: "Compra no Cartão Salva!",
+            description: `Despesa de R$ ${activeNotification.amount.toFixed(2)} registrada.`,
+        });
+    } else {
+        addTransaction({
+            amount: activeNotification.amount,
+            type: activeNotification.type,
+            category: activeNotification.type === 'income' ? 'Vendas' : 'Alimentação',
+            description: activeNotification.merchant,
+            source: 'notification',
+            isPersonal: true,
+            accountId: selectedSourceId
+        });
+        toast({
+            title: "Transação salva!",
+            description: `${activeNotification.type === 'expense' ? 'Despesa' : 'Receita'} de R$ ${activeNotification.amount.toFixed(2)} registrada.`,
+        });
+    }
 
     setShowConfirmation(false);
     setActiveNotification(null);
@@ -193,13 +215,21 @@ export function NotificationListenerSimulator() {
                 )}>
                   R$ {activeNotification.amount.toFixed(2).replace('.', ',')}
                 </h2>
-                <div className="mt-4 flex justify-center gap-2">
-                  <span className="px-3 py-1 bg-gray-100 dark:bg-zinc-800 rounded-full text-xs font-medium text-gray-600 dark:text-gray-300">
-                    {activeNotification.type === 'expense' ? 'Despesa' : 'Receita'}
-                  </span>
-                  <span className="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 rounded-full text-xs font-medium text-orange-700 dark:text-orange-400">
-                    {activeNotification.type === 'income' ? 'Vendas' : 'Alimentação'}
-                  </span>
+                
+                {/* Method Toggles */}
+                <div className="mt-4 flex gap-2 justify-center bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg w-fit mx-auto">
+                    <button 
+                        className={cn("px-3 py-1 rounded-md text-xs font-medium transition-colors", paymentType === "debit" ? "bg-white text-black shadow-sm" : "text-gray-500")}
+                        onClick={() => setPaymentType("debit")}
+                    >
+                        Débito
+                    </button>
+                    <button 
+                        className={cn("px-3 py-1 rounded-md text-xs font-medium transition-colors", paymentType === "credit" ? "bg-white text-black shadow-sm" : "text-gray-500")}
+                        onClick={() => setPaymentType("credit")}
+                    >
+                        Crédito
+                    </button>
                 </div>
               </div>
 
@@ -226,33 +256,40 @@ export function NotificationListenerSimulator() {
               ) : (
                 <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                        <label className="text-xs font-medium text-gray-500 ml-1">Vincular à conta</label>
-                        <button 
-                            className="text-xs text-primary font-medium flex items-center gap-1 hover:underline"
-                            onClick={() => setIsCreatingAccount(true)}
-                        >
-                            <PlusCircle className="w-3 h-3" />
-                            Criar conta
-                        </button>
+                        <label className="text-xs font-medium text-gray-500 ml-1">
+                            {paymentType === "credit" ? "Vincular ao Cartão" : "Vincular à Conta"}
+                        </label>
+                        {paymentType === "debit" && (
+                            <button 
+                                className="text-xs text-primary font-medium flex items-center gap-1 hover:underline"
+                                onClick={() => setIsCreatingAccount(true)}
+                            >
+                                <PlusCircle className="w-3 h-3" />
+                                Criar conta
+                            </button>
+                        )}
                     </div>
-                    <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                    <Select value={selectedSourceId} onValueChange={setSelectedSourceId}>
                         <SelectTrigger className={cn(
                             "w-full border-gray-200 dark:border-zinc-700",
-                            !selectedAccountId ? "bg-red-50 border-red-200 text-red-600 dark:bg-red-900/10 dark:border-red-900/30" : "bg-gray-50 dark:bg-zinc-800"
+                            !selectedSourceId ? "bg-red-50 border-red-200 text-red-600 dark:bg-red-900/10 dark:border-red-900/30" : "bg-gray-50 dark:bg-zinc-800"
                         )}>
-                            <SelectValue placeholder="Selecione a conta (Obrigatório)" />
+                            <SelectValue placeholder="Selecione..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {accounts.map(acc => (
-                                <SelectItem key={acc.id} value={acc.id}>
-                                    {acc.name} (R$ {acc.balance.toLocaleString('pt-BR')})
-                                </SelectItem>
-                            ))}
+                            {paymentType === "credit" ? (
+                                creditCards.map(card => (
+                                    <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>
+                                ))
+                            ) : (
+                                accounts.map(acc => (
+                                    <SelectItem key={acc.id} value={acc.id}>
+                                        {acc.name} (R$ {acc.balance.toLocaleString('pt-BR')})
+                                    </SelectItem>
+                                ))
+                            )}
                         </SelectContent>
                     </Select>
-                    {!selectedAccountId && (
-                        <p className="text-xs text-red-500 ml-1">Você precisa selecionar uma conta.</p>
-                    )}
                 </div>
               )}
 
@@ -267,7 +304,7 @@ export function NotificationListenerSimulator() {
                 <Button 
                   className="h-12 bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20"
                   onClick={handleConfirm}
-                  disabled={!selectedAccountId || isCreatingAccount}
+                  disabled={!selectedSourceId || isCreatingAccount}
                 >
                   <Check className="w-4 h-4 mr-2" />
                   Salvar

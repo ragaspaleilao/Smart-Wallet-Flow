@@ -2,18 +2,34 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
-import { Mic, X, Check } from "lucide-react";
+import { Mic, X, Check, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFinancialStore } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 export default function VoiceEntry() {
   const [_, setLocation] = useLocation();
   const addTransaction = useFinancialStore((state) => state.addTransaction);
+  const addCreditPurchase = useFinancialStore((state) => state.addCreditPurchase);
+  const accounts = useFinancialStore((state) => state.accounts);
+  const creditCards = useFinancialStore((state) => state.creditCards);
+
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [stage, setStage] = useState<"idle" | "listening" | "processing" | "confirm">("idle");
   const [parsedData, setParsedData] = useState<{ amount: number; description: string; category: any } | null>(null);
+  
+  // Payment Method Selection
+  const [paymentType, setPaymentType] = useState<"debit" | "credit">("debit");
+  const [selectedSourceId, setSelectedSourceId] = useState<string>("");
+
+  useEffect(() => {
+    // Default selection
+    if (paymentType === "debit" && accounts.length > 0) setSelectedSourceId(accounts[0].id);
+    if (paymentType === "credit" && creditCards.length > 0) setSelectedSourceId(creditCards[0].id);
+  }, [paymentType, accounts, creditCards]);
 
   const startListening = () => {
     setStage("listening");
@@ -30,26 +46,53 @@ export default function VoiceEntry() {
             description: "Padaria Estrela",
             category: "Alimentação"
         });
+        
+        // Auto-detect credit card context (mock)
+        if (mockText.toLowerCase().includes("cartão") || mockText.toLowerCase().includes("crédito")) {
+            setPaymentType("credit");
+        } else {
+            setPaymentType("debit");
+        }
+
         setStage("confirm");
       }, 1500);
     }, 3000);
   };
 
   const handleConfirm = () => {
-    if (parsedData) {
-        addTransaction({
-            amount: parsedData.amount,
-            type: "expense", // Mocking voice as primarily expense for now, could be smarter
-            category: parsedData.category,
-            description: parsedData.description,
-            source: "voice",
-            isPersonal: true
-        });
-        toast({
-            title: "Salvo com sucesso!",
-            description: `Despesa de R$ ${parsedData.amount.toFixed(2)} registrada.`,
-        });
+    if (parsedData && selectedSourceId) {
+        if (paymentType === "credit") {
+            addCreditPurchase({
+                creditCardId: selectedSourceId,
+                description: parsedData.description,
+                totalAmount: parsedData.amount,
+                installments: 1, // Default to 1x for voice for now
+                installmentValue: parsedData.amount,
+                category: parsedData.category,
+                purchaseDate: new Date().toISOString()
+            });
+            toast({
+                title: "Compra no Cartão salva!",
+                description: `Despesa de R$ ${parsedData.amount.toFixed(2)} registrada.`,
+            });
+        } else {
+            addTransaction({
+                amount: parsedData.amount,
+                type: "expense",
+                category: parsedData.category,
+                description: parsedData.description,
+                source: "voice",
+                isPersonal: true,
+                accountId: selectedSourceId
+            });
+            toast({
+                title: "Salvo com sucesso!",
+                description: `Despesa de R$ ${parsedData.amount.toFixed(2)} registrada.`,
+            });
+        }
         setLocation("/dashboard");
+    } else {
+        toast({ title: "Selecione a conta ou cartão", variant: "destructive" });
     }
   };
 
@@ -76,7 +119,7 @@ export default function VoiceEntry() {
               <p className="text-gray-500 max-w-[200px] mx-auto">
                 "Gastei 50 reais no almoço"
                 <br />
-                "Recebi 2000 do freela"
+                "Compra de 200 reais no cartão"
               </p>
               <button 
                 onClick={startListening}
@@ -119,6 +162,46 @@ export default function VoiceEntry() {
                 <div className="flex justify-center gap-2">
                   <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-bold">{parsedData?.category}</span>
                   <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-bold">R$ {parsedData?.amount.toFixed(2)}</span>
+                </div>
+                
+                {/* Source Selection */}
+                <div className="pt-4 border-t border-gray-200 dark:border-zinc-700 space-y-3">
+                    <div className="flex gap-2 justify-center bg-gray-200 dark:bg-zinc-800 p-1 rounded-lg">
+                        <button 
+                            className={cn("flex-1 text-xs py-1.5 rounded-md font-medium transition-colors", paymentType === "debit" ? "bg-white text-black shadow-sm" : "text-gray-500")}
+                            onClick={() => setPaymentType("debit")}
+                        >
+                            Débito / Conta
+                        </button>
+                        <button 
+                            className={cn("flex-1 text-xs py-1.5 rounded-md font-medium transition-colors", paymentType === "credit" ? "bg-white text-black shadow-sm" : "text-gray-500")}
+                            onClick={() => setPaymentType("credit")}
+                        >
+                            Crédito
+                        </button>
+                    </div>
+
+                    <div className="space-y-1 text-left">
+                        <Label className="text-xs text-gray-500">
+                            {paymentType === "credit" ? "Selecione o Cartão" : "Selecione a Conta"}
+                        </Label>
+                        <Select value={selectedSourceId} onValueChange={setSelectedSourceId}>
+                            <SelectTrigger className="h-9 bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {paymentType === "credit" ? (
+                                    creditCards.map(card => (
+                                        <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>
+                                    ))
+                                ) : (
+                                    accounts.map(acc => (
+                                        <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {acc.balance.toFixed(2)})</SelectItem>
+                                    ))
+                                )}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
               </div>
               <div className="flex gap-4">
