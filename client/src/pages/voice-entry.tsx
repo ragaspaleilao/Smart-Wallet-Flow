@@ -83,7 +83,8 @@ export default function VoiceEntry() {
                 description: parsedData.description,
                 source: "voice",
                 isPersonal: true,
-                accountId: selectedSourceId
+                accountId: selectedSourceId,
+                date: new Date().toISOString()
             });
             toast({
                 title: "Salvo com sucesso!",

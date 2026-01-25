@@ -64,7 +64,8 @@ export default function PhotoEntry() {
                   description: ocrData.description,
                   source: "photo",
                   isPersonal: true,
-                  accountId: selectedSourceId
+                  accountId: selectedSourceId,
+                  date: new Date().toISOString()
               });
               toast({
                   title: "Recibo salvo!",

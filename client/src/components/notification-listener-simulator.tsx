@@ -139,7 +139,8 @@ export function NotificationListenerSimulator() {
             description: activeNotification.merchant,
             source: 'notification',
             isPersonal: true,
-            accountId: selectedSourceId
+            accountId: selectedSourceId,
+            date: new Date().toISOString()
         });
         toast({
             title: "Transação salva!",
