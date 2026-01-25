@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator } from "lucide-react";
+import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 import { useFinancialStore } from "@/lib/store";
 import { format, isBefore, startOfDay } from "date-fns";
@@ -64,6 +64,11 @@ export default function Dashboard() {
               </h1>
             </div>
             <div className="flex gap-2">
+                <Link href="/settings">
+                    <Button variant="outline" size="icon" className="h-10 w-10 rounded-full border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                        <Settings className="w-5 h-5 text-gray-500" />
+                    </Button>
+                </Link>
                 <ShareButton variant="outline" className="rounded-full border-gray-200 dark:border-zinc-800" />
                 <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                   <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse" />

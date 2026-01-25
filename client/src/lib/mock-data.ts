@@ -35,7 +35,6 @@ export const navItems = [
   { icon: Home, label: "Início", path: "/dashboard" },
   { icon: List, label: "Extrato", path: "/transactions" },
   { icon: CreditCard, label: "Cartões", path: "/credit-cards" },
+  { icon: PieChart, label: "Análise", path: "/analytics" },
   { icon: Target, label: "Metas", path: "/goals" },
-  { icon: LayoutDashboard, label: "Ativos", path: "/investments" }, // Using LayoutDashboard for "Assets" summary
-  { icon: Settings, label: "Config", path: "/settings" },
 ];
