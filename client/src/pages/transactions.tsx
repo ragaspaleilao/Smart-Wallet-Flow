@@ -1,24 +1,58 @@
 import { MobileLayout } from "@/components/mobile-layout";
-import { ArrowLeft, Search, Filter, ArrowUpRight, ArrowDownLeft, Table as TableIcon, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Search, Filter, ArrowUpRight, ArrowDownLeft, Table as TableIcon, AlertCircle, Clock, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Link } from "wouter";
-import { useFinancialStore } from "@/lib/store";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Link, useLocation } from "wouter";
+import { useFinancialStore, Category } from "@/lib/store";
 import { format, isBefore, startOfDay, endOfDay, startOfMonth, endOfMonth, addMonths } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 export default function Transactions() {
+  const [location, setLocation] = useLocation();
   const allTransactions = useFinancialStore((state) => state.transactions);
+  const accounts = useFinancialStore((state) => state.accounts);
   
+  // Parse query params for initial type filter
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialType = searchParams.get('type') as 'all' | 'income' | 'expense' | null;
+
   // Filter State
   const [filterPeriod, setFilterPeriod] = useState<'all' | 'this-month' | 'next-month' | 'future' | 'custom'>('this-month');
+  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>(initialType || 'all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterAccount, setFilterAccount] = useState<string>('all');
   const [customStart, setCustomStart] = useState(format(startOfDay(new Date()), 'yyyy-MM-dd'));
   const [customEnd, setCustomEnd] = useState(format(addMonths(new Date(), 1), 'yyyy-MM-dd'));
+  const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const type = params.get('type');
+    if (type === 'income' || type === 'expense') {
+        setFilterType(type);
+    }
+  }, [location]);
 
   const transactions = useMemo(() => {
     let filtered = allTransactions.filter(t => t.isPersonal);
     const now = new Date();
+
+    // Type Filter
+    if (filterType !== 'all') {
+        filtered = filtered.filter(t => t.type === filterType);
+    }
+
+    // Category Filter
+    if (filterCategory !== 'all') {
+        filtered = filtered.filter(t => t.category === filterCategory);
+    }
+
+    // Account Filter
+    if (filterAccount !== 'all') {
+        filtered = filtered.filter(t => t.accountId === filterAccount);
+    }
 
     if (filterPeriod === 'this-month') {
         const start = startOfMonth(now);
@@ -63,6 +97,8 @@ export default function Transactions() {
       return { pendingIncome, pendingExpense, net: pendingIncome - pendingExpense };
   }, [transactions]);
 
+  const categories: Category[] = ['Alimentação', 'Transporte', 'Lazer', 'Saúde', 'Educação', 'Moradia', 'Outros', 'Salário', 'Vendas', 'Serviços'];
+
   return (
     <MobileLayout>
       <div className="flex flex-col h-full bg-white dark:bg-black">
@@ -71,6 +107,14 @@ export default function Transactions() {
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Extrato</h1>
             <div className="flex gap-2">
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={`h-9 w-9 ${showFilters ? 'bg-primary/10 text-primary' : ''}`}
+                    onClick={() => setShowFilters(!showFilters)}
+                >
+                    <Filter className="w-4 h-4" />
+                </Button>
                 <Link href="/spreadsheet">
                     <Button variant="outline" size="sm" className="h-9 gap-2 bg-green-50 border-green-200 text-green-700 hover:bg-green-100">
                         <TableIcon className="w-4 h-4" />
@@ -79,6 +123,53 @@ export default function Transactions() {
                 </Link>
             </div>
           </div>
+
+          {/* Expanded Filters */}
+          {showFilters && (
+              <div className="mb-4 grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2 p-3 bg-gray-50 dark:bg-zinc-900/50 rounded-xl border border-gray-100 dark:border-zinc-800">
+                  <div className="space-y-1">
+                      <span className="text-[10px] text-gray-500 font-medium ml-1">Tipo</span>
+                      <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
+                          <SelectTrigger className="h-8 text-xs bg-white dark:bg-zinc-900">
+                              <SelectValue placeholder="Tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="all">Todos</SelectItem>
+                              <SelectItem value="income">Entradas</SelectItem>
+                              <SelectItem value="expense">Saídas</SelectItem>
+                          </SelectContent>
+                      </Select>
+                  </div>
+                  <div className="space-y-1">
+                      <span className="text-[10px] text-gray-500 font-medium ml-1">Categoria</span>
+                      <Select value={filterCategory} onValueChange={setFilterCategory}>
+                          <SelectTrigger className="h-8 text-xs bg-white dark:bg-zinc-900">
+                              <SelectValue placeholder="Categoria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="all">Todas</SelectItem>
+                              {categories.map(c => (
+                                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                              ))}
+                          </SelectContent>
+                      </Select>
+                  </div>
+                  <div className="space-y-1 col-span-2">
+                      <span className="text-[10px] text-gray-500 font-medium ml-1">Conta / Carteira</span>
+                      <Select value={filterAccount} onValueChange={setFilterAccount}>
+                          <SelectTrigger className="h-8 text-xs bg-white dark:bg-zinc-900">
+                              <SelectValue placeholder="Todas as contas" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="all">Todas as contas</SelectItem>
+                              {accounts.filter(a => a.isPersonal).map(acc => (
+                                  <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                              ))}
+                          </SelectContent>
+                      </Select>
+                  </div>
+              </div>
+          )}
           
           {/* Period Filter Chips */}
           <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar">

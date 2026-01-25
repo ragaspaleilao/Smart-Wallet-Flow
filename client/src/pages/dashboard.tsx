@@ -73,24 +73,28 @@ export default function Dashboard() {
           
           {/* Status Bar */}
           <div className="flex space-x-4">
-            <div className="flex-1 bg-green-50 dark:bg-green-950/20 p-3 rounded-2xl flex items-center space-x-3">
-              <div className="bg-green-100 dark:bg-green-900/50 p-2 rounded-xl">
-                <ArrowUp className="w-4 h-4 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-xs text-green-600/80 dark:text-green-400/80 font-medium">Entradas</p>
-                <p className="text-sm font-bold text-green-700 dark:text-green-300">R$ {personalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
-              </div>
-            </div>
-            <div className="flex-1 bg-red-50 dark:bg-red-950/20 p-3 rounded-2xl flex items-center space-x-3">
-              <div className="bg-red-100 dark:bg-red-900/50 p-2 rounded-xl">
-                <ArrowDown className="w-4 h-4 text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <p className="text-xs text-red-600/80 dark:text-red-400/80 font-medium">Saídas</p>
-                <p className="text-sm font-bold text-red-700 dark:text-red-300">R$ {personalExpense.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
-              </div>
-            </div>
+            <Link href="/transactions?type=income" className="flex-1">
+                <div className="bg-green-50 dark:bg-green-950/20 p-3 rounded-2xl flex items-center space-x-3 cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors">
+                <div className="bg-green-100 dark:bg-green-900/50 p-2 rounded-xl">
+                    <ArrowUp className="w-4 h-4 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                    <p className="text-xs text-green-600/80 dark:text-green-400/80 font-medium">Entradas</p>
+                    <p className="text-sm font-bold text-green-700 dark:text-green-300">R$ {personalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+                </div>
+                </div>
+            </Link>
+            <Link href="/transactions?type=expense" className="flex-1">
+                <div className="bg-red-50 dark:bg-red-950/20 p-3 rounded-2xl flex items-center space-x-3 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">
+                <div className="bg-red-100 dark:bg-red-900/50 p-2 rounded-xl">
+                    <ArrowDown className="w-4 h-4 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                    <p className="text-xs text-red-600/80 dark:text-red-400/80 font-medium">Saídas</p>
+                    <p className="text-sm font-bold text-red-700 dark:text-red-300">R$ {personalExpense.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+                </div>
+                </div>
+            </Link>
           </div>
         </div>
 
