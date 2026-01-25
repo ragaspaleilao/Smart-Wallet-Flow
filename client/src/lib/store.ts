@@ -111,6 +111,46 @@ export interface CalendarEvent {
   synced: boolean;
 }
 
+// --- Credit Card Module Models ---
+
+export interface CreditCard {
+  id: string;
+  name: string;
+  brand: 'mastercard' | 'visa' | 'amex' | 'elo' | 'hipercard' | 'other';
+  creditLimit: number;
+  closingDay: number;
+  dueDay: number;
+  linkedAccountId?: string;
+  color: string;
+  status: 'active' | 'inactive';
+}
+
+export interface CreditPurchase {
+  id: string;
+  creditCardId: string;
+  purchaseDate: string; // ISO
+  totalAmount: number;
+  installments: number;
+  installmentValue: number;
+  category: Category;
+  description: string;
+  status: 'active' | 'partial_refund' | 'refunded';
+  createdAt: string;
+  updatedAt: string;
+  refundedAmount?: number;
+}
+
+export interface CreditInvoicePayment {
+  id: string;
+  creditCardId: string;
+  month: number; // 0-11
+  year: number;
+  paymentDate: string;
+  amount: number;
+  accountId: string;
+  type: 'total' | 'partial';
+}
+
 interface FinancialStore {
   transactions: Transaction[];
   accounts: Account[];
@@ -119,6 +159,22 @@ interface FinancialStore {
   vehicles: Vehicle[];
   businessProducts: BusinessProduct[];
   businessSettings: BusinessSettings;
+  
+  // Credit Card State
+  creditCards: CreditCard[];
+  creditPurchases: CreditPurchase[];
+  creditPayments: CreditInvoicePayment[];
+
+  // Credit Card Actions
+  addCreditCard: (card: Omit<CreditCard, 'id' | 'status'>) => void;
+  updateCreditCard: (id: string, data: Partial<CreditCard>) => void;
+  removeCreditCard: (id: string) => void;
+  
+  addCreditPurchase: (purchase: Omit<CreditPurchase, 'id' | 'createdAt' | 'updatedAt' | 'status'>) => void;
+  updateCreditPurchase: (id: string, data: Partial<CreditPurchase>) => void;
+  
+  addCreditPayment: (payment: Omit<CreditInvoicePayment, 'id'>) => void;
+
   budget: {
     income: number;
     spendingLimit: number;
@@ -150,7 +206,7 @@ interface FinancialStore {
   income: number;
   expense: number;
   
-  addTransaction: (tx: Omit<Transaction, 'id' | 'date'>) => void;
+  addTransaction: (tx: Omit<Transaction, 'id'>) => void;
   updateTransaction: (id: string, tx: Partial<Transaction>) => void;
   removeTransaction: (id: string) => void;
   
@@ -262,6 +318,58 @@ export const useFinancialStore = create<FinancialStore>()(
           get().removeSimulation(id);
       },
 
+      creditCards: [
+        { 
+            id: '1', 
+            name: 'Nubank Roxinho', 
+            brand: 'mastercard', 
+            creditLimit: 12000, 
+            closingDay: 25, 
+            dueDay: 1, 
+            color: 'bg-purple-600', 
+            status: 'active' 
+        },
+        { 
+            id: '2', 
+            name: 'XP Visa Infinite', 
+            brand: 'visa', 
+            creditLimit: 35000, 
+            closingDay: 10, 
+            dueDay: 17, 
+            color: 'bg-black', 
+            status: 'active' 
+        }
+      ],
+      creditPurchases: [
+        {
+            id: '1',
+            creditCardId: '1',
+            purchaseDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString(),
+            totalAmount: 1890.00,
+            installments: 10,
+            installmentValue: 189.00,
+            category: 'Lazer',
+            description: 'Smartphone Novo',
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        },
+        {
+            id: '2',
+            creditCardId: '1',
+            purchaseDate: new Date().toISOString(),
+            totalAmount: 45.90,
+            installments: 1,
+            installmentValue: 45.90,
+            category: 'Alimentação',
+            description: 'Ifood Jantar',
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        }
+      ],
+      creditPayments: [],
+
       transactions: [
         // Current Month (Assuming active usage)
         { id: '1', amount: 45.90, type: 'expense', category: 'Alimentação', description: 'Padaria Estrela', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
@@ -371,11 +479,72 @@ export const useFinancialStore = create<FinancialStore>()(
       income: 3500.00,
       expense: 45.90,
 
+      // Credit Card Actions
+      addCreditCard: (cardData) => set((state) => ({
+        creditCards: [...state.creditCards, { ...cardData, id: nanoid(), status: 'active' }]
+      })),
+
+      updateCreditCard: (id, data) => set((state) => ({
+        creditCards: state.creditCards.map(c => c.id === id ? { ...c, ...data } : c)
+      })),
+
+      removeCreditCard: (id) => set((state) => ({
+        creditCards: state.creditCards.filter(c => c.id !== id)
+      })),
+
+      addCreditPurchase: (purchaseData) => set((state) => ({
+        creditPurchases: [...state.creditPurchases, { 
+            ...purchaseData, 
+            id: nanoid(), 
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        }]
+      })),
+
+      updateCreditPurchase: (id, data) => set((state) => ({
+        creditPurchases: state.creditPurchases.map(p => p.id === id ? { ...p, ...data, updatedAt: new Date().toISOString() } : p)
+      })),
+
+      addCreditPayment: (paymentData) => set((state) => {
+          // Add payment record
+          const newPayment = { ...paymentData, id: nanoid() };
+          
+          // Deduct from account balance
+          const newAccounts = state.accounts.map(acc => {
+              if (acc.id === paymentData.accountId) {
+                  return { ...acc, balance: acc.balance - paymentData.amount };
+              }
+              return acc;
+          });
+
+          // Also create a Transaction record for the payment so it shows in extracts
+          const paymentTx: Transaction = {
+            id: nanoid(),
+            amount: paymentData.amount,
+            type: 'expense',
+            category: 'Outros', // Or 'Pagamento Fatura'
+            description: `Pagamento Fatura Cartão`,
+            date: paymentData.paymentDate,
+            source: 'manual',
+            isPersonal: true,
+            accountId: paymentData.accountId,
+            status: 'paid'
+          };
+
+          return {
+              creditPayments: [...state.creditPayments, newPayment],
+              accounts: newAccounts,
+              transactions: [paymentTx, ...state.transactions],
+              balance: newAccounts.reduce((acc, curr) => acc + curr.balance, 0)
+          };
+      }),
+
       addTransaction: (txData) => set((state) => {
         const newTx: Transaction = {
           ...txData,
           id: nanoid(),
-          date: new Date().toISOString(),
+          date: txData.date || new Date().toISOString(),
         };
 
         const newTransactions = [newTx, ...state.transactions];

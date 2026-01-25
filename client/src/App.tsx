@@ -28,6 +28,7 @@ import ReferAndEarn from "@/pages/refer-and-earn";
 import Backup from "@/pages/backup";
 import CalendarIntegration from "@/pages/calendar-integration";
 import SpreadsheetView from "@/pages/spreadsheet-view";
+import CreditCards from "@/pages/credit-cards";
 
 import Simulator from "@/pages/simulator";
 
@@ -50,6 +51,7 @@ function Router() {
       <Route path="/goals" component={Goals} />
       <Route path="/investments" component={Investments} />
       <Route path="/vehicles" component={Vehicles} />
+      <Route path="/credit-cards" component={CreditCards} />
       <Route path="/settings" component={Settings} />
       <Route path="/budget" component={Budget} />
       <Route path="/accounts" component={Accounts} />

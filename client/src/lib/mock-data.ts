@@ -1,4 +1,4 @@
-import { Zap, Home, List, Target, PieChart, Settings, Car, LayoutDashboard } from "lucide-react";
+import { Zap, Home, List, Target, PieChart, Settings, Car, LayoutDashboard, CreditCard } from "lucide-react";
 
 export const transactions = [
   { id: 1, type: "expense", category: "Alimentação", amount: 45.90, date: "Hoje", description: "Padaria Estrela" },
@@ -34,6 +34,7 @@ export const vehicles = [
 export const navItems = [
   { icon: Home, label: "Início", path: "/dashboard" },
   { icon: List, label: "Extrato", path: "/transactions" },
+  { icon: CreditCard, label: "Cartões", path: "/credit-cards" },
   { icon: Target, label: "Metas", path: "/goals" },
   { icon: LayoutDashboard, label: "Ativos", path: "/investments" }, // Using LayoutDashboard for "Assets" summary
   { icon: Settings, label: "Config", path: "/settings" },
