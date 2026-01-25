@@ -26,6 +26,7 @@ export default function Transactions() {
   const [customStart, setCustomStart] = useState(format(startOfDay(new Date()), 'yyyy-MM-dd'));
   const [customEnd, setCustomEnd] = useState(format(addMonths(new Date(), 1), 'yyyy-MM-dd'));
   const [showFilters, setShowFilters] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -52,6 +53,24 @@ export default function Transactions() {
     // Account Filter
     if (filterAccount !== 'all') {
         filtered = filtered.filter(t => t.accountId === filterAccount);
+    }
+
+    // Search Filter
+    if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        filtered = filtered.filter(t => {
+            const account = accounts.find(a => a.id === t.accountId);
+            const accountName = account ? account.name.toLowerCase() : '';
+            const dateStr = format(new Date(t.date), 'dd/MM/yyyy').toLowerCase();
+            
+            return (
+                t.description.toLowerCase().includes(query) ||
+                t.category.toLowerCase().includes(query) ||
+                accountName.includes(query) ||
+                dateStr.includes(query) ||
+                t.amount.toString().includes(query)
+            );
+        });
     }
 
     if (filterPeriod === 'this-month') {
@@ -82,7 +101,7 @@ export default function Transactions() {
     
     // Sort logic
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [allTransactions, filterPeriod, customStart, customEnd]);
+  }, [allTransactions, filterPeriod, customStart, customEnd, filterType, filterCategory, filterAccount, searchQuery, accounts]);
 
   // Projections
   const projections = useMemo(() => {
@@ -255,8 +274,10 @@ export default function Transactions() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input 
-              placeholder="Buscar..." 
+              placeholder="Buscar por descrição, banco, categoria, data..." 
               className="pl-9 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 h-10 rounded-xl"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
         </div>
