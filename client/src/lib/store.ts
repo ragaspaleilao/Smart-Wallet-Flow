@@ -47,7 +47,10 @@ export interface Investment {
   id: string;
   name: string;
   value: number;
-  yield: string;
+  yield: string; // Display string e.g. "+0.85%"
+  yieldRate?: number; // Numeric monthly rate e.g. 0.85
+  startDate?: string; // ISO date
+  hasTax?: boolean; // Whether IR applies
   isPersonal: boolean;
 }
 
@@ -155,6 +158,8 @@ interface FinancialStore {
   
   addGoal: (goal: Omit<Goal, 'id'>) => void;
   addInvestment: (inv: Omit<Investment, 'id'>) => void;
+  updateInvestment: (id: string, inv: Partial<Investment>) => void;
+  removeInvestment: (id: string) => void;
   addVehicle: (veh: Omit<Vehicle, 'id'>) => void;
   
   addBusinessProduct: (product: Omit<BusinessProduct, 'id'>) => void;
@@ -519,6 +524,14 @@ export const useFinancialStore = create<FinancialStore>()(
 
       addInvestment: (invData) => set((state) => ({
         investments: [...state.investments, { ...invData, id: nanoid() }]
+      })),
+
+      updateInvestment: (id, invData) => set((state) => ({
+        investments: state.investments.map(inv => inv.id === id ? { ...inv, ...invData } : inv)
+      })),
+
+      removeInvestment: (id) => set((state) => ({
+        investments: state.investments.filter(inv => inv.id !== id)
       })),
 
       addVehicle: (vehData) => set((state) => ({
