@@ -13,7 +13,8 @@ import {
   ChevronRight,
   TrendingUp,
   Receipt,
-  Check
+  Check,
+  BarChart2
 } from "lucide-react";
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { useState, useMemo } from "react";
@@ -25,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function CreditCards() {
   const creditCards = useFinancialStore((state) => state.creditCards);
@@ -34,7 +36,8 @@ export default function CreditCards() {
   const accounts = useFinancialStore((state) => state.accounts);
   
   const [selectedCardId, setSelectedCardId] = useState<string>(creditCards[0]?.id || "");
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("current");
+  const [isProjectionOpen, setIsProjectionOpen] = useState(false);
 
   const selectedCard = creditCards.find(c => c.id === selectedCardId);
 
@@ -115,6 +118,40 @@ export default function CreditCards() {
       }
       return invoices;
   }, [selectedCard, currentInvoiceDate]);
+
+
+  // --- Total Projection Calculation (All Cards) ---
+  const totalProjection = useMemo(() => {
+      const projection = [];
+      // Start from next month relative to TODAY, to show future commitments
+      // Or start from current month? Let's start from current month (to show immediate commitment) + 11 months
+      
+      let date = new Date();
+      // Normalize to 1st of month to align
+      date.setDate(1);
+
+      for (let i = 0; i < 12; i++) {
+          let monthTotal = 0;
+          
+          creditCards.forEach(card => {
+               // Determine the invoice date for THIS card for the target 'date'
+               // Actually we need to find what invoice corresponds to 'date' month/year
+               // For simplicity, let's just use getInvoiceItems for that month
+               const items = getInvoiceItems(card.id, date);
+               monthTotal += items.reduce((a, b) => a + b.value, 0);
+          });
+
+          projection.push({
+              name: format(date, 'MMM', { locale: ptBR }),
+              fullDate: format(date, 'MMMM yyyy', { locale: ptBR }),
+              total: monthTotal,
+              month: date.getMonth()
+          });
+          
+          date = addMonths(date, 1);
+      }
+      return projection;
+  }, [creditCards, creditPurchases]);
 
 
   // Calculate Limits
@@ -230,9 +267,52 @@ export default function CreditCards() {
         <div className="p-6 bg-white dark:bg-black border-b border-gray-100 dark:border-zinc-800 sticky top-0 z-10">
             <div className="flex justify-between items-center mb-4">
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">Cartões</h1>
-                <Button size="sm" variant="outline" className="h-8 gap-2">
-                    <Plus className="w-4 h-4" /> Novo Cartão
-                </Button>
+                <Dialog open={isProjectionOpen} onOpenChange={setIsProjectionOpen}>
+                    <DialogTrigger asChild>
+                         <Button size="sm" variant="ghost" className="h-8 gap-2 text-primary font-bold bg-primary/10 hover:bg-primary/20">
+                            <BarChart2 className="w-4 h-4" /> Projeção Geral
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Comprometimento Mensal</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <p className="text-sm text-gray-500 mb-4">Total de faturas (todos os cartões) para os próximos 12 meses.</p>
+                            <div className="h-64 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={totalProjection}>
+                                        <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                        <Tooltip 
+                                            cursor={{ fill: 'transparent' }}
+                                            content={({ active, payload }) => {
+                                                if (active && payload && payload.length) {
+                                                return (
+                                                    <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg shadow-lg border border-gray-100 dark:border-zinc-800">
+                                                        <p className="font-bold text-sm">{payload[0].payload.fullDate}</p>
+                                                        <p className="text-primary font-bold">R$ {Number(payload[0].value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                                                    </div>
+                                                );
+                                                }
+                                                return null;
+                                            }}
+                                        />
+                                        <Bar dataKey="total" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
+                                {totalProjection.filter(p => p.total > 0).map((p, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-sm p-2 bg-gray-50 dark:bg-zinc-900 rounded-lg">
+                                        <span className="font-medium">{p.fullDate}</span>
+                                        <span className="font-bold text-gray-900 dark:text-white">R$ {p.total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+               
             </div>
 
             {/* Card Carousel / Selector */}
@@ -264,6 +344,9 @@ export default function CreditCards() {
                         </div>
                     </div>
                 ))}
+                 <Button variant="outline" className="min-w-[50px] h-auto rounded-xl border-dashed" onClick={() => toast({title: "Feature em breve"})}>
+                    <Plus className="w-6 h-6 text-gray-400" />
+                </Button>
             </div>
         </div>
 
@@ -428,7 +511,7 @@ export default function CreditCards() {
                 </div>
 
                 {/* Invoice Tabs */}
-                <Tabs defaultValue="current" className="w-full">
+                <Tabs defaultValue="current" value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="w-full bg-gray-100 dark:bg-zinc-900 p-1 rounded-xl mb-4">
                         <TabsTrigger value="current" className="flex-1 rounded-lg">Fatura Atual</TabsTrigger>
                         <TabsTrigger value="future" className="flex-1 rounded-lg">Futuras</TabsTrigger>
@@ -464,19 +547,17 @@ export default function CreditCards() {
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xl">
                                                 {item.purchase.category === 'Alimentação' ? '🍔' : 
-                                                 item.purchase.category === 'Transporte' ? '🚗' : 
-                                                 item.purchase.category === 'Lazer' ? '🍿' : '🛍️'}
+                                                 item.purchase.category === 'Transporte' ? '🚗' : '🛍️'}
                                             </div>
                                             <div>
-                                                <p className="font-bold text-sm text-gray-900 dark:text-white">{item.purchase.description}</p>
+                                                <p className="font-medium text-gray-900 dark:text-white">{item.purchase.description}</p>
                                                 <p className="text-xs text-gray-500">
-                                                    {format(new Date(item.date), 'dd/MM')} • 
-                                                    {item.purchase.installments > 1 && <span className="text-blue-600 font-medium ml-1">{item.installment}/{item.purchase.installments}</span>}
+                                                    {format(new Date(item.purchase.purchaseDate), 'dd/MM')} • Parcela {item.installment}/{item.purchase.installments}
                                                 </p>
                                             </div>
                                         </div>
                                         <span className="font-bold text-gray-900 dark:text-white">
-                                            R$ {item.value.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                                            R$ {item.value.toFixed(2)}
                                         </span>
                                     </div>
                                 ))
@@ -485,28 +566,31 @@ export default function CreditCards() {
                     </TabsContent>
 
                     <TabsContent value="future" className="space-y-4">
-                        {futureInvoices.map((inv, idx) => (
-                            <div key={idx} className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-gray-100 dark:border-zinc-800">
-                                <div className="flex justify-between items-center mb-2">
-                                    <h4 className="font-bold capitalize">{format(inv.date, 'MMMM yyyy', { locale: ptBR })}</h4>
-                                    <span className="font-bold text-gray-900 dark:text-white">R$ {inv.total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                                </div>
-                                <div className="space-y-2">
-                                    {inv.items.slice(0, 3).map((item, i) => (
-                                        <div key={i} className="flex justify-between text-sm text-gray-500">
-                                            <span>{item.purchase.description} ({item.installment}/{item.purchase.installments})</span>
-                                            <span>R$ {item.value.toFixed(2)}</span>
-                                        </div>
-                                    ))}
-                                    {inv.items.length > 3 && (
-                                        <p className="text-xs text-center text-blue-500 mt-2">+ mais {inv.items.length - 3} compras</p>
-                                    )}
-                                </div>
+                        {futureInvoices.length === 0 ? (
+                            <div className="text-center py-12 text-gray-500">
+                                Nenhuma fatura futura prevista.
                             </div>
-                        ))}
-                        {futureInvoices.length === 0 && (
-                            <div className="text-center py-8 text-gray-500">
-                                Nenhuma fatura futura prevista
+                        ) : (
+                            <div className="space-y-4">
+                                {futureInvoices.map((inv, idx) => (
+                                    <div key={idx} className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-gray-100 dark:border-zinc-800">
+                                        <div className="flex justify-between items-center mb-3 pb-3 border-b border-gray-100 dark:border-zinc-800">
+                                            <div className="flex items-center gap-2">
+                                                <Calendar className="w-4 h-4 text-purple-600" />
+                                                <span className="font-bold capitalize">{format(inv.date, 'MMMM yyyy', { locale: ptBR })}</span>
+                                            </div>
+                                            <span className="font-bold text-lg">R$ {inv.total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {inv.items.map((item, i) => (
+                                                <div key={i} className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                                                    <span>{item.purchase.description} ({item.installment}/{item.purchase.installments})</span>
+                                                    <span>R$ {item.value.toFixed(2)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </TabsContent>
