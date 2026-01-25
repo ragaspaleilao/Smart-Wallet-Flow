@@ -184,6 +184,8 @@ export interface Simulation {
   category: Category;
   type: 'purchase'; // Expandable later
   createdAt: string;
+  interestRate?: number; // Monthly interest rate percentage
+  manualInstallmentValue?: number; // User-defined installment value
 }
 
 export const useFinancialStore = create<FinancialStore>()(
@@ -223,7 +225,18 @@ export const useFinancialStore = create<FinancialStore>()(
           }
 
           // Create installments
-          const installmentValue = (sim.totalValue - sim.downPayment) / sim.installments;
+          const installmentValue = (() => {
+              if (sim.manualInstallmentValue) return sim.manualInstallmentValue;
+              if (sim.interestRate && sim.interestRate > 0) {
+                  const pv = sim.totalValue - sim.downPayment;
+                  const i = sim.interestRate / 100;
+                  const n = sim.installments;
+                  if (pv <= 0) return 0;
+                  return pv * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1);
+              }
+              return (sim.totalValue - sim.downPayment) / sim.installments;
+          })();
+
           for (let i = 0; i < sim.installments; i++) {
               const date = new Date(sim.startDate);
               date.setMonth(date.getMonth() + i + (sim.downPayment > 0 ? 1 : 0)); // If down payment, 1st installment is next month usually

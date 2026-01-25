@@ -24,7 +24,9 @@ export default function Simulator() {
     downPayment: "",
     installments: "1",
     startDate: new Date().toISOString().split('T')[0],
-    category: "Outros" as Category
+    category: "Outros" as Category,
+    interestRate: "",
+    manualInstallmentValue: ""
   });
 
   // Calculate base monthly averages (Income vs Fixed Expenses)
@@ -99,7 +101,9 @@ export default function Simulator() {
                 startDate: formData.startDate,
                 category: formData.category,
                 type: 'purchase',
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                interestRate: formData.interestRate ? Number(formData.interestRate) : undefined,
+                manualInstallmentValue: formData.manualInstallmentValue ? Number(formData.manualInstallmentValue) : undefined
             });
         }
 
@@ -120,7 +124,27 @@ export default function Simulator() {
             const monthDiff = (currentDate.getFullYear() - firstInstallmentDate.getFullYear()) * 12 + (currentDate.getMonth() - firstInstallmentDate.getMonth());
             
             if (monthDiff >= 0 && monthDiff < sim.installments) {
-                const installmentValue = (sim.totalValue - sim.downPayment) / sim.installments;
+                // Calculate Installment Value
+                let installmentValue = 0;
+                
+                if (sim.manualInstallmentValue) {
+                    // User manually set the installment value
+                    installmentValue = sim.manualInstallmentValue;
+                } else if (sim.interestRate && sim.interestRate > 0) {
+                    // Calculate using Price Table (PMT)
+                    // PMT = PV * (i * (1+i)^n) / ((1+i)^n - 1)
+                    const pv = sim.totalValue - sim.downPayment;
+                    const i = sim.interestRate / 100;
+                    const n = sim.installments;
+                    
+                    if (pv > 0) {
+                        installmentValue = pv * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1);
+                    }
+                } else {
+                    // Simple division (no interest)
+                    installmentValue = (sim.totalValue - sim.downPayment) / sim.installments;
+                }
+                
                 simulationCost += installmentValue;
             }
         });
@@ -181,7 +205,9 @@ export default function Simulator() {
         installments: Number(formData.installments),
         startDate: formData.startDate,
         category: formData.category,
-        type: 'purchase'
+        type: 'purchase',
+        interestRate: formData.interestRate ? Number(formData.interestRate) : undefined,
+        manualInstallmentValue: formData.manualInstallmentValue ? Number(formData.manualInstallmentValue) : undefined
     });
     
     setShowForm(false);
@@ -191,7 +217,9 @@ export default function Simulator() {
         downPayment: "",
         installments: "1",
         startDate: new Date().toISOString().split('T')[0],
-        category: "Outros" as Category
+        category: "Outros" as Category,
+        interestRate: "",
+        manualInstallmentValue: ""
     });
     toast({ title: "Simulação salva!" });
   };
@@ -301,6 +329,37 @@ export default function Simulator() {
                             </div>
                         </div>
 
+                        {/* Advanced Options: Interest & Manual Installment */}
+                        <div className="grid grid-cols-2 gap-4 p-3 bg-gray-50 dark:bg-zinc-800/50 rounded-lg border border-dashed border-gray-200 dark:border-zinc-800">
+                            <div className="space-y-2">
+                                <Label className="text-xs text-gray-500">Juros Mensal (%)</Label>
+                                <div className="relative">
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                                    <Input 
+                                        type="number" 
+                                        className="pr-8 h-9 text-sm" 
+                                        placeholder="0.00"
+                                        value={formData.interestRate}
+                                        onChange={e => setFormData({...formData, interestRate: e.target.value})}
+                                        disabled={!!formData.manualInstallmentValue}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-xs text-gray-500">Valor da Parcela (Se souber)</Label>
+                                <div className="relative">
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
+                                    <Input 
+                                        type="number" 
+                                        className="pl-7 h-9 text-sm" 
+                                        placeholder="Automático"
+                                        value={formData.manualInstallmentValue}
+                                        onChange={e => setFormData({...formData, manualInstallmentValue: e.target.value})}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="pt-2 flex gap-3">
                             <Button variant="ghost" className="flex-1" onClick={() => setShowForm(false)}>Cancelar</Button>
                             <Button className="flex-1 bg-purple-600 hover:bg-purple-700" onClick={handleSave}>
@@ -374,9 +433,29 @@ export default function Simulator() {
                                 <p className="text-lg font-bold text-purple-700 dark:text-purple-300">
                                     R$ {(
                                         // Show installment of current edit or first sim
-                                        showForm && formData.totalValue ? 
-                                        (Number(formData.totalValue) - Number(formData.downPayment||0)) / Number(formData.installments||1) :
-                                        simulations.length > 0 ? (simulations[0].totalValue - simulations[0].downPayment)/simulations[0].installments : 0
+                                        (() => {
+                                            const sim = showForm && formData.totalValue ? {
+                                                totalValue: Number(formData.totalValue),
+                                                downPayment: Number(formData.downPayment || 0),
+                                                installments: Number(formData.installments || 1),
+                                                interestRate: formData.interestRate ? Number(formData.interestRate) : undefined,
+                                                manualInstallmentValue: formData.manualInstallmentValue ? Number(formData.manualInstallmentValue) : undefined
+                                            } : simulations.length > 0 ? simulations[0] : null;
+
+                                            if (!sim) return 0;
+
+                                            if (sim.manualInstallmentValue) return sim.manualInstallmentValue;
+                                            
+                                            if (sim.interestRate && sim.interestRate > 0) {
+                                                const pv = sim.totalValue - sim.downPayment;
+                                                const i = sim.interestRate / 100;
+                                                const n = sim.installments;
+                                                if (pv <= 0) return 0;
+                                                return pv * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1);
+                                            }
+
+                                            return (sim.totalValue - sim.downPayment) / sim.installments;
+                                        })()
                                     ).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </p>
                             </CardContent>
@@ -405,11 +484,35 @@ export default function Simulator() {
                                 <div>
                                     <h4 className="font-bold text-gray-900 dark:text-white">{sim.name}</h4>
                                     <p className="text-xs text-gray-500">
-                                        {sim.installments}x de R$ {((sim.totalValue - sim.downPayment)/sim.installments).toLocaleString('pt-BR', {minimumFractionDigits:2})}
+                                        {sim.installments}x de R$ {(
+                                            (() => {
+                                                if (sim.manualInstallmentValue) return sim.manualInstallmentValue;
+                                                if (sim.interestRate && sim.interestRate > 0) {
+                                                    const pv = sim.totalValue - sim.downPayment;
+                                                    const i = sim.interestRate / 100;
+                                                    const n = sim.installments;
+                                                    return pv * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1);
+                                                }
+                                                return (sim.totalValue - sim.downPayment) / sim.installments;
+                                            })()
+                                        ).toLocaleString('pt-BR', {minimumFractionDigits:2})}
+                                        {sim.interestRate ? ` (${sim.interestRate}% a.m.)` : ''}
                                     </p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="font-bold text-purple-600">R$ {sim.totalValue.toLocaleString('pt-BR', {minimumFractionDigits:2})}</p>
+                                    <p className="font-bold text-purple-600">R$ {(
+                                        // Display Total Cost (with interest if applicable)
+                                        sim.downPayment + (sim.installments * (() => {
+                                            if (sim.manualInstallmentValue) return sim.manualInstallmentValue;
+                                            if (sim.interestRate && sim.interestRate > 0) {
+                                                const pv = sim.totalValue - sim.downPayment;
+                                                const i = sim.interestRate / 100;
+                                                const n = sim.installments;
+                                                return pv * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1);
+                                            }
+                                            return (sim.totalValue - sim.downPayment) / sim.installments;
+                                        })())
+                                    ).toLocaleString('pt-BR', {minimumFractionDigits:2})}</p>
                                     <p className="text-[10px] text-gray-400">{new Date(sim.startDate).toLocaleDateString()}</p>
                                 </div>
                             </div>
