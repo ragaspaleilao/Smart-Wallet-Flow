@@ -2,7 +2,7 @@ import { useState } from "react";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Flame, Snowflake, ChevronDown, ChevronUp, ExternalLink, Zap, Clock, Hourglass, Bell, AlertCircle } from "lucide-react";
+import { ArrowLeft, Flame, Snowflake, ChevronDown, ChevronUp, ExternalLink, Zap, Clock, Hourglass, Bell, AlertCircle, Brain } from "lucide-react";
 import { Link } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
