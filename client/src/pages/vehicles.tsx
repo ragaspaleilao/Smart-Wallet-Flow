@@ -8,13 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Car, AlertTriangle, Calendar, Plus, Wrench, FileText, Shield, AlertCircle, ChevronDown, ChevronUp, CheckCircle, Clock } from "lucide-react";
+import { Plus, Car, Calendar, FileText, Wrench, Shield, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle, Trash2, Edit2 } from "lucide-react";
 import { useFinancialStore, Vehicle, Transaction } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { format, addMonths, isBefore, startOfDay, parseISO } from "date-fns";
 
 export default function Vehicles() {
-  const { vehicles, addVehicle, transactions, addTransaction, accounts } = useFinancialStore();
+  const { vehicles, addVehicle, transactions, addTransaction, accounts, removeVehicle } = useFinancialStore();
   const [open, setOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
@@ -268,8 +268,23 @@ export default function Vehicles() {
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white">{car.name}</h2>
                   <p className="text-sm text-gray-500 font-mono mt-1">{car.plate}</p>
                 </div>
-                <div className="bg-gray-100 dark:bg-zinc-800 p-3 rounded-full">
-                  <Car className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                <div className="bg-gray-100 dark:bg-zinc-800 p-3 rounded-full flex gap-2">
+                  <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-500">
+                      <Edit2 className="w-4 h-4" />
+                  </Button>
+                  <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6 rounded-full hover:bg-red-100 hover:text-red-500 text-gray-400"
+                      onClick={() => {
+                          if (confirm(`Tem certeza que deseja excluir ${car.name}?`)) {
+                              removeVehicle(car.id);
+                              toast({ title: "Veículo removido" });
+                          }
+                      }}
+                  >
+                      <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
 
