@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Car, AlertTriangle, Calendar, Plus, Wrench, FileText, Shield, AlertCircle } from "lucide-react";
-import { useFinancialStore, Vehicle } from "@/lib/store";
+import { Car, AlertTriangle, Calendar, Plus, Wrench, FileText, Shield, AlertCircle, ChevronDown, ChevronUp, CheckCircle, Clock } from "lucide-react";
+import { useFinancialStore, Vehicle, Transaction } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { format, addMonths, isBefore, startOfDay, parseISO } from "date-fns";
 
@@ -30,6 +30,16 @@ export default function Vehicles() {
   const [paymentType, setPaymentType] = useState<'cash' | 'installments'>('cash');
   const [installments, setInstallments] = useState(2);
   const [accountId, setAccountId] = useState<string>(accounts[0]?.id || "");
+
+  // Expanded groups state
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups(prev => ({
+        ...prev,
+        [groupId]: !prev[groupId]
+    }));
+  };
 
   const handleAddVehicle = () => {
     if (!newVehicle.name || !newVehicle.plate) {
@@ -231,14 +241,25 @@ export default function Vehicles() {
 
         <div className="space-y-6">
           {vehicles.map((car) => {
-            // Get transactions related to this vehicle
+            // Get all transactions for this vehicle (pending and paid)
             const carTransactions = transactions
-                .filter(t => t.vehicleId === car.id && t.status === 'pending')
+                .filter(t => t.vehicleId === car.id)
                 .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-            // Merge with static expenses (legacy support) if needed, or just use transactions
-            // For this implementation, we prioritize transactions as requested "interligado"
-            
+            // Group transactions by base description (removing installment info like (1/12))
+            const groupedTransactions = carTransactions.reduce((groups, tx) => {
+                // Regex to find and remove installment pattern like " (1/12)"
+                const baseDescription = tx.description.replace(/\s\(\d+\/\d+\)$/, "");
+                
+                if (!groups[baseDescription]) {
+                    groups[baseDescription] = [];
+                }
+                groups[baseDescription].push(tx);
+                return groups;
+            }, {} as Record<string, Transaction[]>);
+
+            const groupKeys = Object.keys(groupedTransactions);
+
             return (
             <div key={car.id} className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800">
               <div className="flex justify-between items-start mb-6">
@@ -267,33 +288,90 @@ export default function Vehicles() {
                     </Button>
                 </div>
                 
-                {carTransactions.length > 0 ? carTransactions.map((exp) => {
-                  const isLate = isBefore(new Date(exp.date), startOfDay(new Date()));
+                {groupKeys.length > 0 ? groupKeys.map((groupName, idx) => {
+                  const items = groupedTransactions[groupName];
+                  const isExpanded = expandedGroups[`${car.id}-${idx}`];
+                  
+                  // Calculate Summary
+                  const totalAmount = items.reduce((sum, t) => sum + t.amount, 0);
+                  const paidCount = items.filter(t => t.status === 'paid').length;
+                  const totalCount = items.length;
+                  const nextDue = items.find(t => t.status === 'pending' && !isBefore(new Date(t.date), startOfDay(new Date()))) || items[items.length - 1];
+                  const isLate = items.some(t => t.status === 'pending' && isBefore(new Date(t.date), startOfDay(new Date())));
+
                   return (
-                  <div key={exp.id} className={`flex items-center justify-between p-3 rounded-xl border ${isLate ? 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30' : 'bg-gray-50 dark:bg-zinc-950 border-gray-100 dark:border-zinc-800'}`}>
-                    <div className="flex items-center gap-3">
-                      {exp.description.includes('IPVA') ? (
-                         <FileText className="w-5 h-5 text-gray-400" />
-                      ) : exp.description.includes('Seguro') ? (
-                         <Shield className="w-5 h-5 text-gray-400" />
-                      ) : exp.description.includes('Manutenção') ? (
-                         <Wrench className="w-5 h-5 text-gray-400" />
-                      ) : (
-                         <Calendar className="w-5 h-5 text-gray-400" />
-                      )}
-                      
-                      <div>
-                        <p className="font-semibold text-sm text-gray-900 dark:text-white truncate max-w-[150px]">{exp.description}</p>
-                        <p className={`text-xs ${isLate ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
-                          {isLate ? 'Venceu em' : 'Vence em'} {format(parseISO(exp.date), 'dd/MM/yyyy')}
-                        </p>
-                      </div>
+                    <div key={idx} className="rounded-xl border border-gray-100 dark:border-zinc-800 overflow-hidden">
+                        {/* Group Header */}
+                        <div 
+                            className={`flex items-center justify-between p-3 cursor-pointer transition-colors ${isLate ? 'bg-red-50 dark:bg-red-900/10' : 'bg-gray-50 dark:bg-zinc-950 hover:bg-gray-100 dark:hover:bg-zinc-900'}`}
+                            onClick={() => toggleGroup(`${car.id}-${idx}`)}
+                        >
+                            <div className="flex items-center gap-3">
+                                {groupName.includes('IPVA') ? (
+                                    <FileText className="w-5 h-5 text-gray-400" />
+                                ) : groupName.includes('Seguro') ? (
+                                    <Shield className="w-5 h-5 text-gray-400" />
+                                ) : groupName.includes('Manutenção') ? (
+                                    <Wrench className="w-5 h-5 text-gray-400" />
+                                ) : (
+                                    <Calendar className="w-5 h-5 text-gray-400" />
+                                )}
+                                <div>
+                                    <p className="font-semibold text-sm text-gray-900 dark:text-white">{groupName}</p>
+                                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                                        {paidCount}/{totalCount} parcelas pagas 
+                                        {isLate && <span className="text-red-500 font-bold ml-1">• Pendente Vencido</span>}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                    <span className="font-bold text-sm block">R$ {totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                    <span className="text-[10px] text-gray-400">Total</span>
+                                </div>
+                                {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                            </div>
+                        </div>
+
+                        {/* Expanded Details */}
+                        {isExpanded && (
+                            <div className="bg-white dark:bg-black border-t border-gray-100 dark:border-zinc-800 divide-y divide-gray-50 dark:divide-zinc-900">
+                                {items.map(exp => {
+                                    const isExpLate = exp.status === 'pending' && isBefore(new Date(exp.date), startOfDay(new Date()));
+                                    const isPaid = exp.status === 'paid';
+                                    
+                                    return (
+                                        <div key={exp.id} className="flex items-center justify-between p-3 pl-11">
+                                            <div>
+                                                <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                                    {exp.description}
+                                                </p>
+                                                <p className={`text-[10px] ${isExpLate ? 'text-red-500 font-bold' : isPaid ? 'text-green-600' : 'text-gray-400'}`}>
+                                                    {format(parseISO(exp.date), 'dd/MM/yyyy')} • {isPaid ? 'Pago' : isExpLate ? 'Vencido' : 'Em aberto'}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-xs font-semibold ${isPaid ? 'text-green-600 line-through opacity-50' : 'text-gray-900 dark:text-white'}`}>
+                                                    R$ {exp.amount.toFixed(2)}
+                                                </span>
+                                                {isPaid ? (
+                                                    <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                                                ) : isExpLate ? (
+                                                    <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                                                ) : (
+                                                    <Clock className="w-3.5 h-3.5 text-gray-300" />
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
-                    <span className="font-bold text-sm">R$ {exp.amount.toFixed(2)}</span>
-                  </div>
-                )}) : (
+                  );
+                }) : (
                     <div className="text-center py-4 text-gray-400 text-sm italic bg-gray-50 dark:bg-zinc-950/50 rounded-xl border border-dashed border-gray-200 dark:border-zinc-800">
-                        Nenhuma despesa pendente
+                        Nenhuma despesa registrada
                     </div>
                 )}
               </div>
