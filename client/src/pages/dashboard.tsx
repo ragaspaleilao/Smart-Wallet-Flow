@@ -55,7 +55,8 @@ export default function Dashboard() {
           if (match) {
               const baseDesc = match[1].trim();
               const totalInstallments = match[3]; 
-              const key = `${baseDesc}|${totalInstallments}|${tx.category}|${tx.amount.toFixed(2)}`;
+              const amount = tx.amount || 0;
+              const key = `${baseDesc}|${totalInstallments}|${tx.category}|${amount.toFixed(2)}`;
               
               if (!groups[key]) groups[key] = [];
               groups[key].push(tx);
