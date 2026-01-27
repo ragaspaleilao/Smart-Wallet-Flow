@@ -159,16 +159,21 @@ export default function Dashboard() {
 
         {/* Alerts */}
         {overdueTransactions.length > 0 && (
-            <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-2xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-4">
-            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-            <div>
-                <h4 className="font-semibold text-sm text-red-700 dark:text-red-400">Contas Atrasadas!</h4>
-                <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-1">
-                    Você tem {overdueTransactions.length} contas vencidas totalizando 
-                    <span className="font-bold"> R$ {overdueTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>.
-                </p>
-            </div>
-            </div>
+            <Link href="/spreadsheet?status=overdue">
+              <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-2xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-4 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors group">
+                <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                <div>
+                    <h4 className="font-semibold text-sm text-red-700 dark:text-red-400">Contas Atrasadas!</h4>
+                    <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-1">
+                        Você tem {overdueTransactions.length} contas vencidas totalizando 
+                        <span className="font-bold"> R$ {overdueTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>.
+                    </p>
+                    <p className="text-[10px] font-medium text-red-500 mt-2 flex items-center gap-1 group-hover:underline">
+                        Resolver agora <ArrowUp className="w-3 h-3 rotate-45" />
+                    </p>
+                </div>
+              </div>
+            </Link>
         )}
 
         <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 rounded-2xl p-4 flex items-start gap-3">

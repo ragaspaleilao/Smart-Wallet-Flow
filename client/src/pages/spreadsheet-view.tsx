@@ -32,8 +32,8 @@ import {
   XCircle,
   BarChart3
 } from "lucide-react";
-import { Link } from "wouter";
-import { useState, useMemo } from "react";
+import { Link, useLocation } from "wouter";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -52,10 +52,22 @@ export default function SpreadsheetView() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [filterType, setFilterType] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   
   // Date Filters
   const [startDate, setStartDate] = useState(format(startOfDay(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(new Date().setMonth(new Date().getMonth() + 1)), 'yyyy-MM-dd'));
+
+  // Handle URL Params for filtering
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const statusParam = params.get('status');
+    if (statusParam === 'overdue') {
+        setStatusFilter('overdue');
+        setStartDate(""); // Clear date filter to show all overdue history
+        setEndDate(""); 
+    }
+  }, []);
 
   // Projection Filters
   const [projectionYear, setProjectionYear] = useState(new Date().getFullYear().toString());
@@ -90,15 +102,20 @@ export default function SpreadsheetView() {
         (t.notes || "").toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = filterType === "all" || t.type === filterType;
       
+      const matchesStatus = statusFilter === 'all' || 
+          (statusFilter === 'overdue' && t.status === 'pending' && isBefore(new Date(t.date), startOfDay(new Date()))) ||
+          (statusFilter === 'pending' && t.status === 'pending') ||
+          (statusFilter === 'paid' && t.status === 'paid');
+
       const txDate = new Date(t.date);
       const start = startDate ? new Date(startDate) : null;
       const end = endDate ? new Date(endDate) : null;
       
       const matchesDate = (!start || txDate >= start) && (!end || txDate <= end);
       
-      return matchesContext && matchesSearch && matchesType && matchesDate;
+      return matchesContext && matchesSearch && matchesType && matchesDate && matchesStatus;
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Sort Ascending for Spreadsheet (oldest to newest usually better for projections, or keep newest first? User asked for projections, usually chronological order is better)
-  }, [transactions, searchTerm, filterType, context, startDate, endDate]);
+  }, [transactions, searchTerm, filterType, statusFilter, context, startDate, endDate]);
 
   const filteredAccounts = useMemo(() => {
     return accounts.filter(a => context === "personal" ? a.isPersonal : !a.isPersonal);
@@ -455,6 +472,20 @@ export default function SpreadsheetView() {
                             <SelectItem value="all">Todos os Tipos</SelectItem>
                             <SelectItem value="income">Receitas</SelectItem>
                             <SelectItem value="expense">Despesas</SelectItem>
+                        </SelectContent>
+                     </Select>
+
+                     <div className="w-px h-4 bg-gray-300 dark:bg-zinc-700 mx-1"></div>
+
+                     <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="h-7 text-xs w-[120px] border-none bg-transparent shadow-none">
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos Status</SelectItem>
+                            <SelectItem value="pending">Pendentes</SelectItem>
+                            <SelectItem value="paid">Pagos</SelectItem>
+                            <SelectItem value="overdue">Vencidos</SelectItem>
                         </SelectContent>
                      </Select>
                      
