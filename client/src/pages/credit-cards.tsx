@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,10 @@ import {
   TrendingUp,
   Receipt,
   Check,
-  BarChart2
+  BarChart2,
+  Mic,
+  Camera,
+  Bell
 } from "lucide-react";
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { useState, useMemo } from "react";
@@ -353,15 +357,44 @@ export default function CreditCards() {
         {selectedCard && (
             <div className="flex-1 p-6 space-y-6">
                 
-                {/* Actions Grid */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* Quick Actions Grid */}
+                <div className="grid grid-cols-4 gap-3">
+                  <Link href="/photo-entry">
+                    <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1">
+                      <div className="p-2.5 bg-purple-100 dark:bg-purple-900/30 rounded-full group-hover:scale-110 transition-transform">
+                        <Camera className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Recibo</span>
+                    </Button>
+                  </Link>
+                  
+                  <Link href="/voice-entry">
+                    <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1">
+                      <div className="p-2.5 bg-orange-100 dark:bg-orange-900/30 rounded-full group-hover:scale-110 transition-transform">
+                        <Mic className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                      </div>
+                      <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Voz</span>
+                    </Button>
+                  </Link>
+
+                  <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1" onClick={() => toast({title: "Leitura de notificação em breve"})}>
+                      <div className="p-2.5 bg-blue-100 dark:bg-blue-900/30 rounded-full group-hover:scale-110 transition-transform">
+                        <Bell className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Notif.</span>
+                  </Button>
+
+                  <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all group p-1" onClick={() => setIsPurchaseOpen(true)}>
+                      <div className="p-2.5 bg-primary text-white rounded-full group-hover:scale-110 transition-transform shadow-lg shadow-primary/30">
+                        <Plus className="w-5 h-5" />
+                      </div>
+                      <span className="text-[10px] font-semibold text-primary">Manual</span>
+                  </Button>
+                </div>
+
+                {/* Main Actions */}
+                <div className="grid grid-cols-1 gap-3">
                     <Dialog open={isPurchaseOpen} onOpenChange={setIsPurchaseOpen}>
-                        <DialogTrigger asChild>
-                            <Button className="h-auto py-4 flex flex-col gap-2 bg-gray-900 dark:bg-white text-white dark:text-black hover:bg-gray-800">
-                                <ShoppingBag className="w-6 h-6" />
-                                <span className="font-bold">Nova Compra</span>
-                            </Button>
-                        </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>Lançar Compra - {selectedCard.name}</DialogTitle>
