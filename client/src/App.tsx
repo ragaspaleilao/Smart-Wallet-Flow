@@ -31,6 +31,7 @@ import SpreadsheetView from "@/pages/spreadsheet-view";
 import CreditCards from "@/pages/credit-cards";
 import Subscriptions from "@/pages/subscriptions";
 import AddSubscription from "@/pages/add-subscription";
+import CancelSubscription from "@/pages/cancel-subscription";
 
 import Simulator from "@/pages/simulator";
 
@@ -67,6 +68,7 @@ function Router() {
       <Route path="/spreadsheet" component={SpreadsheetView} />
       <Route path="/subscriptions" component={Subscriptions} />
       <Route path="/add-subscription" component={AddSubscription} />
+      <Route path="/cancel-subscription" component={CancelSubscription} />
 
       <Route component={NotFound} />
     </Switch>

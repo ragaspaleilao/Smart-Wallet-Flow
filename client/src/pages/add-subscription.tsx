@@ -38,6 +38,23 @@ export default function AddSubscription() {
     
     // In a real app, this would save to a store/backend
     if (formData.isTrial) {
+        // Save to local storage for demo purposes
+        const newTrial = {
+            id: Date.now(),
+            name: formData.name,
+            futurePrice: Number(formData.price),
+            daysLeft: Number(formData.trialDays),
+            hoursLeft: null,
+            logo: "https://upload.wikimedia.org/wikipedia/commons/e/e3/Amazon_Prime_Logo.svg", // Placeholder logo
+            color: formData.color,
+            progress: 10,
+            usage: "low"
+        };
+
+        const existing = localStorage.getItem('custom_trials');
+        const trials = existing ? JSON.parse(existing) : [];
+        localStorage.setItem('custom_trials', JSON.stringify([...trials, newTrial]));
+
         toast({ 
             title: "Sentinela Ativado!", 
             description: `${formData.name} foi adicionado como teste grátis.` 

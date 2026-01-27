@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -99,9 +99,25 @@ const FREE_TRIALS = [
 ];
 
 export default function Subscriptions() {
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+    const [expandedId, setExpandedId] = useState<number | null>(null);
+    const [localTrials, setLocalTrials] = useState<any[]>([]);
 
-  const totalMonthly = SUBSCRIPTIONS.reduce((acc, sub) => acc + sub.price, 0);
+    useEffect(() => {
+        // Load custom added trials from local storage to simulate persistence
+        const saved = localStorage.getItem('custom_trials');
+        if (saved) {
+            try {
+                setLocalTrials(JSON.parse(saved));
+            } catch (e) {
+                console.error("Failed to parse local trials");
+            }
+        }
+    }, []);
+
+    // Merge static and local trials
+    const activeTrials = [...FREE_TRIALS, ...localTrials];
+
+    const totalMonthly = SUBSCRIPTIONS.reduce((acc, sub) => acc + sub.price, 0);
   const frozenCount = SUBSCRIPTIONS.filter(s => s.usage === 'low').length;
   const potentialSavings = SUBSCRIPTIONS.filter(s => s.usage === 'low').reduce((acc, s) => acc + s.price, 0);
 
@@ -138,7 +154,7 @@ export default function Subscriptions() {
         <div className="px-6 -mt-6 relative z-20 space-y-6">
             
             {/* Free Trial Sentinel - NEW SECTION */}
-            {FREE_TRIALS.length > 0 && (
+            {activeTrials.length > 0 && (
                 <div className="space-y-3 animate-in fade-in slide-in-from-top-4">
                     <div className="flex items-center gap-2">
                          <div className="bg-yellow-100 dark:bg-yellow-900/30 p-1.5 rounded-full animate-pulse">
@@ -147,7 +163,7 @@ export default function Subscriptions() {
                          <h3 className="font-bold text-gray-900 dark:text-white text-sm">Sentinela de Testes Grátis</h3>
                     </div>
 
-                    {FREE_TRIALS.map(trial => {
+                    {activeTrials.map(trial => {
                         const isUrgent = trial.daysLeft <= 1;
                         
                         return (
@@ -211,12 +227,14 @@ export default function Subscriptions() {
                                         <div className="flex-1"></div>
                                     )}
                                     
-                                    <Button size="sm" variant="outline" className={cn(
-                                        "rounded-full text-xs h-8 px-4 border-none shadow-sm",
-                                        isUrgent ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                    )}>
-                                        Cancelar Agora
-                                    </Button>
+                                    <Link href="/cancel-subscription">
+                                        <Button size="sm" variant="outline" className={cn(
+                                            "rounded-full text-xs h-8 px-4 border-none shadow-sm",
+                                            isUrgent ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                        )}>
+                                            Cancelar Agora
+                                        </Button>
+                                    </Link>
                                 </div>
                             </div>
                         );
