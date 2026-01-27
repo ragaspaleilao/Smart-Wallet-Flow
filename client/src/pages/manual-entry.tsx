@@ -4,10 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Calculator } from "lucide-react";
-import { useState } from "react";
-import { useFinancialStore, Category, Account } from "@/lib/store";
-import { toast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format, addMonths, addWeeks, addYears } from "date-fns";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 
 export default function ManualEntry() {
   const [_, setLocation] = useLocation();
@@ -20,6 +19,13 @@ export default function ManualEntry() {
   const [accountId, setAccountId] = useState<string>(accounts[0]?.id || "");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [status, setStatus] = useState<'paid' | 'pending'>('paid');
+
+  // Repetition / Projection State
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceType, setRecurrenceType] = useState<'installments' | 'fixed'>('installments'); // installments (parcelado) vs fixed (recorrente)
+  const [installments, setInstallments] = useState(2);
+  const [frequency, setFrequency] = useState<'monthly' | 'biweekly' | 'yearly'>('monthly');
+  const [occurrences, setOccurrences] = useState(12);
 
   const formatCurrency = (val: string) => {
     // Simple mock formatter
@@ -66,21 +72,84 @@ export default function ManualEntry() {
       return;
     }
 
-    addTransaction({
-      amount: numericAmount,
-      type,
-      category,
-      description,
-      source: "manual",
-      isPersonal: true,
-      accountId,
-      status
-    });
+    if (isRecurring) {
+        const baseDate = new Date(date);
+        
+        if (recurrenceType === 'installments') {
+            // Installments Logic (Total Amount / N)
+            const installmentValue = numericAmount / installments;
+            
+            for (let i = 0; i < installments; i++) {
+                const newDate = new Date(baseDate);
+                newDate.setMonth(baseDate.getMonth() + i);
+                
+                addTransaction({
+                    amount: installmentValue,
+                    type,
+                    category,
+                    description: `${description} (${i + 1}/${installments})`,
+                    source: "manual",
+                    isPersonal: true,
+                    accountId,
+                    // First installment follows selected status, others are pending usually? 
+                    // Or all pending if future? Let's use selected status for first, pending for others unless date is past?
+                    // For simplicity, let's keep selected status for first, and pending for future.
+                    status: i === 0 ? status : 'pending',
+                    date: newDate.toISOString()
+                });
+            }
+             toast({
+                title: "Parcelamento gerado!",
+                description: `${installments} parcelas de R$ ${installmentValue.toFixed(2)} criadas.`,
+            });
 
-    toast({
-      title: "Salvo com sucesso!",
-      description: `${type === "expense" ? "Despesa" : "Receita"} de R$ ${numericAmount.toFixed(2)} registrada.`,
-    });
+        } else {
+            // Fixed/Recurring Logic (Amount * N)
+            // e.g. Salary, Subscription
+            const count = occurrences;
+            
+            for (let i = 0; i < count; i++) {
+                const newDate = new Date(baseDate);
+                
+                if (frequency === 'monthly') newDate.setMonth(baseDate.getMonth() + i);
+                else if (frequency === 'yearly') newDate.setFullYear(baseDate.getFullYear() + i);
+                else if (frequency === 'biweekly') newDate.setDate(baseDate.getDate() + (i * 14));
+                
+                addTransaction({
+                    amount: numericAmount, // Recurring keeps same value
+                    type,
+                    category,
+                    description: `${description} (${i + 1}/${count})`, // Optional counter
+                    source: "manual",
+                    isPersonal: true,
+                    accountId,
+                    status: i === 0 ? status : 'pending', // Future ones pending
+                    date: newDate.toISOString()
+                });
+            }
+             toast({
+                title: "Recorrência gerada!",
+                description: `${count} lançamentos de R$ ${numericAmount.toFixed(2)} criados.`,
+            });
+        }
+    } else {
+        // Single Transaction
+        addTransaction({
+            amount: numericAmount,
+            type,
+            category,
+            description,
+            source: "manual",
+            isPersonal: true,
+            accountId,
+            status
+        });
+
+        toast({
+            title: "Salvo com sucesso!",
+            description: `${type === "expense" ? "Despesa" : "Receita"} de R$ ${numericAmount.toFixed(2)} registrada.`,
+        });
+    }
 
     setLocation("/dashboard");
   };
@@ -207,6 +276,97 @@ export default function ManualEntry() {
                     </button>
                 </div>
             </div>
+          </div>
+
+          {/* Recurrence / Projection Section */}
+          <div className="pt-4 border-t border-gray-100 dark:border-zinc-800">
+            <div className="flex items-center justify-between mb-4">
+                <Label className="text-base font-medium">Repetição / Parcelamento</Label>
+                <Switch 
+                    checked={isRecurring} 
+                    onCheckedChange={setIsRecurring}
+                />
+            </div>
+
+            {isRecurring && (
+                <div className="bg-gray-50 dark:bg-zinc-900 p-4 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2">
+                    <Tabs value={recurrenceType} onValueChange={(v) => setRecurrenceType(v as any)} className="w-full">
+                        <TabsList className="w-full grid grid-cols-2">
+                            <TabsTrigger value="installments">Parcelado</TabsTrigger>
+                            <TabsTrigger value="fixed">Fixo / Recorrente</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="installments" className="pt-4 space-y-4">
+                            <div className="space-y-2">
+                                <Label>Número de Parcelas</Label>
+                                <div className="flex items-center gap-2">
+                                    <Button 
+                                        variant="outline" size="icon" 
+                                        onClick={() => setInstallments(Math.max(2, installments - 1))}
+                                        className="h-12 w-12"
+                                    >
+                                        -
+                                    </Button>
+                                    <div className="flex-1 h-12 flex items-center justify-center bg-white dark:bg-black border rounded-md font-bold text-lg">
+                                        {installments}x
+                                    </div>
+                                    <Button 
+                                        variant="outline" size="icon" 
+                                        onClick={() => setInstallments(Math.min(120, installments + 1))}
+                                        className="h-12 w-12"
+                                    >
+                                        +
+                                    </Button>
+                                </div>
+                                <p className="text-xs text-gray-500 text-center">
+                                    Serão gerados {installments} lançamentos mensais.
+                                    <br/>
+                                    Valor da parcela: <strong>{(Number(amount.replace(/[^0-9,]/g, "").replace(",", ".")) / 100 / installments).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong>
+                                </p>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="fixed" className="pt-4 space-y-4">
+                            <div className="space-y-2">
+                                <Label>Frequência</Label>
+                                <Select value={frequency} onValueChange={(v) => setFrequency(v as any)}>
+                                    <SelectTrigger className="h-12 bg-white dark:bg-black">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="monthly">Mensal</SelectItem>
+                                        <SelectItem value="biweekly">Quinzenal</SelectItem>
+                                        <SelectItem value="yearly">Anual</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <Label>Repetir por quantas vezes?</Label>
+                                <div className="flex items-center gap-2">
+                                    <Button 
+                                        variant="outline" size="icon" 
+                                        onClick={() => setOccurrences(Math.max(2, occurrences - 1))}
+                                        className="h-12 w-12"
+                                    >
+                                        -
+                                    </Button>
+                                    <div className="flex-1 h-12 flex items-center justify-center bg-white dark:bg-black border rounded-md font-bold text-lg">
+                                        {occurrences}x
+                                    </div>
+                                    <Button 
+                                        variant="outline" size="icon" 
+                                        onClick={() => setOccurrences(Math.min(60, occurrences + 1))}
+                                        className="h-12 w-12"
+                                    >
+                                        +
+                                    </Button>
+                                </div>
+                            </div>
+                        </TabsContent>
+                    </Tabs>
+                </div>
+            )}
           </div>
         </div>
 
