@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, CheckCircle2, DollarSign, Calendar, Sparkles } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { ArrowLeft, CheckCircle2, DollarSign, Calendar, Sparkles, AlertTriangle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -16,7 +17,9 @@ export default function AddSubscription() {
     price: "",
     category: "Streaming",
     billingDay: "",
-    color: "bg-purple-600"
+    color: "bg-purple-600",
+    isTrial: false,
+    trialDays: "7"
   });
 
   const popularServices = [
@@ -28,16 +31,23 @@ export default function AddSubscription() {
   ];
 
   const handleSave = () => {
-    if (!formData.name || !formData.price || !formData.billingDay) {
+    if (!formData.name || !formData.price || (!formData.billingDay && !formData.isTrial)) {
         toast({ title: "Preencha todos os campos", variant: "destructive" });
         return;
     }
     
     // In a real app, this would save to a store/backend
-    toast({ 
-        title: "Assinatura Adicionada!", 
-        description: `${formData.name} foi adicionado ao seu clube.` 
-    });
+    if (formData.isTrial) {
+        toast({ 
+            title: "Sentinela Ativado!", 
+            description: `${formData.name} foi adicionado como teste grátis.` 
+        });
+    } else {
+        toast({ 
+            title: "Assinatura Adicionada!", 
+            description: `${formData.name} foi adicionado ao seu clube.` 
+        });
+    }
     
     // Go back to subscriptions list
     setLocation("/subscriptions");
@@ -100,6 +110,18 @@ export default function AddSubscription() {
                     />
                 </div>
 
+                {/* Free Trial Toggle */}
+                <div className="flex items-center justify-between bg-gray-50 dark:bg-zinc-950 p-4 rounded-xl border border-gray-100 dark:border-zinc-800">
+                    <div className="space-y-0.5">
+                        <Label className="text-base">Período de Teste?</Label>
+                        <p className="text-xs text-gray-500">Ativar o Sentinela para alertar antes da cobrança</p>
+                    </div>
+                    <Switch 
+                        checked={formData.isTrial}
+                        onCheckedChange={(checked) => setFormData({...formData, isTrial: checked})}
+                    />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label>Valor Mensal</Label>
@@ -116,16 +138,19 @@ export default function AddSubscription() {
                     </div>
                     
                     <div className="space-y-2">
-                        <Label>Dia Cobrança</Label>
+                        <Label>{formData.isTrial ? 'Dias de Teste' : 'Dia Cobrança'}</Label>
                         <div className="relative">
                             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <Input 
                                 type="number"
                                 min="1"
-                                max="31"
-                                placeholder="Dia" 
-                                value={formData.billingDay}
-                                onChange={(e) => setFormData({...formData, billingDay: e.target.value})}
+                                max={formData.isTrial ? "365" : "31"}
+                                placeholder={formData.isTrial ? "7" : "Dia"} 
+                                value={formData.isTrial ? formData.trialDays : formData.billingDay}
+                                onChange={(e) => setFormData({
+                                    ...formData, 
+                                    [formData.isTrial ? 'trialDays' : 'billingDay']: e.target.value
+                                })}
                                 className="pl-9 bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 h-12 rounded-xl"
                             />
                         </div>
@@ -152,12 +177,30 @@ export default function AddSubscription() {
 
             {/* AI Prediction (Mock) */}
             {formData.name && (
-                <div className="bg-indigo-50 dark:bg-indigo-900/10 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/30 flex gap-3 animate-in fade-in slide-in-from-bottom-2">
-                    <Sparkles className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
+                <div className={`p-4 rounded-2xl border flex gap-3 animate-in fade-in slide-in-from-bottom-2 ${
+                    formData.isTrial 
+                    ? "bg-yellow-50 dark:bg-yellow-900/10 border-yellow-100 dark:border-yellow-900/30" 
+                    : "bg-indigo-50 dark:bg-indigo-900/10 border-indigo-100 dark:border-indigo-900/30"
+                }`}>
+                    {formData.isTrial ? (
+                         <AlertTriangle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
+                    ) : (
+                         <Sparkles className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
+                    )}
+                    
                     <div>
-                        <h4 className="font-bold text-sm text-indigo-700 dark:text-indigo-300">Estimativa Anual</h4>
-                        <p className="text-xs text-indigo-600/80 dark:text-indigo-400/80 mt-1">
-                            Este serviço custará aproximadamente <span className="font-bold">{formatCurrency(Number(formData.price) * 12)}</span> por ano.
+                        <h4 className={`font-bold text-sm ${
+                            formData.isTrial ? "text-yellow-700 dark:text-yellow-400" : "text-indigo-700 dark:text-indigo-300"
+                        }`}>
+                            {formData.isTrial ? "Sentinela Ativado" : "Estimativa Anual"}
+                        </h4>
+                        <p className={`text-xs mt-1 ${
+                            formData.isTrial ? "text-yellow-700/80 dark:text-yellow-400/80" : "text-indigo-600/80 dark:text-indigo-400/80"
+                        }`}>
+                            {formData.isTrial 
+                                ? "Nós vamos te avisar antes do período de teste acabar para você não ser cobrado acidentalmente."
+                                : <span>Este serviço custará aproximadamente <span className="font-bold">{formatCurrency(Number(formData.price) * 12)}</span> por ano.</span>
+                            }
                         </p>
                     </div>
                 </div>
