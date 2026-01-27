@@ -1,0 +1,149 @@
+Você é um engenheiro de software sênior especializado em aplicativos financeiros pessoais.
+Construa dentro deste projeto um MÓDULO COMPLETO DE CARTÃO DE CRÉDITO para um aplicativo financeiro Android-first, sem uso de Open Finance.
+
+OBJETIVO:
+Criar um sistema robusto, confiável e totalmente editável para controle de gastos no cartão de crédito, resolvendo falhas comuns de apps financeiros existentes.
+
+REGRAS FUNDAMENTAIS:
+- Não usar Open Finance
+- Tudo deve ser editável a qualquer momento
+- Separar claramente: COMPRA, FATURA e PAGAMENTO
+- Funcionar mesmo sem notificações do Android
+- Suportar estorno parcial e total
+- Suportar parcelamento real
+- Suportar simulação de compras futuras
+
+========================
+ESTRUTURA DE DADOS
+========================
+
+Criar os seguintes modelos:
+
+1) CreditCard
+- id
+- name
+- brand
+- creditLimit
+- closingDay
+- dueDay
+- linkedAccountId
+- status (active/inactive)
+
+2) CreditPurchase
+- id
+- creditCardId
+- purchaseDate
+- totalAmount
+- installments
+- installmentValue
+- category
+- description
+- status (active, partial_refund, refunded)
+- createdAt
+- updatedAt
+
+3) CreditInstallment
+- id
+- purchaseId
+- installmentNumber
+- amount
+- invoiceMonth
+- invoiceYear
+- status (pending, invoiced, canceled)
+
+4) CreditInvoice
+- id
+- creditCardId
+- month
+- year
+- totalAmount
+- status (open, closed, paid, partially_paid)
+
+5) CreditInvoicePayment
+- id
+- invoiceId
+- accountId
+- paymentDate
+- amount
+- type (total, partial)
+
+========================
+FUNCIONALIDADES OBRIGATÓRIAS
+========================
+
+LANÇAMENTO MANUAL:
+- Botão fixo "+ Compra no Cartão"
+- Usuário seleciona cartão, valor, parcelas, categoria e descrição
+- Sistema gera automaticamente as parcelas e distribui nas faturas futuras corretas
+
+LANÇAMENTO POR TEXTO / VOZ:
+- Campo inteligente que interpreta frases como:
+  "Comprei no Nubank 10x de 189"
+  "Mercado 240 no cartão Santander"
+- Exibir prévia editável antes de salvar
+
+NOTIFICAÇÕES ANDROID (SE DISPONÍVEL):
+- Capturar notificações de compra
+- Criar lançamento pendente
+- Solicitar confirmação do usuário
+- Caso não exista notificação, permitir lançamento manual normalmente
+
+ESTORNO:
+- Permitir estorno total ou parcial
+- Ajustar automaticamente parcelas futuras
+- Manter histórico da compra
+- Nunca excluir dados
+
+CONTROLE DE LIMITE:
+- Mostrar limite total
+- Limite utilizado
+- Limite disponível
+- Parcelas futuras comprometendo limite
+
+PAGAMENTO DE FATURA:
+- Registrar pagamento total ou parcial
+- Vincular pagamento a uma conta bancária ou dinheiro
+- Atualizar status da fatura
+- Não duplicar despesas
+
+========================
+SIMULADOR DE COMPRA FUTURA
+========================
+
+Criar modo SIMULAÇÃO:
+- Usuário informa valor, parcelas e cartão
+- Sistema mostra impacto nas próximas faturas
+- Sistema mostra impacto no limite
+- Simulação não grava dados reais
+
+========================
+DASHBOARD DO CARTÃO
+========================
+
+Criar telas para:
+- Próxima fatura
+- Faturas futuras
+- Compras parceladas ativas
+- Compras à vista do mês
+- Histórico de pagamentos
+- Tudo clicável e editável
+
+========================
+REGRAS DE UX
+========================
+
+- Nenhuma informação escondida
+- Nenhuma ação definitiva sem confirmação
+- Todas as compras e parcelas devem ser editáveis
+- Interface clara e simples para leigos
+
+========================
+INTEGRAÇÃO
+========================
+
+- Integrar com contas bancárias
+- Atualizar saldo apenas no pagamento da fatura
+- Integrar com gráficos financeiros e projeções do app
+
+RESULTADO FINAL:
+Gerar código funcional, organizado, escalável e pronto para integração com o restante do aplicativo financeiro.

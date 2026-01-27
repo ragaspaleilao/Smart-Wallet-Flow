@@ -7,6 +7,10 @@ import { ArrowLeft, Calculator } from "lucide-react";
 import { format, addMonths, addWeeks, addYears } from "date-fns";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { useState } from "react";
+import { useFinancialStore, Category } from "@/lib/store";
+import { toast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function ManualEntry() {
   const [_, setLocation] = useLocation();
