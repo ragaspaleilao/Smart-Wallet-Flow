@@ -230,12 +230,14 @@ export default function Subscriptions() {
 
             {/* Discovery Section (Bottom) */}
             <div className="pt-4 pb-8">
-                <Card className="p-4 border-dashed border-2 border-gray-200 dark:border-zinc-800 bg-transparent flex flex-col items-center justify-center text-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center">
-                        <PlusIcon />
-                    </div>
-                    <p className="text-sm font-medium text-gray-500">Adicionar Assinatura Manualmente</p>
-                </Card>
+                <Link href="/add-subscription">
+                    <Card className="p-4 border-dashed border-2 border-gray-200 dark:border-zinc-800 bg-transparent flex flex-col items-center justify-center text-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors group">
+                        <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-purple-100 dark:group-hover:bg-purple-900/30 transition-colors">
+                            <PlusIcon className="text-gray-400 group-hover:text-purple-600 transition-colors" />
+                        </div>
+                        <p className="text-sm font-medium text-gray-500 group-hover:text-purple-600 transition-colors">Adicionar Assinatura Manualmente</p>
+                    </Card>
+                </Link>
             </div>
         </div>
       </div>
@@ -243,8 +245,8 @@ export default function Subscriptions() {
   );
 }
 
-function PlusIcon() {
+function PlusIcon({ className }: { className?: string }) {
     return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="M12 5v14"/></svg>
     )
 }
