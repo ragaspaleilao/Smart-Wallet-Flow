@@ -2,11 +2,11 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { useFinancialStore, Category, Transaction, CreditPurchase } from "@/lib/store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Filter, Calendar, X, Check, Download, PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon, DollarSign, Briefcase, Car, Target, Layers, ArrowDownUp, Search, Share2, ArrowRight, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Filter, Calendar, X, Check, Download, PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon, DollarSign, Briefcase, Car, Target, Layers, ArrowDownUp, Search, Share2, ArrowRight, ArrowUp, ArrowDown, ChevronDown, ChevronUp, CreditCard } from "lucide-react";
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, ComposedChart, Legend, CartesianGrid } from 'recharts';
 import { useState, useMemo } from "react";
-import { format, subDays, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfYear, endOfYear, addMonths, startOfDay, endOfDay, isAfter, isBefore, subMonths } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfYear, endOfYear, addMonths, startOfDay, endOfDay, isAfter, isBefore, subMonths, getYear, setYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Sheet,
@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const COLORS = ['#8b5cf6', '#f97316', '#10b981', '#ef4444', '#3b82f6', '#eab308', '#ec4899', '#6366f1', '#14b8a6', '#f43f5e'];
 
@@ -38,6 +39,18 @@ export default function Analytics() {
   const [selectedType, setSelectedType] = useState<'income' | 'expense' | 'all'>('all');
   const [selectedAccount, setSelectedAccount] = useState<string | 'all'>('all');
   const [viewMode, setViewMode] = useState<'personal' | 'business'>('personal');
+  
+  // Expanded States for Projection/Consolidation
+  const [expandedMonths, setExpandedMonths] = useState<string[]>([]);
+
+  // Year Filter for Projection/Consolidation
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+
+  const toggleMonth = (monthLabel: string) => {
+      setExpandedMonths(prev => 
+          prev.includes(monthLabel) ? prev.filter(m => m !== monthLabel) : [...prev, monthLabel]
+      );
+  };
 
   // --- DATA PREPARATION ---
 
@@ -111,45 +124,66 @@ export default function Analytics() {
 
   // --- PROJECTION DATA (Future 12 Months) ---
   const projectionData = useMemo(() => {
-      const today = startOfDay(new Date());
-      const next12Months = Array.from({ length: 12 }, (_, i) => addMonths(today, i));
+      // Use selected year if tab is active, otherwise default to current flow logic
+      // But user wants "Projection" which usually implies "Future from now". 
+      // If we add Year filter, maybe we just show "That Year's Projection"?
+      // Let's stick to "Next 12 months" if no year filter is explicitly asked for "Calendar Year View".
+      // But user asked for "filtros de data". A year picker makes sense for "Projection" to see next year vs this year.
       
-      return next12Months.map(monthDate => {
+      const year = parseInt(selectedYear);
+      const months = Array.from({ length: 12 }, (_, i) => new Date(year, i, 1));
+      
+      return months.map(monthDate => {
           const monthStart = startOfMonth(monthDate);
           const monthEnd = endOfMonth(monthDate);
           
           const monthTxs = combinedTransactions.filter(t => {
               const d = new Date(t.date);
-              // Only consider future or pending transactions for projection usually, 
-              // but here we just show "Scheduled" for that month.
               return isWithinInterval(d, { start: monthStart, end: monthEnd }) && 
                      (viewMode === 'personal' ? t.isPersonal : !t.isPersonal);
           });
 
           const income = monthTxs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-          const expense = monthTxs.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
           
+          // Separate Credit Card Expenses vs Other Expenses
+          const creditCardExpense = monthTxs
+            .filter(t => t.id.startsWith('virtual-') || t.accountId === 'virtual-card')
+            .reduce((sum, t) => sum + t.amount, 0);
+
+          const otherExpense = monthTxs
+            .filter(t => t.type === 'expense' && !t.id.startsWith('virtual-') && t.accountId !== 'virtual-card')
+            .reduce((sum, t) => sum + t.amount, 0);
+          
+          const totalExpense = income - (creditCardExpense + otherExpense); // Wait, logic error in var name but lets fix calc
+
           return {
               date: monthDate,
               monthLabel: format(monthDate, 'MMMM yyyy', { locale: ptBR }),
               income,
-              expense,
-              balance: income - expense
+              expense: creditCardExpense + otherExpense,
+              creditCardExpense,
+              otherExpense,
+              balance: income - (creditCardExpense + otherExpense)
           };
       });
-  }, [combinedTransactions, viewMode]);
+  }, [combinedTransactions, viewMode, selectedYear]);
 
   // --- CONSOLIDATION DATA (Past 12 Months - Realized) ---
   const consolidationData = useMemo(() => {
-      const today = startOfDay(new Date());
-      const past12Months = Array.from({ length: 12 }, (_, i) => subMonths(today, i)).reverse(); // Oldest first
+      // Use selected year for history
+      const year = parseInt(selectedYear);
+      const months = Array.from({ length: 12 }, (_, i) => new Date(year, i, 1)); // Calendar year view if filter selected
       
-      return past12Months.map(monthDate => {
+      // If we want "Last 12 months" regardless of year, we'd use subMonths. 
+      // But with a Year Filter, "Consolidation" usually means "Report for Year X".
+      // Let's use Calendar Year logic for consistency with the filter.
+      
+      return months.map(monthDate => {
           const monthStart = startOfMonth(monthDate);
           const monthEnd = endOfMonth(monthDate);
           
           // STRICTLY PAID TRANSACTIONS
-          const monthTxs = transactions.filter(t => { // Use 'transactions' strictly, virtuals are usually pending/future
+          const monthTxs = transactions.filter(t => { 
               const d = new Date(t.date);
               return isWithinInterval(d, { start: monthStart, end: monthEnd }) && 
                      (viewMode === 'personal' ? t.isPersonal : !t.isPersonal) &&
@@ -157,17 +191,30 @@ export default function Analytics() {
           });
 
           const income = monthTxs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-          const expense = monthTxs.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
           
+          // Try to separate Credit Card payments if possible (usually identified by category or description)
+          // Ideally we look for "Pagamento Fatura" or similar description for CC payments in realized view
+          const creditCardExpense = monthTxs
+             .filter(t => t.description.toLowerCase().includes('fatura') || (t.category as string) === 'Cartão de Crédito')
+             .reduce((sum, t) => sum + t.amount, 0);
+
+          const otherExpense = monthTxs
+             .filter(t => t.type === 'expense' && !t.description.toLowerCase().includes('fatura') && (t.category as string) !== 'Cartão de Crédito')
+             .reduce((sum, t) => sum + t.amount, 0);
+
           return {
               date: monthDate,
               monthLabel: format(monthDate, 'MMMM yyyy', { locale: ptBR }),
               income,
-              expense,
-              balance: income - expense
+              expense: creditCardExpense + otherExpense,
+              creditCardExpense,
+              otherExpense,
+              balance: income - (creditCardExpense + otherExpense)
           };
-      }).reverse(); // Show newest first in list
-  }, [transactions, viewMode]);
+      }).reverse(); // Show newest first usually, or calendar order? 
+      // If it's a "Year Report", usually Jan->Dec. If "History", usually Dec->Jan. 
+      // Let's keep reverse (Dec -> Jan) as it's better for mobile scrolling "back in time".
+  }, [transactions, viewMode, selectedYear]);
 
 
   // --- CHARTS DATA ---
@@ -223,11 +270,24 @@ export default function Analytics() {
                 </div>
                 
                 <div className="flex gap-2">
+                    {activeTab !== 'overview' && (
+                        <Select value={selectedYear} onValueChange={setSelectedYear}>
+                            <SelectTrigger className="h-8 w-[100px] text-xs">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="2024">2024</SelectItem>
+                                <SelectItem value="2025">2025</SelectItem>
+                                <SelectItem value="2026">2026</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    )}
+
                     <Sheet>
                         <SheetTrigger asChild>
                              <Button variant="outline" size="sm" className="h-8 gap-2 rounded-full border-dashed border-gray-300">
                                 <Filter className="w-3.5 h-3.5" />
-                                Filtros
+                                {activeTab === 'overview' ? 'Filtros' : 'Opções'}
                              </Button>
                         </SheetTrigger>
                         <SheetContent className="w-full">
@@ -236,17 +296,20 @@ export default function Analytics() {
                             </SheetHeader>
                             <div className="py-6 space-y-6">
                                 {/* Filters Content (Simplified for brevity) */}
-                                <div className="space-y-3">
-                                    <Label>Período (Visão Geral)</Label>
-                                    <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="30">Últimos 30 dias</SelectItem>
-                                            <SelectItem value="90">Últimos 3 meses</SelectItem>
-                                            <SelectItem value="year">Este Ano</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                {activeTab === 'overview' && (
+                                    <div className="space-y-3">
+                                        <Label>Período (Visão Geral)</Label>
+                                        <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="30">Últimos 30 dias</SelectItem>
+                                                <SelectItem value="90">Últimos 3 meses</SelectItem>
+                                                <SelectItem value="year">Este Ano</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+                                
                                 <div className="space-y-3">
                                     <Label>Conta</Label>
                                     <Select value={selectedAccount} onValueChange={setSelectedAccount}>
@@ -370,25 +433,75 @@ export default function Analytics() {
                         </p>
                     </div>
 
-                    <h3 className="font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider">Próximos 12 Meses</h3>
+                    <h3 className="font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider">Ano de {selectedYear}</h3>
                     
                     <div className="space-y-3">
                         {projectionData.map((item, idx) => (
-                            <Card key={idx} className="p-4 border-none shadow-sm flex items-center justify-between">
-                                <div>
-                                    <p className="font-bold text-gray-900 dark:text-white capitalize">{item.monthLabel}</p>
-                                    <div className="flex gap-3 text-xs mt-1">
-                                        <span className="text-green-600 flex items-center gap-1"><ArrowUp className="w-3 h-3" /> {item.income.toLocaleString('pt-BR', { notation: 'compact' })}</span>
-                                        <span className="text-red-600 flex items-center gap-1"><ArrowDown className="w-3 h-3" /> {item.expense.toLocaleString('pt-BR', { notation: 'compact' })}</span>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] text-gray-500">Saldo Previsto</p>
-                                    <p className={`font-bold ${item.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                        R$ {item.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </p>
-                                </div>
-                            </Card>
+                            <Collapsible key={idx} open={expandedMonths.includes(item.monthLabel)} onOpenChange={() => toggleMonth(item.monthLabel)}>
+                                <Card className="border-none shadow-sm overflow-hidden">
+                                    <CollapsibleTrigger asChild>
+                                        <div className="p-4 flex items-center justify-between cursor-pointer bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                            <div>
+                                                <p className="font-bold text-gray-900 dark:text-white capitalize flex items-center gap-2">
+                                                    {item.monthLabel}
+                                                    {expandedMonths.includes(item.monthLabel) ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                                                </p>
+                                                <div className="flex gap-3 text-xs mt-1">
+                                                    <span className="text-green-600 flex items-center gap-1"><ArrowUp className="w-3 h-3" /> {item.income.toLocaleString('pt-BR', { notation: 'compact' })}</span>
+                                                    <span className="text-red-600 flex items-center gap-1"><ArrowDown className="w-3 h-3" /> {item.expense.toLocaleString('pt-BR', { notation: 'compact' })}</span>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] text-gray-500">Saldo Previsto</p>
+                                                <p className={`font-bold ${item.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                    R$ {item.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent>
+                                        <div className="bg-gray-50 dark:bg-zinc-900/50 p-4 border-t border-gray-100 dark:border-zinc-800 space-y-3">
+                                            {/* Details Breakdown */}
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                                                    <div className="p-1 bg-green-100 dark:bg-green-900/30 rounded text-green-600">
+                                                        <DollarSign className="w-3 h-3" />
+                                                    </div>
+                                                    Receitas
+                                                </span>
+                                                <span className="font-medium text-green-600">+ R$ {item.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                                                    <div className="p-1 bg-orange-100 dark:bg-orange-900/30 rounded text-orange-600">
+                                                        <CreditCard className="w-3 h-3" />
+                                                    </div>
+                                                    Fatura Cartão
+                                                </span>
+                                                <span className="font-medium text-red-600">- R$ {item.creditCardExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                                                    <div className="p-1 bg-red-100 dark:bg-red-900/30 rounded text-red-600">
+                                                        <TrendingUp className="w-3 h-3" />
+                                                    </div>
+                                                    Outras Despesas
+                                                </span>
+                                                <span className="font-medium text-red-600">- R$ {item.otherExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+
+                                            <div className="border-t border-gray-200 dark:border-zinc-700 pt-2 flex justify-between items-center text-sm font-bold">
+                                                <span>Resultado</span>
+                                                <span className={item.balance >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                                    R$ {item.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </CollapsibleContent>
+                                </Card>
+                            </Collapsible>
                         ))}
                     </div>
                 </div>
@@ -407,25 +520,75 @@ export default function Analytics() {
                         </p>
                     </div>
 
-                    <h3 className="font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider">Últimos 12 Meses</h3>
+                    <h3 className="font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider">Ano de {selectedYear}</h3>
 
                     <div className="space-y-3">
                         {consolidationData.map((item, idx) => (
-                            <Card key={idx} className="p-4 border-none shadow-sm flex items-center justify-between">
-                                <div>
-                                    <p className="font-bold text-gray-900 dark:text-white capitalize">{item.monthLabel}</p>
-                                    <div className="flex gap-3 text-xs mt-1">
-                                        <span className="text-green-600 flex items-center gap-1"><ArrowUp className="w-3 h-3" /> {item.income.toLocaleString('pt-BR', { notation: 'compact' })}</span>
-                                        <span className="text-red-600 flex items-center gap-1"><ArrowDown className="w-3 h-3" /> {item.expense.toLocaleString('pt-BR', { notation: 'compact' })}</span>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] text-gray-500">Resultado</p>
-                                    <p className={`font-bold ${item.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                        R$ {item.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </p>
-                                </div>
-                            </Card>
+                            <Collapsible key={idx} open={expandedMonths.includes(item.monthLabel)} onOpenChange={() => toggleMonth(item.monthLabel)}>
+                                <Card className="border-none shadow-sm overflow-hidden">
+                                    <CollapsibleTrigger asChild>
+                                        <div className="p-4 flex items-center justify-between cursor-pointer bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                            <div>
+                                                <p className="font-bold text-gray-900 dark:text-white capitalize flex items-center gap-2">
+                                                    {item.monthLabel}
+                                                    {expandedMonths.includes(item.monthLabel) ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                                                </p>
+                                                <div className="flex gap-3 text-xs mt-1">
+                                                    <span className="text-green-600 flex items-center gap-1"><ArrowUp className="w-3 h-3" /> {item.income.toLocaleString('pt-BR', { notation: 'compact' })}</span>
+                                                    <span className="text-red-600 flex items-center gap-1"><ArrowDown className="w-3 h-3" /> {item.expense.toLocaleString('pt-BR', { notation: 'compact' })}</span>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] text-gray-500">Resultado</p>
+                                                <p className={`font-bold ${item.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                    R$ {item.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent>
+                                        <div className="bg-gray-50 dark:bg-zinc-900/50 p-4 border-t border-gray-100 dark:border-zinc-800 space-y-3">
+                                            {/* Details Breakdown */}
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                                                    <div className="p-1 bg-green-100 dark:bg-green-900/30 rounded text-green-600">
+                                                        <DollarSign className="w-3 h-3" />
+                                                    </div>
+                                                    Receitas
+                                                </span>
+                                                <span className="font-medium text-green-600">+ R$ {item.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                                                    <div className="p-1 bg-orange-100 dark:bg-orange-900/30 rounded text-orange-600">
+                                                        <CreditCard className="w-3 h-3" />
+                                                    </div>
+                                                    Fatura Cartão
+                                                </span>
+                                                <span className="font-medium text-red-600">- R$ {item.creditCardExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                                                    <div className="p-1 bg-red-100 dark:bg-red-900/30 rounded text-red-600">
+                                                        <TrendingUp className="w-3 h-3" />
+                                                    </div>
+                                                    Outras Despesas
+                                                </span>
+                                                <span className="font-medium text-red-600">- R$ {item.otherExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+
+                                            <div className="border-t border-gray-200 dark:border-zinc-700 pt-2 flex justify-between items-center text-sm font-bold">
+                                                <span>Resultado</span>
+                                                <span className={item.balance >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                                    R$ {item.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </CollapsibleContent>
+                                </Card>
+                            </Collapsible>
                         ))}
                     </div>
                 </div>
