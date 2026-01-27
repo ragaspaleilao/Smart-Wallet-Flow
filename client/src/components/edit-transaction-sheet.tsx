@@ -28,7 +28,7 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
   
   const [formData, setFormData] = useState({
     description: transaction.description,
-    amount: transaction.amount.toString(),
+    amount: (transaction.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
     category: transaction.category,
     type: transaction.type,
     accountId: transaction.accountId || "",
@@ -41,7 +41,7 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
     if (open) {
       setFormData({
         description: transaction.description,
-        amount: transaction.amount.toString(),
+        amount: (transaction.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
         category: transaction.category,
         type: transaction.type,
         accountId: transaction.accountId || "",
@@ -51,10 +51,17 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
     }
   }, [open, transaction]);
 
+  const formatCurrency = (val: string) => {
+    const number = val.replace(/\D/g, "");
+    return (Number(number) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  };
+
   const handleSave = () => {
+    const numericAmount = Number(formData.amount.replace(/\D/g, "")) / 100;
+
     updateTransaction(transaction.id, {
       description: formData.description,
-      amount: Number(formData.amount),
+      amount: numericAmount,
       category: formData.category,
       type: formData.type,
       accountId: formData.accountId,
@@ -132,9 +139,8 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
                 <div className="space-y-2">
                     <Label>Valor</Label>
                     <Input 
-                        type="number" 
                         value={formData.amount} 
-                        onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                        onChange={(e) => setFormData({...formData, amount: formatCurrency(e.target.value)})}
                         className="text-right font-bold"
                     />
                 </div>

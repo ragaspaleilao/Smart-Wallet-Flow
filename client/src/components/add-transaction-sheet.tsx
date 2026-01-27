@@ -34,15 +34,22 @@ export function AddTransactionSheet({ children, defaultType = 'expense', context
     status: 'pending' as 'paid' | 'pending'
   });
 
+  const formatCurrency = (val: string) => {
+    const number = val.replace(/\D/g, "");
+    return (Number(number) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  };
+
   const handleSave = () => {
     if (!formData.description || !formData.amount) {
         toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
         return;
     }
 
+    const numericAmount = Number(formData.amount.replace(/\D/g, "")) / 100;
+
     addTransaction({
       description: formData.description,
-      amount: Number(formData.amount),
+      amount: numericAmount,
       category: formData.category,
       type: formData.type,
       accountId: formData.accountId || (accounts[0]?.id || ""),
@@ -123,10 +130,9 @@ export function AddTransactionSheet({ children, defaultType = 'expense', context
                 <div className="space-y-2">
                     <Label>Valor</Label>
                     <Input 
-                        type="number" 
                         value={formData.amount} 
-                        placeholder="0.00"
-                        onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                        placeholder="R$ 0,00"
+                        onChange={(e) => setFormData({...formData, amount: formatCurrency(e.target.value)})}
                         className="text-right font-bold"
                     />
                 </div>
