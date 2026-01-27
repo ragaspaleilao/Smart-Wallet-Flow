@@ -2,7 +2,7 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Target, Trophy, Edit2, Wallet, Trash2 } from "lucide-react";
+import { Plus, Target, Trophy, Edit2, Wallet, Trash2, Mountain } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useFinancialStore, Goal } from "@/lib/store";
 import {
@@ -187,7 +187,7 @@ export default function Goals() {
         </div>
 
         {/* Featured Goal */}
-        {featuredGoal && (
+        {featuredGoal ? (
             <div 
                 className="bg-primary p-6 rounded-3xl text-white shadow-xl shadow-primary/20 relative overflow-hidden cursor-pointer active:scale-95 transition-transform"
                 onClick={() => handleOpen(featuredGoal)}
@@ -215,6 +215,23 @@ export default function Goals() {
                 <Progress value={Math.min(100, (featuredGoal.current / featuredGoal.target) * 100)} className="h-2 bg-black/20" indicatorClassName="bg-white" />
                 </div>
             </div>
+            </div>
+        ) : (
+            // EMPTY STATE for Featured Goal
+            <div 
+                className="bg-white dark:bg-zinc-900 border-2 border-dashed border-gray-200 dark:border-zinc-800 p-8 rounded-3xl flex flex-col items-center text-center cursor-pointer hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-all group"
+                onClick={() => handleOpen()}
+            >
+                <div className="w-16 h-16 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Mountain className="w-8 h-8 text-gray-400 group-hover:text-primary transition-colors" />
+                </div>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-1">Comece sua jornada</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 px-4">
+                    Você ainda não tem sonhos cadastrados. Que tal criar sua primeira meta hoje?
+                </p>
+                <Button variant="outline" size="sm" className="rounded-full">
+                    Criar Meta
+                </Button>
             </div>
         )}
 
@@ -250,7 +267,9 @@ export default function Goals() {
               </div>
             </Card>
           )) : (
-            <p className="text-sm text-gray-500">Nenhuma outra meta criada.</p>
+            <p className="text-sm text-gray-500 italic ml-1">
+                {featuredGoal ? "Nenhuma outra meta secundária." : "Sua lista de conquistas aparecerá aqui."}
+            </p>
           )}
         </div>
       </div>

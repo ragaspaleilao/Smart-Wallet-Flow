@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp, Zap, Flame } from "lucide-react";
 import { useFinancialStore } from "@/lib/store";
 import { format, isBefore, startOfDay } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
@@ -94,7 +94,13 @@ export default function Dashboard() {
         <div className="space-y-6">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Saldo disponível (Pessoal)</p>
+              <div className="flex items-center gap-2 mb-1">
+                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Saldo disponível (Pessoal)</p>
+                 <div className="flex items-center gap-1 bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full animate-in fade-in zoom-in">
+                    <Flame className="w-3 h-3 text-orange-500 fill-orange-500" />
+                    <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">3 Dias</span>
+                 </div>
+              </div>
               <h1 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mt-1">
                 {formatCurrency(personalBalance)}
               </h1>
@@ -106,8 +112,13 @@ export default function Dashboard() {
                     </Button>
                 </Link>
                 <ShareButton variant="outline" className="rounded-full border-gray-200 dark:border-zinc-800" />
-                <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center relative group cursor-pointer">
                   <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse" />
+                  
+                  {/* Tooltip Level */}
+                  <div className="absolute top-12 right-0 bg-gray-900 text-white text-[10px] px-2 py-1 rounded w-24 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      Nível: Aprendiz
+                  </div>
                 </div>
             </div>
           </div>
