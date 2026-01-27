@@ -46,6 +46,16 @@ export default function Investments() {
     hasTax: false,
     accountId: "none"
   });
+  
+  // Transaction creation state
+  const [createTransaction, setCreateTransaction] = useState(false);
+  const [transactionSourceAccountId, setTransactionSourceAccountId] = useState<string>("");
+
+  useEffect(() => {
+      if (accounts.length > 0 && !transactionSourceAccountId) {
+          setTransactionSourceAccountId(accounts[0].id);
+      }
+  }, [accounts]);
 
   // Projection State
   const [projectionDate, setProjectionDate] = useState(format(addMonths(new Date(), 12), 'yyyy-MM-dd'));
@@ -97,6 +107,49 @@ export default function Investments() {
         toast({ title: "Investimento atualizado!" });
     } else {
         addInvestment(payload);
+        
+        // Handle "Debit from Balance" logic
+        if (createTransaction && formData.value) {
+             // Use the linked account if selected, otherwise need a source account
+             // If manual value, we need to know WHICH account to debit from.
+             // If linked account is selected, we technically don't debit it because the logic assumes
+             // the money is ALREADY there (it's just a view).
+             // So this option only makes sense for MANUAL investments where we are "moving" money from an account to this investment.
+             
+             if (formData.accountId !== "none") {
+                 // Linked account: The balance IS the investment value. 
+                 // Usually doesn't require a transaction unless we want to record "Initial Deposit".
+                 // Let's create a transaction just for record keeping if user requested.
+                 const linkedAcc = accounts.find(a => a.id === formData.accountId);
+                 if (linkedAcc) {
+                     useFinancialStore.getState().addTransaction({
+                        amount: Number(formData.value.replace(/\D/g, "")) / 100,
+                        type: 'expense',
+                        category: 'Investimento',
+                        description: `Aplicação: ${finalName}`,
+                        date: formData.startDate,
+                        source: 'manual',
+                        isPersonal: true,
+                        accountId: linkedAcc.id,
+                        status: 'paid'
+                     });
+                 }
+             } else if (transactionSourceAccountId) {
+                 // Manual Investment: We need to debit from a source account
+                 useFinancialStore.getState().addTransaction({
+                    amount: Number(formData.value.replace(/\D/g, "")) / 100,
+                    type: 'expense',
+                    category: 'Investimento',
+                    description: `Aplicação: ${finalName}`,
+                    date: formData.startDate,
+                    source: 'manual',
+                    isPersonal: true,
+                    accountId: transactionSourceAccountId,
+                    status: 'paid'
+                 });
+             }
+        }
+        
         toast({ title: "Investimento adicionado!" });
     }
 
@@ -284,6 +337,42 @@ export default function Investments() {
                                 />
                             </div>
                         </div>
+                        
+                        {/* Transaction Option (Only for new items) */}
+                        {!editingId && (
+                            <div className="bg-gray-50 dark:bg-zinc-900 p-3 rounded-lg border border-gray-100 dark:border-zinc-800 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="tx-switch" className="cursor-pointer text-sm font-medium">Registrar saída do valor?</Label>
+                                    <Switch 
+                                        id="tx-switch"
+                                        checked={createTransaction}
+                                        onCheckedChange={setCreateTransaction}
+                                    />
+                                </div>
+                                
+                                {createTransaction && (
+                                    <div className="pt-2 animate-in fade-in slide-in-from-top-1">
+                                        <Label className="text-xs text-gray-500 mb-1.5 block">Debitar de qual conta?</Label>
+                                        <Select 
+                                            value={transactionSourceAccountId} 
+                                            onValueChange={setTransactionSourceAccountId}
+                                        >
+                                            <SelectTrigger className="bg-white dark:bg-black h-9">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {accounts.map(acc => (
+                                                    <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(acc.balance)})</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-[10px] text-gray-500 mt-2">
+                                            Isso criará uma despesa de "Investimento" na sua planilha e deduzirá o valor do saldo da conta selecionada.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Projection Simulator */}
