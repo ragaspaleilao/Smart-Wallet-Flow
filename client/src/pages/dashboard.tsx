@@ -270,28 +270,6 @@ export default function Dashboard() {
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white">Últimos registros</h3>
           <div className="flex gap-2">
-                <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-8 gap-1.5 text-xs border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
-                    onClick={() => {
-                        useFinancialStore.getState().addTransaction({
-                            amount: 150.00, 
-                            type: 'expense', 
-                            category: 'Outros', 
-                            description: 'Conta de Luz (Teste)', 
-                            date: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString(), 
-                            source: 'manual', 
-                            isPersonal: true, 
-                            accountId: useFinancialStore.getState().accounts.find(a => a.isPersonal)?.id || '1',
-                            status: 'pending'
-                        });
-                        window.location.reload();
-                    }}
-                >
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    Gerar Atraso
-                </Button>
                 <Link href="/simulator">
                     <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs bg-purple-50 dark:bg-purple-900/20 border-purple-200 hover:bg-purple-100 text-purple-700 dark:text-purple-300">
                         <Calculator className="w-3.5 h-3.5" />
