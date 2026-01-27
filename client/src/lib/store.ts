@@ -260,9 +260,52 @@ export interface Simulation {
 export const useFinancialStore = create<FinancialStore>()(
   persist(
     (set, get) => ({
-      // ... existing state ...
+      // --- Initial State (Clean for Manual Simulation) ---
       simulations: [],
+
+      creditCards: [],
+      creditPurchases: [],
+      creditPayments: [],
+
+      transactions: [],
+      accounts: [],
+      goals: [],
+      investments: [],
+      vehicles: [],
+      businessProducts: [],
+      businessSettings: {
+        fixedCosts: []
+      },
+      budget: {
+        income: 0,
+        spendingLimit: 0,
+        creditLimit: 0,
+        alertThresholds: [70, 90],
+      },
       
+      // Referral System Initial State
+      referralCode: `USER${Math.floor(1000 + Math.random() * 9000)}`,
+      referrals: [], 
+      premiumUntil: null, 
+      
+      // Backup System Initial State
+      backups: [],
+      lastBackupDate: null,
+      isAutoBackupEnabled: false,
+      
+      // Calendar Integration Initial State
+      calendarSettings: {
+        isEnabled: false,
+        isConnected: false,
+        syncCategories: ['Alimentação', 'Moradia', 'Transporte', 'Saúde', 'Educação'],
+        reminderDaysBefore: 1
+      },
+      calendarEvents: [],
+
+      balance: 0, 
+      income: 0,
+      expense: 0,
+
       addSimulation: (simData) => set((state) => ({
         simulations: [...state.simulations, { ...simData, id: nanoid(), createdAt: new Date().toISOString() }]
       })),
@@ -324,181 +367,6 @@ export const useFinancialStore = create<FinancialStore>()(
           
           get().removeSimulation(id);
       },
-
-      creditCards: [
-        { 
-            id: '1', 
-            name: 'Nubank Roxinho', 
-            brand: 'mastercard', 
-            creditLimit: 12000, 
-            closingDay: 25, 
-            dueDay: 1, 
-            color: 'bg-purple-600', 
-            status: 'active' 
-        },
-        { 
-            id: '2', 
-            name: 'XP Visa Infinite', 
-            brand: 'visa', 
-            creditLimit: 35000, 
-            closingDay: 10, 
-            dueDay: 17, 
-            color: 'bg-black', 
-            status: 'active' 
-        }
-      ],
-      creditPurchases: [
-        {
-            id: '1',
-            creditCardId: '1',
-            purchaseDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString(),
-            totalAmount: 1890.00,
-            installments: 10,
-            installmentValue: 189.00,
-            category: 'Lazer',
-            description: 'Smartphone Novo',
-            status: 'active',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        },
-        {
-            id: '2',
-            creditCardId: '1',
-            purchaseDate: new Date().toISOString(),
-            totalAmount: 45.90,
-            installments: 1,
-            installmentValue: 45.90,
-            category: 'Alimentação',
-            description: 'Ifood Jantar',
-            status: 'active',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        }
-      ],
-      creditPayments: [],
-
-      transactions: [
-        // Overdue Transaction (TEST)
-        { 
-            id: 'overdue-1', 
-            amount: 150.00, 
-            type: 'expense', 
-            category: 'Outros', 
-            description: 'Conta de Luz (Atrasada)', 
-            date: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString(), // 5 days ago
-            source: 'manual', 
-            isPersonal: true, 
-            accountId: '1',
-            status: 'pending' // Pending + Past Date = Overdue
-        },
-
-        // Current Month (Assuming active usage)
-        { id: '1', amount: 45.90, type: 'expense', category: 'Alimentação', description: 'Padaria Estrela', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
-        { id: '2', amount: 3500.00, type: 'income', category: 'Salário', description: 'Pagamento Mensal', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
-        { id: '3', amount: 120.00, type: 'expense', category: 'Lazer', description: 'Cinema e Pipoca', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '2' },
-        { id: '4', amount: 850.00, type: 'expense', category: 'Moradia', description: 'Aluguel (Parte)', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
-        
-        // Spike in Food (to trigger AI alert)
-        { id: '5', amount: 250.00, type: 'expense', category: 'Alimentação', description: 'Jantar Família', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
-        { id: '6', amount: 180.00, type: 'expense', category: 'Alimentação', description: 'Mercado Semanal', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
-
-        // Previous Month (for comparison)
-        { id: '10', amount: 3500.00, type: 'income', category: 'Salário', description: 'Pagamento Mensal', date: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
-        { id: '11', amount: 300.00, type: 'expense', category: 'Alimentação', description: 'Mercado Mensal', date: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
-        { id: '12', amount: 150.00, type: 'expense', category: 'Transporte', description: 'Uber', date: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
-        
-        // 2 Months Ago
-        { id: '20', amount: 3500.00, type: 'income', category: 'Salário', description: 'Pagamento Mensal', date: new Date(new Date().setMonth(new Date().getMonth() - 2)).toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
-        { id: '21', amount: 400.00, type: 'expense', category: 'Lazer', description: 'Show', date: new Date(new Date().setMonth(new Date().getMonth() - 2)).toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
-      ],
-      accounts: [
-        { id: '1', name: 'Nubank', type: 'bank', balance: 3454.10, initialBalance: 0, color: 'bg-purple-600', isPersonal: true },
-        { id: '2', name: 'Carteira', type: 'cash', balance: 150.00, initialBalance: 150.00, color: 'bg-green-600', isPersonal: true },
-        { id: '3', name: 'Caixa Empresa', type: 'cash', balance: 500.00, initialBalance: 0, color: 'bg-blue-600', isPersonal: false }, // Business Account
-        { id: '4', name: 'Banco PJ', type: 'bank', balance: 2500.00, initialBalance: 0, color: 'bg-indigo-600', isPersonal: false } // Business Account
-      ],
-      goals: [
-        { id: '1', name: "Viagem Fim de Ano", target: 5000, current: 1250, color: "bg-primary" },
-        { id: '2', name: "Reserva de Emergência", target: 10000, current: 3500, color: "bg-blue-500" },
-      ],
-      investments: [
-        { id: '1', name: "Tesouro Selic", value: 12450.00, yield: "+0.85%", isPersonal: true },
-        { id: '2', name: "CDB Banco X", value: 5000.00, yield: "+0.92%", isPersonal: true },
-      ],
-      vehicles: [
-        { id: '1', name: "Honda Civic 2018", plate: "ABC-1234", expenses: [
-          { name: "IPVA", due: "15/02", value: 1250.00, status: "warning" },
-          { name: "Seguro", due: "10/05", value: 2100.00, status: "ok" },
-        ]},
-      ],
-      businessProducts: [
-        { 
-          id: '1', 
-          name: 'Hambúrguer Artesanal', 
-          category: 'Alimentação', 
-          sellingPrice: 32.00, 
-          averageMonthlySales: 150,
-          directCosts: [
-            { id: '1', name: 'Carne (Blend)', value: 8.50 },
-            { id: '2', name: 'Pão Brioche', value: 2.50 },
-            { id: '3', name: 'Queijo Cheddar', value: 1.80 },
-            { id: '4', name: 'Embalagem', value: 1.20 },
-          ]
-        },
-        { 
-          id: '2', 
-          name: 'Batata Frita Especial', 
-          category: 'Alimentação', 
-          sellingPrice: 18.00, 
-          averageMonthlySales: 100,
-          directCosts: [
-            { id: '1', name: 'Batata Congelada', value: 4.00 },
-            { id: '2', name: 'Óleo', value: 0.50 },
-            { id: '3', name: 'Bacon e Cheddar', value: 3.50 },
-            { id: '4', name: 'Embalagem', value: 0.80 },
-          ]
-        }
-      ],
-      businessSettings: {
-        fixedCosts: [
-          { id: '1', name: 'Aluguel Ponto', value: 1200.00 },
-          { id: '2', name: 'Energia Elétrica', value: 450.00 },
-          { id: '3', name: 'Internet', value: 120.00 },
-          { id: '4', name: 'MEI (DAS)', value: 75.00 },
-        ]
-      },
-      budget: {
-        income: 3500.00,
-        spendingLimit: 2500.00,
-        creditLimit: 5000.00,
-        alertThresholds: [70, 90],
-      },
-      
-      // Referral System Initial State
-      referralCode: `USER${Math.floor(1000 + Math.random() * 9000)}`,
-      referrals: [
-          { id: '1', name: 'Carlos Mendes', status: 'confirmed', date: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString() },
-          { id: '2', name: 'Ana Souza', status: 'pending', date: new Date().toISOString() },
-      ], 
-      premiumUntil: null, // Not premium yet
-      
-      // Backup System Initial State
-      backups: [],
-      lastBackupDate: null,
-      isAutoBackupEnabled: false,
-      
-      // Calendar Integration Initial State
-      calendarSettings: {
-        isEnabled: false,
-        isConnected: false,
-        syncCategories: ['Alimentação', 'Moradia', 'Transporte', 'Saúde', 'Educação'],
-        reminderDaysBefore: 1
-      },
-      calendarEvents: [],
-
-      balance: 3604.10, // Sum of accounts
-      income: 3500.00,
-      expense: 45.90,
 
       // Credit Card Actions
       addCreditCard: (cardData) => set((state) => ({
@@ -815,7 +683,7 @@ export const useFinancialStore = create<FinancialStore>()(
       }
     }),
     {
-      name: 'finsmart-storage',
+      name: 'finsmart-storage-v2',
     }
   )
 );
