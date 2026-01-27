@@ -351,7 +351,8 @@ export default function Vehicles() {
                     variant="ghost" 
                     size="icon" 
                     className="h-6 w-6 rounded-full hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-500"
-                    onClick={() => {
+                    onClick={(e) => {
+                        e.stopPropagation();
                         setEditingVehicle({
                             id: car.id,
                             name: car.name,
@@ -366,7 +367,8 @@ export default function Vehicles() {
                       variant="ghost" 
                       size="icon" 
                       className="h-6 w-6 rounded-full hover:bg-red-100 hover:text-red-500 text-gray-400"
-                      onClick={() => {
+                      onClick={(e) => {
+                          e.stopPropagation();
                           setSelectedVehicleId(car.id);
                           setDeleteOpen(true);
                       }}
