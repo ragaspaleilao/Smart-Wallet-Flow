@@ -8,17 +8,25 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Car, Calendar, FileText, Wrench, Shield, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle, Trash2, Edit2 } from "lucide-react";
+import { Plus, Car, Calendar, FileText, Wrench, Shield, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle, Trash2, Edit2, AlertTriangle } from "lucide-react";
 import { useFinancialStore, Vehicle, Transaction } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { format, addMonths, isBefore, startOfDay, parseISO } from "date-fns";
 
 export default function Vehicles() {
-  const { vehicles, addVehicle, transactions, addTransaction, accounts, removeVehicle } = useFinancialStore();
+  const { vehicles, addVehicle, updateVehicle, removeVehicle, transactions, addTransaction, accounts } = useFinancialStore();
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   
+  const [editingVehicle, setEditingVehicle] = useState({
+      id: "",
+      name: "",
+      plate: ""
+  });
+
   const [newVehicle, setNewVehicle] = useState({
     name: "",
     plate: "",
@@ -55,6 +63,27 @@ export default function Vehicles() {
     setOpen(false);
     setNewVehicle({ name: "", plate: "" });
     toast({ title: "Veículo adicionado!" });
+  };
+
+  const handleEditVehicle = () => {
+    if (!editingVehicle.name || !editingVehicle.plate) {
+        toast({ title: "Preencha todos os campos", variant: "destructive" });
+        return;
+    }
+    updateVehicle(editingVehicle.id, {
+        name: editingVehicle.name,
+        plate: editingVehicle.plate
+    });
+    setEditOpen(false);
+    toast({ title: "Veículo atualizado!" });
+  };
+
+  const handleDeleteVehicle = () => {
+     if (selectedVehicleId) {
+         removeVehicle(selectedVehicleId);
+         setDeleteOpen(false);
+         toast({ title: "Veículo removido com sucesso" });
+     }
   };
 
   const handleAddExpense = () => {
@@ -155,6 +184,55 @@ export default function Vehicles() {
                     </div>
                     <Button className="w-full" onClick={handleAddVehicle}>Salvar Veículo</Button>
                 </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit Vehicle Dialog */}
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Editar Veículo</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label>Modelo</Label>
+                        <Input 
+                            placeholder="Ex: Fiat Argo" 
+                            value={editingVehicle.name}
+                            onChange={(e) => setEditingVehicle({...editingVehicle, name: e.target.value})}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Placa</Label>
+                        <Input 
+                            placeholder="ABC-1234" 
+                            value={editingVehicle.plate}
+                            onChange={(e) => setEditingVehicle({...editingVehicle, plate: e.target.value})}
+                        />
+                    </div>
+                    <Button className="w-full" onClick={handleEditVehicle}>Salvar Alterações</Button>
+                </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Confirmation Dialog */}
+          <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Excluir Veículo</DialogTitle>
+                </DialogHeader>
+                <div className="py-4 text-center">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <AlertTriangle className="w-8 h-8 text-red-600" />
+                    </div>
+                    <p className="text-gray-500">
+                        Tem certeza que deseja excluir este veículo? Todas as despesas associadas também serão removidas do controle de veículos (mas permanecerão no extrato geral).
+                    </p>
+                </div>
+                <DialogFooter className="flex-col gap-2 sm:flex-row">
+                    <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDeleteOpen(false)}>Cancelar</Button>
+                    <Button variant="destructive" className="w-full sm:w-auto" onClick={handleDeleteVehicle}>Excluir Veículo</Button>
+                </DialogFooter>
             </DialogContent>
           </Dialog>
 
@@ -269,7 +347,19 @@ export default function Vehicles() {
                   <p className="text-sm text-gray-500 font-mono mt-1">{car.plate}</p>
                 </div>
                 <div className="bg-gray-100 dark:bg-zinc-800 p-3 rounded-full flex gap-2">
-                  <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-500">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6 rounded-full hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-500"
+                    onClick={() => {
+                        setEditingVehicle({
+                            id: car.id,
+                            name: car.name,
+                            plate: car.plate
+                        });
+                        setEditOpen(true);
+                    }}
+                  >
                       <Edit2 className="w-4 h-4" />
                   </Button>
                   <Button 
@@ -277,10 +367,8 @@ export default function Vehicles() {
                       size="icon" 
                       className="h-6 w-6 rounded-full hover:bg-red-100 hover:text-red-500 text-gray-400"
                       onClick={() => {
-                          if (confirm(`Tem certeza que deseja excluir ${car.name}?`)) {
-                              removeVehicle(car.id);
-                              toast({ title: "Veículo removido" });
-                          }
+                          setSelectedVehicleId(car.id);
+                          setDeleteOpen(true);
                       }}
                   >
                       <Trash2 className="w-4 h-4" />

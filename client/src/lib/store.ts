@@ -222,6 +222,7 @@ interface FinancialStore {
   updateInvestment: (id: string, inv: Partial<Investment>) => void;
   removeInvestment: (id: string) => void;
   addVehicle: (veh: Omit<Vehicle, 'id'>) => void;
+  updateVehicle: (id: string, veh: Partial<Vehicle>) => void;
   removeVehicle: (id: string) => void;
   
   addBusinessProduct: (product: Omit<BusinessProduct, 'id'>) => void;
@@ -719,6 +720,10 @@ export const useFinancialStore = create<FinancialStore>()(
 
       addVehicle: (vehData) => set((state) => ({
         vehicles: [...state.vehicles, { ...vehData, id: nanoid() }]
+      })),
+
+      updateVehicle: (id, vehData) => set((state) => ({
+        vehicles: state.vehicles.map(v => v.id === id ? { ...v, ...vehData } : v)
       })),
 
       removeVehicle: (id) => set((state) => ({
