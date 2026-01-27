@@ -38,7 +38,7 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { format, isBefore, startOfDay, getMonth, getYear, parseISO, addMonths } from "date-fns";
+import { format, isBefore, startOfDay, getMonth, getYear, parseISO, addMonths, startOfYear, endOfYear, subMonths } from "date-fns";
 import { AddTransactionSheet } from "@/components/add-transaction-sheet";
 
 export default function SpreadsheetView() {
@@ -178,6 +178,66 @@ export default function SpreadsheetView() {
     
     return data;
   }, [transactions, projectionYear, context, creditCards, creditPurchases, accounts]);
+
+  // Consolidated Logic
+  const consolidatedData = useMemo(() => {
+    const year = parseInt(projectionYear);
+    const months = Array.from({ length: 12 }, (_, i) => i);
+    
+    // 1. Calculate Initial Balance (Start of Selected Year)
+    // Sum of all accounts initial balances (filtered by context)
+    const filteredAccounts = accounts.filter(a => context === "personal" ? a.isPersonal : !a.isPersonal);
+    let initialBalance = filteredAccounts.reduce((acc, curr) => acc + curr.initialBalance, 0);
+
+    // Add all PAID transactions BEFORE this year
+    const pastTransactions = transactions.filter(t => {
+        const tDate = new Date(t.date);
+        const isContextMatch = context === "personal" ? t.isPersonal : !t.isPersonal;
+        const isPaid = t.status === 'paid';
+        return isContextMatch && isPaid && tDate.getFullYear() < year;
+    });
+
+    pastTransactions.forEach(t => {
+        if (t.type === 'income') initialBalance += t.amount;
+        else initialBalance -= t.amount;
+    });
+
+    // 2. Build Monthly Data
+    let currentBalance = initialBalance;
+    
+    return months.map(month => {
+        const monthStart = new Date(year, month, 1);
+        const monthName = monthStart.toLocaleString('pt-BR', { month: 'long' }); // Full month name
+        
+        // Filter transactions for this month
+        const monthTransactions = transactions.filter(t => {
+            const tDate = new Date(t.date);
+            const isContextMatch = context === "personal" ? t.isPersonal : !t.isPersonal;
+            const isPaid = t.status === 'paid';
+            const isSameMonth = tDate.getMonth() === month && tDate.getFullYear() === year;
+            return isContextMatch && isPaid && isSameMonth;
+        });
+
+        const income = monthTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
+        const expense = monthTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
+        const result = income - expense;
+        const previousBalance = currentBalance;
+        const accumulatedBalance = previousBalance + result;
+
+        // Update current balance for next iteration
+        currentBalance = accumulatedBalance;
+
+        return {
+            month,
+            monthName,
+            previousBalance,
+            income,
+            expense,
+            result,
+            accumulatedBalance
+        };
+    });
+  }, [transactions, accounts, projectionYear, context]);
 
   // Totals Calculation
   const totals = useMemo(() => {
@@ -359,6 +419,12 @@ export default function SpreadsheetView() {
                     className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-9 px-2 text-xs"
                 >
                     <BarChart3 className="w-3.5 h-3.5 mr-1.5" /> Projeções
+                </TabsTrigger>
+                <TabsTrigger 
+                    value="consolidated" 
+                    className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-9 px-2 text-xs"
+                >
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Consolidações
                 </TabsTrigger>
                 <TabsTrigger 
                     value="accounts" 
@@ -698,6 +764,116 @@ export default function SpreadsheetView() {
                                 ))}
                                 <TableCell className={`text-right text-xs font-bold bg-gray-100 dark:bg-zinc-800 ${projectionData.reduce((acc,curr) => acc + curr.balance, 0) >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
                                     {projectionData.reduce((acc, curr) => acc + curr.balance, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </div>
+            </TabsContent>
+
+            {/* CONSOLIDATED VIEW */}
+            <TabsContent value="consolidated" className="h-full m-0 p-0 flex flex-col bg-white dark:bg-black">
+                <div className="p-2 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                         <span className="text-sm font-medium text-gray-500">Ano Base:</span>
+                         <Select value={projectionYear} onValueChange={setProjectionYear}>
+                            <SelectTrigger className="w-[100px] h-8">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i).map(year => (
+                                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="text-xs text-gray-500 italic">
+                        * Considera apenas transações realizadas (pagas).
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-auto">
+                    <Table className="border-collapse w-full min-w-[1200px]">
+                        <TableHeader className="bg-gray-50 dark:bg-zinc-900 sticky top-0 z-10">
+                            <TableRow className="border-b border-gray-200 dark:border-zinc-800">
+                                <TableHead className="w-[180px] font-bold text-xs h-10 sticky left-0 bg-gray-50 dark:bg-zinc-900 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Linha</TableHead>
+                                {consolidatedData.map(m => (
+                                    <TableHead key={m.month} className="text-center min-w-[100px] text-xs h-10 capitalize">{m.monthName}</TableHead>
+                                ))}
+                                <TableHead className="text-right min-w-[120px] font-bold text-xs h-10 bg-gray-100 dark:bg-zinc-800">TOTAL ANO</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {/* Saldo Anterior */}
+                            <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-12 hover:bg-gray-50">
+                                <TableCell className="font-semibold text-xs sticky left-0 bg-white dark:bg-black z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-blue-600">
+                                    Saldo Anterior
+                                </TableCell>
+                                {consolidatedData.map(m => (
+                                    <TableCell key={m.month} className="text-center text-xs text-blue-600/80 font-medium">
+                                        {m.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </TableCell>
+                                ))}
+                                <TableCell className="text-right text-xs font-bold text-gray-400 bg-gray-50 dark:bg-zinc-900">-</TableCell>
+                            </TableRow>
+
+                            {/* Receitas */}
+                            <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-12 hover:bg-gray-50">
+                                <TableCell className="font-semibold text-xs sticky left-0 bg-white dark:bg-black z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-green-600">
+                                    Receitas
+                                </TableCell>
+                                {consolidatedData.map(m => (
+                                    <TableCell key={m.month} className="text-center text-xs text-green-600 font-medium">
+                                        {m.income > 0 ? m.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}
+                                    </TableCell>
+                                ))}
+                                <TableCell className="text-right text-xs font-bold text-green-700 bg-gray-50 dark:bg-zinc-900">
+                                    {consolidatedData.reduce((acc, curr) => acc + curr.income, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </TableCell>
+                            </TableRow>
+
+                            {/* Despesas */}
+                            <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-12 hover:bg-gray-50">
+                                <TableCell className="font-semibold text-xs sticky left-0 bg-white dark:bg-black z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-red-600">
+                                    Despesas
+                                </TableCell>
+                                {consolidatedData.map(m => (
+                                    <TableCell key={m.month} className="text-center text-xs text-red-600 font-medium">
+                                        {m.expense > 0 ? `(${m.expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})` : '-'}
+                                    </TableCell>
+                                ))}
+                                <TableCell className="text-right text-xs font-bold text-red-700 bg-gray-50 dark:bg-zinc-900">
+                                    ({consolidatedData.reduce((acc, curr) => acc + curr.expense, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})
+                                </TableCell>
+                            </TableRow>
+
+                            {/* Resultado */}
+                            <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-12 bg-gray-50/30">
+                                <TableCell className="font-semibold text-xs sticky left-0 bg-gray-50/30 dark:bg-zinc-900 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                    Resultado (rec - desp)
+                                </TableCell>
+                                {consolidatedData.map(m => (
+                                    <TableCell key={m.month} className={`text-center text-xs font-bold ${m.result >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                        {m.result !== 0 ? m.result.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}
+                                    </TableCell>
+                                ))}
+                                <TableCell className={`text-right text-xs font-bold bg-gray-100 dark:bg-zinc-900 ${consolidatedData.reduce((acc, curr) => acc + curr.result, 0) >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                                    {consolidatedData.reduce((acc, curr) => acc + curr.result, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </TableCell>
+                            </TableRow>
+
+                            {/* Saldo Acumulado */}
+                            <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-14 bg-blue-50/50 dark:bg-blue-900/10 font-medium border-t-2 border-t-blue-100 dark:border-t-blue-900">
+                                <TableCell className="font-bold text-xs sticky left-0 bg-blue-50 dark:bg-blue-900 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-gray-900 dark:text-white">
+                                    Saldo Acumulado
+                                </TableCell>
+                                {consolidatedData.map(m => (
+                                    <TableCell key={m.month} className={`text-center text-xs font-bold ${m.accumulatedBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                                        {m.accumulatedBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </TableCell>
+                                ))}
+                                <TableCell className="text-right text-xs font-bold text-blue-800 bg-blue-100 dark:bg-blue-900">
+                                    {consolidatedData[11]?.accumulatedBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </TableCell>
                             </TableRow>
                         </TableBody>
