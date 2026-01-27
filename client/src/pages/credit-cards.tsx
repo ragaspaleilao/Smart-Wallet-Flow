@@ -643,7 +643,7 @@ export default function CreditCards() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             {accounts.map(acc => (
-                                                <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {acc.balance.toFixed(2)})</SelectItem>
+                                                <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(acc.balance)})</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>

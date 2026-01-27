@@ -15,7 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { format, addMonths, isBefore, startOfDay, parseISO } from "date-fns";
 
 export default function Vehicles() {
-  const { vehicles, addVehicle, updateVehicle, removeVehicle, transactions, addTransaction, accounts } = useFinancialStore();
+  const { vehicles, addVehicle, updateVehicle, removeVehicle, transactions, addTransaction, removeTransaction, accounts } = useFinancialStore();
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
