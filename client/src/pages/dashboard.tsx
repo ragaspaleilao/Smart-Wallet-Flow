@@ -1,3 +1,4 @@
+import { getCategoryIcon } from "@/lib/utils";
 import { Link } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
@@ -216,13 +217,8 @@ export default function Dashboard() {
               <EditTransactionSheet key={tx.id} transaction={tx}>
               <div className={`flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 animate-in fade-in slide-in-from-bottom-2 ${isOverdue ? 'border-red-200 dark:border-red-900/50 bg-red-50/10' : ''}`}>
                 <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg relative ${
-                    tx.category === 'Alimentação' ? 'bg-orange-100 text-orange-600' :
-                    tx.category === 'Transporte' ? 'bg-blue-100 text-blue-600' :
-                    tx.category === 'Salário' ? 'bg-green-100 text-green-600' :
-                    'bg-purple-100 text-purple-600'
-                  }`}>
-                    {tx.category.charAt(0)}
+                  <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xl relative">
+                    {getCategoryIcon(tx.category)}
                     {isOverdue && (
                         <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center border border-white dark:border-zinc-950">
                             <AlertCircle className="w-2.5 h-2.5 text-white" />

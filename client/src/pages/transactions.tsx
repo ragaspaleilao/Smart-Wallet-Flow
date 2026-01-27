@@ -1,3 +1,4 @@
+import { getCategoryIcon } from "@/lib/utils";
 import { MobileLayout } from "@/components/mobile-layout";
 import { ArrowLeft, Search, Filter, ArrowUpRight, ArrowDownLeft, Table as TableIcon, AlertCircle, Clock, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -313,10 +314,8 @@ function TransactionItem({ tx }: { tx: any }) {
     <EditTransactionSheet transaction={tx}>
     <div className={`flex items-center justify-between py-3 group cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-900 rounded-xl px-3 -mx-3 transition-colors ${isOverdue ? 'bg-red-50/50 dark:bg-red-900/10' : ''}`}>
       <div className="flex items-center gap-4">
-        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center relative ${
-          tx.type === 'income' ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600'
-        }`}>
-          {tx.type === 'income' ? <ArrowUpRight className="w-6 h-6" /> : <ArrowDownLeft className="w-6 h-6" />}
+        <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-2xl relative">
+          {getCategoryIcon(tx.category)}
           
           {/* Status Badge on Icon */}
           {isOverdue && (
