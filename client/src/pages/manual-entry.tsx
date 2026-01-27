@@ -200,7 +200,8 @@ export default function ManualEntry() {
             source: "manual",
             isPersonal: true,
             accountId,
-            status
+            status,
+            date // Add date here
         });
 
         toast({
