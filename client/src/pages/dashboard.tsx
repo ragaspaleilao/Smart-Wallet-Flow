@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp, Zap } from "lucide-react";
 import { useFinancialStore } from "@/lib/store";
 import { format, isBefore, startOfDay } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
@@ -179,7 +179,7 @@ export default function Dashboard() {
         </div>
 
         {/* Management Modules */}
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-2 gap-3">
             <Link href="/ai-chat">
                 <Card className="p-3 border-none shadow-sm bg-purple-50 dark:bg-purple-900/10 flex items-center gap-3 cursor-pointer hover:bg-purple-100 transition-colors">
                     <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-xl text-purple-600">
@@ -191,19 +191,17 @@ export default function Dashboard() {
                     </div>
                 </Card>
             </Link>
-            {/* Business Module Hidden for Personal MVP
-            <Link href="/business">
+            <Link href="/subscriptions">
                 <Card className="p-3 border-none shadow-sm bg-indigo-50 dark:bg-indigo-900/10 flex items-center gap-3 cursor-pointer hover:bg-indigo-100 transition-colors">
                     <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl text-indigo-600">
-                        <Package className="w-5 h-5" />
+                        <Zap className="w-5 h-5" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Meu Negócio</h3>
-                        <p className="text-[10px] text-gray-500">Gestão para MEI</p>
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Assinaturas</h3>
+                        <p className="text-[10px] text-gray-500">Gestão do Clube</p>
                     </div>
                 </Card>
             </Link>
-            */}
         </div>
 
         {/* Alerts */}

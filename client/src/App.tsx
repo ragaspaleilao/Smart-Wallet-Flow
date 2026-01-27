@@ -29,6 +29,7 @@ import Backup from "@/pages/backup";
 import CalendarIntegration from "@/pages/calendar-integration";
 import SpreadsheetView from "@/pages/spreadsheet-view";
 import CreditCards from "@/pages/credit-cards";
+import Subscriptions from "@/pages/subscriptions";
 
 import Simulator from "@/pages/simulator";
 
@@ -63,6 +64,7 @@ function Router() {
       <Route path="/backup" component={Backup} />
       <Route path="/calendar-integration" component={CalendarIntegration} />
       <Route path="/spreadsheet" component={SpreadsheetView} />
+      <Route path="/subscriptions" component={Subscriptions} />
 
       <Route component={NotFound} />
     </Switch>
