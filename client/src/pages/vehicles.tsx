@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 import { Plus, Car, Calendar, FileText, Wrench, Shield, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle, Trash2, Edit2, AlertTriangle, DollarSign } from "lucide-react";
 import { useFinancialStore, Vehicle, Transaction } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
@@ -448,28 +449,30 @@ export default function Vehicles() {
                                     const isPaid = exp.status === 'paid';
                                     
                                     return (
-                                        <div key={exp.id} className="flex items-center justify-between p-3 pl-11">
-                                            <div>
-                                                <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                                    {exp.description}
-                                                </p>
-                                                <p className={`text-[10px] ${isExpLate ? 'text-red-500 font-bold' : isPaid ? 'text-green-600' : 'text-gray-400'}`}>
-                                                    {format(parseISO(exp.date), 'dd/MM/yyyy')} • {isPaid ? 'Pago' : isExpLate ? 'Vencido' : 'Em aberto'}
-                                                </p>
+                                        <EditTransactionSheet key={exp.id} transaction={exp}>
+                                            <div className="flex items-center justify-between p-3 pl-11 hover:bg-gray-50 dark:hover:bg-zinc-900/50 cursor-pointer transition-colors">
+                                                <div>
+                                                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                                        {exp.description}
+                                                    </p>
+                                                    <p className={`text-[10px] ${isExpLate ? 'text-red-500 font-bold' : isPaid ? 'text-green-600' : 'text-gray-400'}`}>
+                                                        {format(parseISO(exp.date), 'dd/MM/yyyy')} • {isPaid ? 'Pago' : isExpLate ? 'Vencido' : 'Em aberto'}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-xs font-semibold ${isPaid ? 'text-green-600 line-through opacity-50' : 'text-gray-900 dark:text-white'}`}>
+                                                        {globalFormatCurrency(exp.amount)}
+                                                    </span>
+                                                    {isPaid ? (
+                                                        <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                                                    ) : isExpLate ? (
+                                                        <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                                                    ) : (
+                                                        <Clock className="w-3.5 h-3.5 text-gray-300" />
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className={`text-xs font-semibold ${isPaid ? 'text-green-600 line-through opacity-50' : 'text-gray-900 dark:text-white'}`}>
-                                                    {globalFormatCurrency(exp.amount)}
-                                                </span>
-                                                {isPaid ? (
-                                                    <CheckCircle className="w-3.5 h-3.5 text-green-500" />
-                                                ) : isExpLate ? (
-                                                    <AlertCircle className="w-3.5 h-3.5 text-red-500" />
-                                                ) : (
-                                                    <Clock className="w-3.5 h-3.5 text-gray-300" />
-                                                )}
-                                            </div>
-                                        </div>
+                                        </EditTransactionSheet>
                                     );
                                 })}
                             </div>
