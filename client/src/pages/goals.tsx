@@ -1,9 +1,9 @@
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Target, Trophy } from "lucide-react";
+import { Plus, Target, Trophy, Edit2, Wallet } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { useFinancialStore } from "@/lib/store";
+import { useFinancialStore, Goal } from "@/lib/store";
 import {
   Dialog,
   DialogContent,
@@ -13,35 +13,82 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 
 export default function Goals() {
   const goals = useFinancialStore((state) => state.goals);
+  const accounts = useFinancialStore((state) => state.accounts);
   const addGoal = useFinancialStore((state) => state.addGoal);
+  const updateGoal = useFinancialStore((state) => state.updateGoal);
 
   const [open, setOpen] = useState(false);
-  const [newGoal, setNewGoal] = useState({ name: "", target: "", current: "" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formState, setFormState] = useState<{
+    name: string;
+    target: string;
+    current: string;
+    linkedAccountId: string;
+  }>({ name: "", target: "", current: "", linkedAccountId: "none" });
 
-  const handleAddGoal = () => {
-    if (!newGoal.name || !newGoal.target) {
+  const handleOpen = (goal?: Goal) => {
+    if (goal) {
+        setEditingId(goal.id);
+        setFormState({
+            name: goal.name,
+            target: goal.target.toString(),
+            current: goal.current.toString(),
+            linkedAccountId: goal.linkedAccountId || "none"
+        });
+    } else {
+        setEditingId(null);
+        setFormState({ name: "", target: "", current: "", linkedAccountId: "none" });
+    }
+    setOpen(true);
+  };
+
+  const handleSaveGoal = () => {
+    if (!formState.name || !formState.target) {
         toast({ title: "Preencha todos os campos", variant: "destructive" });
         return;
     }
 
-    addGoal({
-        name: newGoal.name,
-        target: Number(newGoal.target),
-        current: Number(newGoal.current) || 0,
+    const linkedAccount = accounts.find(a => a.id === formState.linkedAccountId);
+    const currentVal = linkedAccount 
+        ? linkedAccount.balance 
+        : (Number(formState.current) || 0);
+
+    const goalData = {
+        name: formState.name,
+        target: Number(formState.target),
+        current: currentVal,
         color: "bg-blue-500", // Default color
-    });
+        linkedAccountId: formState.linkedAccountId === "none" ? undefined : formState.linkedAccountId
+    };
+
+    if (editingId) {
+        updateGoal(editingId, goalData);
+        toast({ title: "Meta atualizada!" });
+    } else {
+        addGoal(goalData);
+        toast({ title: "Meta criada com sucesso!" });
+    }
     
-    setNewGoal({ name: "", target: "", current: "" });
     setOpen(false);
-    toast({ title: "Meta criada com sucesso!" });
   };
 
-  const featuredGoal = goals[0];
+  // Sort goals so the one with highest progress or priority is first if needed
+  // For now keeping array order but calculating current values dynamically if linked
+  const processedGoals = goals.map(g => {
+      if (g.linkedAccountId) {
+          const account = accounts.find(a => a.id === g.linkedAccountId);
+          return { ...g, current: account ? account.balance : g.current };
+      }
+      return g;
+  });
+
+  const featuredGoal = processedGoals[0];
 
   return (
     <MobileLayout>
@@ -53,22 +100,20 @@ export default function Goals() {
           </div>
           
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button size="icon" className="rounded-full shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90">
-                    <Plus className="w-6 h-6" />
-                </Button>
-            </DialogTrigger>
+            <Button size="icon" className="rounded-full shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90" onClick={() => handleOpen()}>
+                <Plus className="w-6 h-6" />
+            </Button>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Nova Meta</DialogTitle>
+                    <DialogTitle>{editingId ? "Editar Meta" : "Nova Meta"}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
                         <Label>Nome da Meta</Label>
                         <Input 
                             placeholder="Ex: Viagem para Disney" 
-                            value={newGoal.name}
-                            onChange={(e) => setNewGoal({...newGoal, name: e.target.value})}
+                            value={formState.name}
+                            onChange={(e) => setFormState({...formState, name: e.target.value})}
                         />
                     </div>
                     <div className="space-y-2">
@@ -76,20 +121,49 @@ export default function Goals() {
                         <Input 
                             type="number" 
                             placeholder="5000" 
-                            value={newGoal.target}
-                            onChange={(e) => setNewGoal({...newGoal, target: e.target.value})}
+                            value={formState.target}
+                            onChange={(e) => setFormState({...formState, target: e.target.value})}
                         />
                     </div>
+                    
                     <div className="space-y-2">
-                        <Label>Já guardado (R$)</Label>
-                        <Input 
-                            type="number" 
-                            placeholder="0" 
-                            value={newGoal.current}
-                            onChange={(e) => setNewGoal({...newGoal, current: e.target.value})}
-                        />
+                        <Label>Vincular a uma Conta (Opcional)</Label>
+                        <Select 
+                            value={formState.linkedAccountId} 
+                            onValueChange={(val) => setFormState({...formState, linkedAccountId: val})}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecione uma conta..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">Não vincular (Manual)</SelectItem>
+                                {accounts.map(acc => (
+                                    <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {acc.balance.toFixed(2)})</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {formState.linkedAccountId !== "none" && (
+                            <p className="text-xs text-blue-500">
+                                O valor da meta será atualizado automaticamente com o saldo desta conta.
+                            </p>
+                        )}
                     </div>
-                    <Button className="w-full" onClick={handleAddGoal}>Criar Meta</Button>
+
+                    {formState.linkedAccountId === "none" && (
+                        <div className="space-y-2">
+                            <Label>Já guardado (R$)</Label>
+                            <Input 
+                                type="number" 
+                                placeholder="0" 
+                                value={formState.current}
+                                onChange={(e) => setFormState({...formState, current: e.target.value})}
+                            />
+                        </div>
+                    )}
+
+                    <Button className="w-full" onClick={handleSaveGoal}>
+                        {editingId ? "Salvar Alterações" : "Criar Meta"}
+                    </Button>
                 </div>
             </DialogContent>
           </Dialog>
@@ -97,7 +171,10 @@ export default function Goals() {
 
         {/* Featured Goal */}
         {featuredGoal && (
-            <div className="bg-primary p-6 rounded-3xl text-white shadow-xl shadow-primary/20 relative overflow-hidden">
+            <div 
+                className="bg-primary p-6 rounded-3xl text-white shadow-xl shadow-primary/20 relative overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                onClick={() => handleOpen(featuredGoal)}
+            >
             <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
             <div className="relative z-10 space-y-4">
                 <div className="flex justify-between items-start">
@@ -108,14 +185,17 @@ export default function Goals() {
                 </div>
                 <div>
                 <h3 className="text-xl font-bold">{featuredGoal.name}</h3>
-                <p className="text-primary-foreground/80 text-sm">Falta R$ {(featuredGoal.target - featuredGoal.current).toLocaleString('pt-BR')}</p>
+                <p className="text-primary-foreground/80 text-sm">Falta R$ {Math.max(0, featuredGoal.target - featuredGoal.current).toLocaleString('pt-BR')}</p>
                 </div>
                 <div className="space-y-2">
                 <div className="flex justify-between text-xs font-medium text-white/80">
-                    <span>R$ {featuredGoal.current.toLocaleString('pt-BR')}</span>
-                    <span>{Math.round((featuredGoal.current / featuredGoal.target) * 100)}%</span>
+                    <div className="flex items-center gap-1">
+                        <span>R$ {featuredGoal.current.toLocaleString('pt-BR')}</span>
+                        {featuredGoal.linkedAccountId && <Wallet className="w-3 h-3 text-white/70" />}
+                    </div>
+                    <span>{Math.min(100, Math.round((featuredGoal.current / featuredGoal.target) * 100))}%</span>
                 </div>
-                <Progress value={(featuredGoal.current / featuredGoal.target) * 100} className="h-2 bg-black/20" indicatorClassName="bg-white" />
+                <Progress value={Math.min(100, (featuredGoal.current / featuredGoal.target) * 100)} className="h-2 bg-black/20" indicatorClassName="bg-white" />
                 </div>
             </div>
             </div>
@@ -124,8 +204,12 @@ export default function Goals() {
         {/* Goals List */}
         <div className="space-y-4">
           <h3 className="font-semibold text-gray-900 dark:text-white">Em andamento</h3>
-          {goals.length > 1 ? goals.slice(1).map((goal) => (
-            <Card key={goal.id} className="p-4 border-none shadow-sm bg-white dark:bg-zinc-900">
+          {processedGoals.length > 1 ? processedGoals.slice(1).map((goal) => (
+            <Card 
+                key={goal.id} 
+                className="p-4 border-none shadow-sm bg-white dark:bg-zinc-900 cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+                onClick={() => handleOpen(goal)}
+            >
               <div className="flex items-start gap-4">
                 <div className={`p-3 rounded-xl ${goal.color} bg-opacity-10 text-opacity-100 flex items-center justify-center`}>
                   <Target className={`w-6 h-6 ${goal.color.replace('bg-', 'text-')}`} />
@@ -134,13 +218,16 @@ export default function Goals() {
                   <div className="flex justify-between items-start">
                     <h4 className="font-bold text-gray-900 dark:text-white">{goal.name}</h4>
                     <span className="text-xs font-medium text-gray-500 bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded-full">
-                      {Math.round((goal.current / goal.target) * 100)}%
+                      {Math.min(100, Math.round((goal.current / goal.target) * 100))}%
                     </span>
                   </div>
-                  <Progress value={(goal.current / goal.target) * 100} className="h-2" />
+                  <Progress value={Math.min(100, (goal.current / goal.target) * 100)} className="h-2" />
                   <div className="flex justify-between text-xs text-gray-500">
-                    <span>R$ {goal.current}</span>
-                    <span>Meta: R$ {goal.target}</span>
+                    <div className="flex items-center gap-1">
+                        <span>R$ {goal.current.toLocaleString('pt-BR')}</span>
+                        {goal.linkedAccountId && <Wallet className="w-3 h-3 text-gray-400" />}
+                    </div>
+                    <span>Meta: R$ {goal.target.toLocaleString('pt-BR')}</span>
                   </div>
                 </div>
               </div>

@@ -42,6 +42,7 @@ export interface Goal {
   target: number;
   current: number;
   color: string;
+  linkedAccountId?: string; // New field to link to an account
 }
 
 export interface Investment {
@@ -215,6 +216,8 @@ interface FinancialStore {
   updateAccountBalance: (id: string, newBalance: number) => void;
   
   addGoal: (goal: Omit<Goal, 'id'>) => void;
+  updateGoal: (id: string, goal: Partial<Goal>) => void;
+  removeGoal: (id: string) => void;
   addInvestment: (inv: Omit<Investment, 'id'>) => void;
   updateInvestment: (id: string, inv: Partial<Investment>) => void;
   removeInvestment: (id: string) => void;
@@ -691,6 +694,14 @@ export const useFinancialStore = create<FinancialStore>()(
 
       addGoal: (goalData) => set((state) => ({
         goals: [...state.goals, { ...goalData, id: nanoid() }]
+      })),
+
+      updateGoal: (id, goalData) => set((state) => ({
+        goals: state.goals.map(g => g.id === id ? { ...g, ...goalData } : g)
+      })),
+
+      removeGoal: (id) => set((state) => ({
+        goals: state.goals.filter(g => g.id !== id)
       })),
 
       addInvestment: (invData) => set((state) => ({
