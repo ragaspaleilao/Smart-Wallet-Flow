@@ -3,24 +3,34 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Calculator } from "lucide-react";
-import { format, addMonths, addWeeks, addYears } from "date-fns";
+import { ArrowLeft, CreditCard as CreditCardIcon, Wallet } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFinancialStore, Category } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function ManualEntry() {
   const [_, setLocation] = useLocation();
-  const { addTransaction, accounts } = useFinancialStore();
+  const { addTransaction, addCreditPurchase, accounts, creditCards } = useFinancialStore();
   
   const [type, setType] = useState<"expense" | "income">("expense");
+  const [paymentMethod, setPaymentMethod] = useState<"debit" | "credit">("debit");
+  
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<Category>("Alimentação");
-  const [accountId, setAccountId] = useState<string>(accounts[0]?.id || "");
+  
+  // Account / Card Selection
+  const [accountId, setAccountId] = useState<string>("");
+  const [cardId, setCardId] = useState<string>("");
+
+  useEffect(() => {
+    if (accounts.length > 0 && !accountId) setAccountId(accounts[0].id);
+    if (creditCards.length > 0 && !cardId) setCardId(creditCards[0].id);
+  }, [accounts, creditCards]);
+
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [status, setStatus] = useState<'paid' | 'pending'>('paid');
 
@@ -67,7 +77,51 @@ export default function ManualEntry() {
       });
       return;
     }
+
+    // CREDIT CARD LOGIC
+    if (paymentMethod === 'credit') {
+        if (!cardId) {
+            toast({
+                title: "Cartão obrigatório",
+                description: "Selecione o cartão de crédito utilizado.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Credit purchases are always expenses (for now)
+        if (type === 'income') {
+            toast({
+                title: "Operação inválida",
+                description: "Não é possível adicionar receita em cartão de crédito.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const numInstallments = (isRecurring && recurrenceType === 'installments') ? installments : 1;
+        const purchaseDate = date; // Transaction date
+
+        addCreditPurchase({
+            creditCardId: cardId,
+            purchaseDate: purchaseDate,
+            totalAmount: numericAmount,
+            installments: numInstallments,
+            installmentValue: numericAmount / numInstallments,
+            category,
+            description,
+        });
+
+        toast({
+            title: "Compra no Crédito salva!",
+            description: `${description} - ${numInstallments}x de ${(numericAmount / numInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
+        });
+
+        setLocation("/dashboard");
+        return;
+    }
     
+    // DEBIT / ACCOUNT LOGIC
     if (!accountId) {
        toast({
         title: "Conta obrigatória",
@@ -97,7 +151,6 @@ export default function ManualEntry() {
                     isPersonal: true,
                     accountId,
                     // First installment follows selected status, others are pending usually? 
-                    // Or all pending if future? Let's use selected status for first, pending for others unless date is past?
                     // For simplicity, let's keep selected status for first, and pending for future.
                     status: i === 0 ? status : 'pending',
                     date: newDate.toISOString()
@@ -171,29 +224,60 @@ export default function ManualEntry() {
           <div className="w-10" />
         </div>
 
-        {/* Type Switcher */}
-        <div className="flex p-1 bg-gray-100 dark:bg-zinc-800 rounded-xl mb-8">
-          <button
-            className={`flex-1 py-3 text-sm font-medium rounded-lg transition-all ${
-              type === "expense"
-                ? "bg-white dark:bg-zinc-700 text-red-600 shadow-sm"
-                : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
-            }`}
-            onClick={() => setType("expense")}
-          >
-            Despesa
-          </button>
-          <button
-            className={`flex-1 py-3 text-sm font-medium rounded-lg transition-all ${
-              type === "income"
-                ? "bg-white dark:bg-zinc-700 text-green-600 shadow-sm"
-                : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
-            }`}
-            onClick={() => setType("income")}
-          >
-            Receita
-          </button>
+        {/* Payment Method Switcher (Debit vs Credit) */}
+        <div className="grid grid-cols-2 gap-2 mb-6 p-1 bg-gray-100 dark:bg-zinc-900 rounded-xl">
+            <button
+                onClick={() => setPaymentMethod('debit')}
+                className={`flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-medium transition-all ${
+                    paymentMethod === 'debit' 
+                    ? 'bg-white dark:bg-zinc-800 shadow-sm text-primary' 
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+            >
+                <Wallet className="w-4 h-4" />
+                Conta / Débito
+            </button>
+            <button
+                onClick={() => {
+                    setPaymentMethod('credit');
+                    setType('expense'); // Force expense for credit
+                }}
+                className={`flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-medium transition-all ${
+                    paymentMethod === 'credit' 
+                    ? 'bg-white dark:bg-zinc-800 shadow-sm text-purple-600' 
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+            >
+                <CreditCardIcon className="w-4 h-4" />
+                Crédito
+            </button>
         </div>
+
+        {/* Type Switcher (Only visible for Debit, or forced Expense for Credit) */}
+        {paymentMethod === 'debit' && (
+            <div className="flex p-1 bg-gray-100 dark:bg-zinc-800 rounded-xl mb-8">
+            <button
+                className={`flex-1 py-3 text-sm font-medium rounded-lg transition-all ${
+                type === "expense"
+                    ? "bg-white dark:bg-zinc-700 text-red-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                }`}
+                onClick={() => setType("expense")}
+            >
+                Despesa
+            </button>
+            <button
+                className={`flex-1 py-3 text-sm font-medium rounded-lg transition-all ${
+                type === "income"
+                    ? "bg-white dark:bg-zinc-700 text-green-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                }`}
+                onClick={() => setType("income")}
+            >
+                Receita
+            </button>
+            </div>
+        )}
 
         {/* Amount Input */}
         <div className="mb-8">
@@ -203,7 +287,7 @@ export default function ManualEntry() {
               type="text"
               placeholder="R$ 0,00"
               className={`text-4xl font-bold h-20 border-none px-0 shadow-none focus-visible:ring-0 ${
-                type === 'expense' ? 'text-red-600 placeholder:text-red-200' : 'text-green-600 placeholder:text-green-200'
+                type === 'expense' || paymentMethod === 'credit' ? 'text-red-600 placeholder:text-red-200' : 'text-green-600 placeholder:text-green-200'
               }`}
               value={amount}
               onChange={handleAmountChange}
@@ -224,18 +308,39 @@ export default function ManualEntry() {
             />
           </div>
           
+          {/* Account OR Credit Card Selection */}
           <div className="space-y-2">
-            <Label>Conta</Label>
-            <Select value={accountId} onValueChange={setAccountId}>
-              <SelectTrigger className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
-                <SelectValue placeholder="Selecione a conta" />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map(acc => (
-                  <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {acc.balance.toLocaleString('pt-BR')})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>{paymentMethod === 'credit' ? 'Cartão de Crédito' : 'Conta / Carteira'}</Label>
+            
+            {paymentMethod === 'credit' ? (
+                 <Select value={cardId} onValueChange={setCardId}>
+                    <SelectTrigger className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
+                        <SelectValue placeholder="Selecione o cartão" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {creditCards.length > 0 ? (
+                            creditCards.map(card => (
+                                <SelectItem key={card.id} value={card.id}>
+                                    {card.name} (Dia {card.closingDay})
+                                </SelectItem>
+                            ))
+                        ) : (
+                            <SelectItem value="none" disabled>Nenhum cartão cadastrado</SelectItem>
+                        )}
+                    </SelectContent>
+                </Select>
+            ) : (
+                <Select value={accountId} onValueChange={setAccountId}>
+                    <SelectTrigger className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
+                        <SelectValue placeholder="Selecione a conta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {accounts.map(acc => (
+                        <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {acc.balance.toLocaleString('pt-BR')})</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -266,20 +371,24 @@ export default function ManualEntry() {
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                 />
-                <div className="flex bg-gray-50 dark:bg-zinc-900 rounded-md border border-gray-200 dark:border-zinc-800 p-1">
-                    <button
-                        className={`px-3 py-1 rounded text-sm font-medium transition-all ${status === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'text-gray-500'}`}
-                        onClick={() => setStatus('paid')}
-                    >
-                        Pago
-                    </button>
-                    <button
-                        className={`px-3 py-1 rounded text-sm font-medium transition-all ${status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'text-gray-500'}`}
-                        onClick={() => setStatus('pending')}
-                    >
-                        Pendente
-                    </button>
-                </div>
+                
+                {/* Status Toggle - Only for Debit */}
+                {paymentMethod === 'debit' && (
+                    <div className="flex bg-gray-50 dark:bg-zinc-900 rounded-md border border-gray-200 dark:border-zinc-800 p-1">
+                        <button
+                            className={`px-3 py-1 rounded text-sm font-medium transition-all ${status === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'text-gray-500'}`}
+                            onClick={() => setStatus('paid')}
+                        >
+                            Pago
+                        </button>
+                        <button
+                            className={`px-3 py-1 rounded text-sm font-medium transition-all ${status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'text-gray-500'}`}
+                            onClick={() => setStatus('pending')}
+                        >
+                            Pendente
+                        </button>
+                    </div>
+                )}
             </div>
           </div>
 
@@ -295,20 +404,25 @@ export default function ManualEntry() {
 
             {isRecurring && (
                 <div className="bg-gray-50 dark:bg-zinc-900 p-4 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2">
-                    <div className="space-y-2">
-                        <Label>Data de Início (1ª Parcela/Cobrança)</Label>
-                        <Input 
-                          type="date" 
-                          className="h-12 bg-white dark:bg-black border-gray-200 dark:border-zinc-800" 
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
-                        />
-                    </div>
+                    {/* Only show Start Date for Debit Recurring, for Credit Card it uses purchase date */}
+                    {paymentMethod === 'debit' && (
+                        <div className="space-y-2">
+                            <Label>Data de Início (1ª Parcela/Cobrança)</Label>
+                            <Input 
+                            type="date" 
+                            className="h-12 bg-white dark:bg-black border-gray-200 dark:border-zinc-800" 
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            />
+                        </div>
+                    )}
 
                     <Tabs value={recurrenceType} onValueChange={(v) => setRecurrenceType(v as any)} className="w-full">
                         <TabsList className="w-full grid grid-cols-2">
                             <TabsTrigger value="installments">Parcelado</TabsTrigger>
-                            <TabsTrigger value="fixed">Fixo / Recorrente</TabsTrigger>
+                            {paymentMethod === 'debit' && (
+                                <TabsTrigger value="fixed">Fixo / Recorrente</TabsTrigger>
+                            )}
                         </TabsList>
                         
                         <TabsContent value="installments" className="pt-4 space-y-4">
