@@ -89,7 +89,8 @@ export default function Vehicles() {
   const handleAddExpense = () => {
     if (!expenseAmount || !selectedVehicleId) return;
 
-    const numericAmount = Number(expenseAmount);
+    // Remove non-numeric characters and parse to number
+    const numericAmount = Number(expenseAmount.replace(/\D/g, "")) / 100;
     const vehicle = vehicles.find(v => v.id === selectedVehicleId);
     
     if (paymentType === 'installments') {
