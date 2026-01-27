@@ -57,16 +57,23 @@ export default function CreditCards() {
 
   const selectedCard = creditCards.find(c => c.id === selectedCardId);
 
+  const formatCurrencyInput = (val: string) => {
+    const number = val.replace(/\D/g, "");
+    return (Number(number) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  };
+
   const handleAddCard = () => {
     if (!newCardData.name || !newCardData.creditLimit || !newCardData.closingDay || !newCardData.dueDay) {
         toast({ title: "Preencha todos os campos", variant: "destructive" });
         return;
     }
 
+    const numericLimit = Number(newCardData.creditLimit.replace(/\D/g, "")) / 100;
+
     addCreditCard({
         name: newCardData.name,
         brand: newCardData.brand as any,
-        creditLimit: Number(newCardData.creditLimit),
+        creditLimit: numericLimit,
         closingDay: Number(newCardData.closingDay),
         dueDay: Number(newCardData.dueDay),
         color: newCardData.color,
@@ -257,7 +264,7 @@ export default function CreditCards() {
           return;
       }
 
-      const total = Number(newPurchase.amount);
+      const total = Number(newPurchase.amount.replace(/\D/g, "")) / 100;
       const inst = Number(newPurchase.installments);
 
       addCreditPurchase({
@@ -289,9 +296,11 @@ export default function CreditCards() {
           return;
       }
       
+      const numericAmount = Number(paymentData.amount.replace(/\D/g, "")) / 100;
+
       addCreditPayment({
           creditCardId: selectedCardId,
-          amount: Number(paymentData.amount),
+          amount: numericAmount,
           accountId: paymentData.accountId,
           paymentDate: paymentData.date,
           month: currentInvoiceDate.getMonth(),
@@ -432,12 +441,12 @@ export default function CreditCards() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label>Limite de Crédito (R$)</Label>
+                                <Label>Limite de Crédito</Label>
                                 <Input 
-                                    type="number"
-                                    placeholder="0,00" 
                                     value={newCardData.creditLimit}
-                                    onChange={(e) => setNewCardData({...newCardData, creditLimit: e.target.value})}
+                                    placeholder="R$ 0,00"
+                                    onChange={(e) => setNewCardData({...newCardData, creditLimit: formatCurrencyInput(e.target.value)})}
+                                    className="text-lg font-bold"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -537,12 +546,12 @@ export default function CreditCards() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label>Valor Total (R$)</Label>
+                                        <Label>Valor Total</Label>
                                         <Input 
-                                            type="number"
-                                            placeholder="0,00" 
                                             value={newPurchase.amount}
-                                            onChange={(e) => setNewPurchase({...newPurchase, amount: e.target.value})}
+                                            placeholder="R$ 0,00"
+                                            onChange={(e) => setNewPurchase({...newPurchase, amount: formatCurrencyInput(e.target.value)})}
+                                            className="text-lg font-bold"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -616,10 +625,10 @@ export default function CreditCards() {
                                 <div className="space-y-2">
                                     <Label>Valor do Pagamento</Label>
                                     <Input 
-                                        type="number"
                                         value={paymentData.amount}
-                                        onChange={(e) => setPaymentData({...paymentData, amount: e.target.value})}
-                                        placeholder={invoiceTotal.toFixed(2)}
+                                        onChange={(e) => setPaymentData({...paymentData, amount: formatCurrencyInput(e.target.value)})}
+                                        placeholder={formatCurrency(invoiceTotal)}
+                                        className="text-lg font-bold"
                                     />
                                 </div>
                                 
