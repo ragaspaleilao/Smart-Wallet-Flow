@@ -973,7 +973,12 @@ export default function SpreadsheetView() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredInvestments.map((inv) => (
+                        {filteredInvestments.map((inv) => {
+                            // Logic to resolve display value (same as in Investments page)
+                            const linkedAccount = inv.accountId ? accounts.find(a => a.id === inv.accountId) : null;
+                            const displayValue = linkedAccount ? linkedAccount.balance : inv.value;
+
+                            return (
                             <TableRow key={inv.id} className="border-b border-gray-100 dark:border-zinc-800 h-10 hover:bg-gray-50 dark:hover:bg-zinc-900/50">
                                 <TableCell className="p-0">
                                     <input 
@@ -983,14 +988,14 @@ export default function SpreadsheetView() {
                                     />
                                 </TableCell>
                                 <TableCell className="p-0 px-3 text-right font-mono font-medium text-green-600">
-                                    R$ {inv.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {formatCurrency(displayValue)}
                                 </TableCell>
                                 <TableCell className="p-0 px-3 text-right text-sm text-gray-600 dark:text-gray-400">
                                     {inv.yield}
                                 </TableCell>
                                 <TableCell></TableCell>
                             </TableRow>
-                        ))}
+                        )})}
                          {filteredInvestments.length === 0 && (
                             <TableRow>
                                 <TableCell colSpan={4} className="text-center py-8 text-gray-500 text-sm">
