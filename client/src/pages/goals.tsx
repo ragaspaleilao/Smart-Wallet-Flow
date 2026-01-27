@@ -1,7 +1,7 @@
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Target, Trophy, Edit2, Wallet } from "lucide-react";
+import { Plus, Target, Trophy, Edit2, Wallet, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useFinancialStore, Goal } from "@/lib/store";
 import {
@@ -22,6 +22,7 @@ export default function Goals() {
   const accounts = useFinancialStore((state) => state.accounts);
   const addGoal = useFinancialStore((state) => state.addGoal);
   const updateGoal = useFinancialStore((state) => state.updateGoal);
+  const removeGoal = useFinancialStore((state) => state.removeGoal);
 
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -46,6 +47,14 @@ export default function Goals() {
         setFormState({ name: "", target: "", current: "", linkedAccountId: "none" });
     }
     setOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (editingId) {
+        removeGoal(editingId);
+        toast({ title: "Meta excluída!" });
+        setOpen(false);
+    }
   };
 
   const handleSaveGoal = () => {
@@ -161,9 +170,16 @@ export default function Goals() {
                         </div>
                     )}
 
-                    <Button className="w-full" onClick={handleSaveGoal}>
-                        {editingId ? "Salvar Alterações" : "Criar Meta"}
-                    </Button>
+                    <div className="flex gap-2">
+                        {editingId && (
+                            <Button variant="destructive" size="icon" onClick={handleDelete} className="shrink-0">
+                                <Trash2 className="w-5 h-5" />
+                            </Button>
+                        )}
+                        <Button className="w-full" onClick={handleSaveGoal}>
+                            {editingId ? "Salvar Alterações" : "Criar Meta"}
+                        </Button>
+                    </div>
                 </div>
             </DialogContent>
           </Dialog>
