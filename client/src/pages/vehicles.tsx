@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Car, Calendar, FileText, Wrench, Shield, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle, Trash2, Edit2, AlertTriangle } from "lucide-react";
+import { Plus, Car, Calendar, FileText, Wrench, Shield, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle, Trash2, Edit2, AlertTriangle, DollarSign } from "lucide-react";
 import { useFinancialStore, Vehicle, Transaction } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { format, addMonths, isBefore, startOfDay, parseISO } from "date-fns";
@@ -89,7 +89,7 @@ export default function Vehicles() {
   const handleAddExpense = () => {
     if (!expenseAmount || !selectedVehicleId) return;
 
-    const numericAmount = Number(expenseAmount.replace(/[^0-9,]/g, "").replace(",", ".")) / 100;
+    const numericAmount = Number(expenseAmount);
     const vehicle = vehicles.find(v => v.id === selectedVehicleId);
     
     if (paymentType === 'installments') {
