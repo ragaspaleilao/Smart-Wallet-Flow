@@ -377,6 +377,20 @@ export const useFinancialStore = create<FinancialStore>()(
       creditPayments: [],
 
       transactions: [
+        // Overdue Transaction (TEST)
+        { 
+            id: 'overdue-1', 
+            amount: 150.00, 
+            type: 'expense', 
+            category: 'Outros', 
+            description: 'Conta de Luz (Atrasada)', 
+            date: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString(), // 5 days ago
+            source: 'manual', 
+            isPersonal: true, 
+            accountId: '1',
+            status: 'pending' // Pending + Past Date = Overdue
+        },
+
         // Current Month (Assuming active usage)
         { id: '1', amount: 45.90, type: 'expense', category: 'Alimentação', description: 'Padaria Estrela', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
         { id: '2', amount: 3500.00, type: 'income', category: 'Salário', description: 'Pagamento Mensal', date: new Date().toISOString(), source: 'manual', isPersonal: true, accountId: '1' },
