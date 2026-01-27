@@ -16,13 +16,15 @@ export default function Transactions() {
   const allTransactions = useFinancialStore((state) => state.transactions);
   const accounts = useFinancialStore((state) => state.accounts);
   
-  // Parse query params for initial type filter
+  // Parse query params for initial filters
   const searchParams = new URLSearchParams(window.location.search);
   const initialType = searchParams.get('type') as 'all' | 'income' | 'expense' | null;
+  const initialStatus = searchParams.get('status') as 'all' | 'pending' | 'paid' | 'overdue' | null;
 
   // Filter State
-  const [filterPeriod, setFilterPeriod] = useState<'all' | 'this-month' | 'next-month' | 'future' | 'custom'>('this-month');
+  const [filterPeriod, setFilterPeriod] = useState<'all' | 'this-month' | 'next-month' | 'future' | 'custom'>(initialStatus === 'overdue' ? 'all' : 'this-month');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>(initialType || 'all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'paid' | 'overdue'>(initialStatus || 'all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterAccount, setFilterAccount] = useState<string>('all');
   const [customStart, setCustomStart] = useState(format(startOfDay(new Date()), 'yyyy-MM-dd'));
@@ -33,8 +35,19 @@ export default function Transactions() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const type = params.get('type');
+    const status = params.get('status');
+    
     if (type === 'income' || type === 'expense') {
         setFilterType(type);
+    }
+    
+    if (status === 'overdue' || status === 'pending' || status === 'paid') {
+        setFilterStatus(status as any);
+        // If filtering by overdue, we usually want to see ALL overdue items regardless of period, 
+        // or at least not restricted to "this month" if the overdue item is old.
+        if (status === 'overdue') {
+            setFilterPeriod('all');
+        }
     }
   }, [location]);
 
@@ -45,6 +58,17 @@ export default function Transactions() {
     // Type Filter
     if (filterType !== 'all') {
         filtered = filtered.filter(t => t.type === filterType);
+    }
+
+    // Status Filter
+    if (filterStatus !== 'all') {
+        if (filterStatus === 'paid') {
+            filtered = filtered.filter(t => t.status === 'paid');
+        } else if (filterStatus === 'pending') {
+            filtered = filtered.filter(t => t.status === 'pending');
+        } else if (filterStatus === 'overdue') {
+            filtered = filtered.filter(t => t.status === 'pending' && isBefore(new Date(t.date), startOfDay(now)));
+        }
     }
 
     // Category Filter
@@ -202,6 +226,20 @@ export default function Transactions() {
           {showFilters && (
               <div className="mb-4 grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2 p-3 bg-gray-50 dark:bg-zinc-900/50 rounded-xl border border-gray-100 dark:border-zinc-800">
                   <div className="space-y-1">
+                      <span className="text-[10px] text-gray-500 font-medium ml-1">Status</span>
+                      <Select value={filterStatus} onValueChange={(v: any) => setFilterStatus(v)}>
+                          <SelectTrigger className="h-8 text-xs bg-white dark:bg-zinc-900">
+                              <SelectValue placeholder="Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="all">Todos</SelectItem>
+                              <SelectItem value="pending">Pendente</SelectItem>
+                              <SelectItem value="paid">Pago</SelectItem>
+                              <SelectItem value="overdue">Atrasado</SelectItem>
+                          </SelectContent>
+                      </Select>
+                  </div>
+                  <div className="space-y-1">
                       <span className="text-[10px] text-gray-500 font-medium ml-1">Tipo</span>
                       <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
                           <SelectTrigger className="h-8 text-xs bg-white dark:bg-zinc-900">
@@ -228,7 +266,7 @@ export default function Transactions() {
                           </SelectContent>
                       </Select>
                   </div>
-                  <div className="space-y-1 col-span-2">
+                  <div className="space-y-1">
                       <span className="text-[10px] text-gray-500 font-medium ml-1">Conta / Carteira</span>
                       <Select value={filterAccount} onValueChange={setFilterAccount}>
                           <SelectTrigger className="h-8 text-xs bg-white dark:bg-zinc-900">

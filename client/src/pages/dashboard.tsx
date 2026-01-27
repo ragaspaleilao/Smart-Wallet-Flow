@@ -240,7 +240,7 @@ export default function Dashboard() {
 
         {/* Alerts */}
         {overdueTransactions.length > 0 && (
-            <Link href="/spreadsheet?status=overdue">
+            <Link href="/transactions?status=overdue">
               <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-2xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-4 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors group">
                 <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
                 <div>
