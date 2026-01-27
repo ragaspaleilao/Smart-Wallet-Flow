@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Package, DollarSign, BarChart3, Plus, Settings2, Trash2, Edit2, Wallet, ArrowRightLeft, ArrowUpRight, ArrowDownLeft } from "lucide-react";
-import { Link } from "wouter";
+import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
+import { Sparkles, MessageSquare } from "lucide-react";
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -405,16 +406,23 @@ export default function Business() {
              <div className="space-y-3">
                 <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Extrato Empresarial</h3>
+                    <Link href="/ai-chat?context=extrato_empresarial">
+                        <Button variant="ghost" size="sm" className="h-6 text-[10px] text-purple-600 hover:text-purple-700 hover:bg-purple-50">
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            Analisar Extrato
+                        </Button>
+                    </Link>
                 </div>
                 {businessTransactions.length === 0 ? (
                     <p className="text-xs text-gray-500 italic">Nenhuma movimentação registrada ainda.</p>
                 ) : (
                     <div className="space-y-2">
-                        {businessTransactions.slice(0, 3).map(tx => (
-                            <div key={tx.id} className="flex items-center justify-between p-3 bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-100 dark:border-zinc-800">
+                        {businessTransactions.slice(0, 5).map(tx => (
+                            <EditTransactionSheet key={tx.id} transaction={tx}>
+                            <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-100 dark:border-zinc-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
                                 <div className="flex items-center gap-3">
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs ${
-                                        tx.type === 'income' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                                        tx.type === 'income' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
                                     }`}>
                                         {tx.type === 'income' ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownLeft className="w-4 h-4" />}
                                     </div>
@@ -427,6 +435,7 @@ export default function Business() {
                                     {tx.type === 'income' ? '+' : '-'} R$ {tx.amount.toFixed(2)}
                                 </span>
                             </div>
+                            </EditTransactionSheet>
                         ))}
                     </div>
                 )}
@@ -434,22 +443,50 @@ export default function Business() {
 
             {/* AI Insights */}
             <div className="space-y-3">
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                    <Brain className="w-4 h-4 text-purple-600" />
-                    Análise do Negócio
-                </h3>
+                <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                        <Brain className="w-4 h-4 text-purple-600" />
+                        Análise do Negócio
+                    </h3>
+                    <Link href="/ai-chat">
+                        <Button variant="ghost" size="sm" className="h-6 text-[10px] text-purple-600 hover:text-purple-700 hover:bg-purple-50">
+                            <MessageSquare className="w-3 h-3 mr-1" />
+                            Falar com Mentor
+                        </Button>
+                    </Link>
+                </div>
+                
+                {/* Simulated AI Analysis Request */}
+                <Card className="p-4 border border-purple-100 dark:border-purple-900/30 bg-purple-50/50 dark:bg-purple-900/10">
+                    <div className="flex gap-3">
+                        <div className="bg-purple-100 dark:bg-purple-900/50 p-2 rounded-full h-fit">
+                            <Sparkles className="w-4 h-4 text-purple-600" />
+                        </div>
+                        <div className="space-y-2 flex-1">
+                            <p className="text-xs text-gray-700 dark:text-gray-300 font-medium">
+                                "Baseado nas suas vendas de {format(new Date(), 'MMMM', { locale: undefined })} (R$ {businessTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0).toLocaleString('pt-BR')}), sua margem de lucro está em {(metrics.averageMargin || 0).toFixed(0)}%. Sugiro focar no produto '{metrics.calculatedProducts[0]?.name || 'Principal'}' que tem a maior margem."
+                            </p>
+                            <Link href="/ai-chat">
+                                <Button size="sm" variant="outline" className="w-full h-7 text-xs border-purple-200 text-purple-700 hover:bg-purple-100">
+                                    Pedir análise detalhada
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
+                </Card>
+
                 {insights.map((insight, idx) => (
                     <Card key={idx} className={`p-4 border-l-4 ${
-                        insight.type === 'danger' ? 'border-l-red-500 bg-red-50' : 
-                        insight.type === 'warning' ? 'border-l-yellow-500 bg-yellow-50' : 
-                        'border-l-green-500 bg-green-50'
+                        insight.type === 'danger' ? 'border-l-red-500 bg-red-50 dark:bg-red-900/10' : 
+                        insight.type === 'warning' ? 'border-l-yellow-500 bg-yellow-50 dark:bg-yellow-900/10' : 
+                        'border-l-green-500 bg-green-50 dark:bg-green-900/10'
                     } border-y-0 border-r-0 rounded-r-xl shadow-sm`}>
                         <h4 className={`font-bold text-sm ${
-                             insight.type === 'danger' ? 'text-red-700' : 
-                             insight.type === 'warning' ? 'text-yellow-700' : 
-                             'text-green-700'
+                             insight.type === 'danger' ? 'text-red-700 dark:text-red-400' : 
+                             insight.type === 'warning' ? 'text-yellow-700 dark:text-yellow-400' : 
+                             'text-green-700 dark:text-green-400'
                         }`}>{insight.title}</h4>
-                        <p className="text-xs text-gray-600 mt-1">{insight.message}</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{insight.message}</p>
                     </Card>
                 ))}
             </div>
