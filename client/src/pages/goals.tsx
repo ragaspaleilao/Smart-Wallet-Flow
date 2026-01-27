@@ -34,13 +34,18 @@ export default function Goals() {
     linkedAccountId: string;
   }>({ name: "", target: "", current: "", linkedAccountId: "none" });
 
+  const formatCurrencyInput = (val: string) => {
+    const number = val.replace(/\D/g, "");
+    return (Number(number) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  };
+
   const handleOpen = (goal?: Goal) => {
     if (goal) {
         setEditingId(goal.id);
         setFormState({
             name: goal.name,
-            target: goal.target.toString(),
-            current: goal.current.toString(),
+            target: goal.target.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+            current: goal.current.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
             linkedAccountId: goal.linkedAccountId || "none"
         });
     } else {
@@ -65,13 +70,15 @@ export default function Goals() {
     }
 
     const linkedAccount = accounts.find(a => a.id === formState.linkedAccountId);
+    const manualCurrent = Number(formState.current.replace(/\D/g, "")) / 100;
+    
     const currentVal = linkedAccount 
         ? linkedAccount.balance 
-        : (Number(formState.current) || 0);
+        : (manualCurrent || 0);
 
     const goalData = {
         name: formState.name,
-        target: Number(formState.target),
+        target: Number(formState.target.replace(/\D/g, "")) / 100,
         current: currentVal,
         color: "bg-blue-500", // Default color
         linkedAccountId: formState.linkedAccountId === "none" ? undefined : formState.linkedAccountId
@@ -127,12 +134,12 @@ export default function Goals() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label>Valor Alvo (R$)</Label>
+                        <Label>Valor Alvo</Label>
                         <Input 
-                            type="number" 
-                            placeholder="5000" 
                             value={formState.target}
-                            onChange={(e) => setFormState({...formState, target: e.target.value})}
+                            placeholder="R$ 5.000,00" 
+                            onChange={(e) => setFormState({...formState, target: formatCurrencyInput(e.target.value)})}
+                            className="text-lg font-bold"
                         />
                     </div>
                     
@@ -161,12 +168,12 @@ export default function Goals() {
 
                     {formState.linkedAccountId === "none" && (
                         <div className="space-y-2">
-                            <Label>Já guardado (R$)</Label>
+                            <Label>Já guardado</Label>
                             <Input 
-                                type="number" 
-                                placeholder="0" 
                                 value={formState.current}
-                                onChange={(e) => setFormState({...formState, current: e.target.value})}
+                                placeholder="R$ 0,00" 
+                                onChange={(e) => setFormState({...formState, current: formatCurrencyInput(e.target.value)})}
+                                className="text-lg font-bold"
                             />
                         </div>
                     )}

@@ -59,6 +59,11 @@ export default function Investments() {
       return acc + curr.value;
   }, 0);
 
+  const formatCurrencyInput = (val: string) => {
+    const number = val.replace(/\D/g, "");
+    return (Number(number) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  };
+
   const handleSave = () => {
     // If account linked, name and value might be optional or auto-filled
     if ((!formData.accountId || formData.accountId === "none") && (!formData.name || !formData.value)) {
@@ -70,7 +75,10 @@ export default function Investments() {
     
     // If linked, value comes from account. 
     // We store the current value anyway, but UI will prefer account balance.
-    const finalValue = linkedAccount ? linkedAccount.balance : Number(formData.value);
+    // Parse manual value if not linked
+    const manualValue = Number(formData.value.replace(/\D/g, "")) / 100;
+    
+    const finalValue = linkedAccount ? linkedAccount.balance : manualValue;
     const finalName = linkedAccount ? (formData.name || linkedAccount.name) : formData.name;
 
     const payload = {
@@ -99,9 +107,12 @@ export default function Investments() {
     // If linked, we should probably load the latest account balance into 'value' for display
     const linkedAccount = inv.accountId ? accounts.find(a => a.id === inv.accountId) : null;
     
+    const rawValue = linkedAccount ? linkedAccount.balance : inv.value;
+    const formattedValue = rawValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
     setFormData({
         name: inv.name,
-        value: linkedAccount ? linkedAccount.balance.toString() : inv.value.toString(),
+        value: formattedValue,
         yield: inv.yield,
         yieldRate: inv.yieldRate?.toString() || "0.85",
         startDate: inv.startDate || new Date().toISOString().split('T')[0],
@@ -141,7 +152,7 @@ export default function Investments() {
 
     if (days < 0) return null;
 
-    const initialValue = Number(formData.value);
+    const initialValue = Number(formData.value.replace(/\D/g, "")) / 100;
     const monthlyRate = Number(formData.yieldRate) / 100;
     
     // Compound Interest: M = C * (1 + i)^t
@@ -207,7 +218,7 @@ export default function Investments() {
                                             ...prev, 
                                             accountId: val,
                                             // Auto-fill value if linking
-                                            value: account ? account.balance.toString() : prev.value,
+                                            value: account ? account.balance.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : prev.value,
                                             // Auto-fill name if empty
                                             name: (prev.name === "" && account) ? account.name : prev.name
                                         };
@@ -238,12 +249,11 @@ export default function Investments() {
                             <div className="space-y-2">
                                 <Label>Valor (R$)</Label>
                                 <Input 
-                                    type="number" 
-                                    placeholder="0.00" 
                                     value={formData.value}
-                                    onChange={(e) => setFormData({...formData, value: e.target.value})}
+                                    placeholder="R$ 0,00" 
+                                    onChange={(e) => setFormData({...formData, value: formatCurrencyInput(e.target.value)})}
                                     disabled={formData.accountId !== "none"}
-                                    className={formData.accountId !== "none" ? "bg-gray-100 dark:bg-zinc-800 opacity-70" : ""}
+                                    className={formData.accountId !== "none" ? "bg-gray-100 dark:bg-zinc-800 opacity-70" : "text-lg font-bold"}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -315,7 +325,7 @@ export default function Investments() {
                                         <div className="flex flex-col">
                                             <span className="text-sm font-bold text-purple-700 dark:text-purple-300">Valor Líquido</span>
                                             <span className="text-[10px] text-purple-500">
-                                                Lucro: +{formatCurrency(projection.netValue - Number(formData.value))}
+                                                Lucro: +{formatCurrency(projection.netValue - (Number(formData.value.replace(/\D/g, "")) / 100))}
                                             </span>
                                         </div>
                                         <span className="text-xl font-bold text-purple-700 dark:text-purple-300">
