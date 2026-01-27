@@ -20,11 +20,11 @@ export default function Dashboard() {
 
   // Recalculate dashboard totals to reflect only personal finance
   const personalIncome = transactions
-    .filter(t => t.type === 'income')
+    .filter(t => t.type === 'income' && t.status === 'paid')
     .reduce((acc, curr) => acc + curr.amount, 0);
     
   const personalExpense = transactions
-    .filter(t => t.type === 'expense')
+    .filter(t => t.type === 'expense' && t.status === 'paid')
     .reduce((acc, curr) => acc + curr.amount, 0);
 
   // Approximate personal balance (assuming store balance mixes both, we might want to split it properly later, 
