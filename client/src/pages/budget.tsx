@@ -9,12 +9,13 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Wallet, CreditCard, Bell } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "@/hooks/use-toast";
+import { startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 
 export default function Budget() {
   const [_, setLocation] = useLocation();
-  const { budget, updateBudget, expense } = useFinancialStore();
+  const { budget, updateBudget, transactions } = useFinancialStore();
   
   const [localBudget, setLocalBudget] = useState(budget);
 
@@ -22,13 +23,29 @@ export default function Budget() {
     setLocalBudget(budget);
   }, [budget]);
 
+  // Calculate expenses for the CURRENT MONTH only
+  const currentMonthExpense = useMemo(() => {
+    const now = new Date();
+    const start = startOfMonth(now);
+    const end = endOfMonth(now);
+
+    return transactions
+      .filter(t => {
+        const tDate = new Date(t.date);
+        return t.type === 'expense' && isWithinInterval(tDate, { start, end });
+      })
+      .reduce((acc, curr) => acc + curr.amount, 0);
+  }, [transactions]);
+
   const handleSave = () => {
     updateBudget(localBudget);
     toast({ title: "Orçamento atualizado!" });
     setLocation("/dashboard");
   };
 
-  const spendingPercentage = Math.min(100, Math.round((expense / localBudget.spendingLimit) * 100));
+  const spendingPercentage = localBudget.spendingLimit > 0 
+    ? Math.min(100, Math.round((currentMonthExpense / localBudget.spendingLimit) * 100))
+    : 0;
 
   return (
     <MobileLayout>
@@ -55,8 +72,8 @@ export default function Budget() {
               
               <Card className="p-4 border-none shadow-sm bg-gray-50 dark:bg-zinc-900">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-500">Gasto Atual</span>
-                  <span className="font-bold">{formatCurrency(expense)}</span>
+                  <span className="text-sm text-gray-500">Gasto Atual (Mês)</span>
+                  <span className="font-bold">{formatCurrency(currentMonthExpense)}</span>
                 </div>
                 <Progress value={spendingPercentage} className="h-3 mb-2" />
                 <div className="flex justify-between items-center text-xs text-gray-400">
@@ -124,7 +141,7 @@ export default function Budget() {
                       <span className="text-sm font-bold text-orange-500">{localBudget.alertThresholds[0]}%</span>
                    </div>
                    <Slider 
-                      defaultValue={[localBudget.alertThresholds[0]]} 
+                      value={[localBudget.alertThresholds[0]]} 
                       max={100} 
                       step={5} 
                       onValueChange={(val) => {
@@ -141,7 +158,7 @@ export default function Budget() {
                       <span className="text-sm font-bold text-red-500">{localBudget.alertThresholds[1]}%</span>
                    </div>
                    <Slider 
-                      defaultValue={[localBudget.alertThresholds[1]]} 
+                      value={[localBudget.alertThresholds[1]]} 
                       max={100} 
                       step={5} 
                       onValueChange={(val) => {
