@@ -3,10 +3,12 @@ import { Link } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings } from "lucide-react";
+import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp } from "lucide-react";
 import { useFinancialStore } from "@/lib/store";
 import { format, isBefore, startOfDay } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
+import { useState, useMemo } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { ShareButton } from "@/components/share-button";
 
@@ -39,6 +41,50 @@ export default function Dashboard() {
   );
   
   const overdueTotal = overdueTransactions.reduce((acc, curr) => acc + curr.amount, 0);
+
+  // Grouping Logic for Installments (Recent Items)
+  const recentTransactions = useMemo(() => {
+      const groups: Record<string, typeof transactions> = {};
+      const standalone: typeof transactions = [];
+      
+      // Identify installments pattern: "Description (X/Y)"
+      const installmentRegex = /^(.*) \((\d+)\/(\d+)\)$/;
+
+      transactions.forEach(tx => {
+          const match = tx.description.match(installmentRegex);
+          if (match) {
+              const baseDesc = match[1].trim();
+              const totalInstallments = match[3]; 
+              const key = `${baseDesc}|${totalInstallments}|${tx.category}|${tx.amount.toFixed(2)}`;
+              
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(tx);
+          } else {
+              standalone.push(tx);
+          }
+      });
+
+      type TransactionItem = typeof transactions[number];
+      const finallist: (TransactionItem | { isGroup: true, items: TransactionItem[], key: string })[] = [];
+      
+      finallist.push(...standalone);
+
+      Object.entries(groups).forEach(([key, items]) => {
+          if (items.length > 1) {
+              items.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+              finallist.push({ isGroup: true, items, key });
+          } else {
+              finallist.push(...items);
+          }
+      });
+
+      // Sort by newest date and take top 5
+      return finallist.sort((a, b) => {
+          const dateA = new Date('isGroup' in a ? a.items[0].date : a.date).getTime();
+          const dateB = new Date('isGroup' in b ? b.items[0].date : b.date).getTime();
+          return dateB - dateA;
+      }).slice(0, 5);
+  }, [transactions]);
 
   return (
     <MobileLayout>
@@ -211,57 +257,130 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-3">
-            {transactions.slice(0, 5).map((tx) => {
-              const isOverdue = tx.status === 'pending' && isBefore(new Date(tx.date), startOfDay(new Date()));
-              return (
-              <EditTransactionSheet key={tx.id} transaction={tx}>
-              <div className={`flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 animate-in fade-in slide-in-from-bottom-2 ${isOverdue ? 'border-red-200 dark:border-red-900/50 bg-red-50/10' : ''}`}>
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xl relative">
-                    {getCategoryIcon(tx.category)}
-                    {isOverdue && (
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center border border-white dark:border-zinc-950">
-                            <AlertCircle className="w-2.5 h-2.5 text-white" />
-                        </div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-900 dark:text-white">{tx.description}</p>
-                        {isOverdue && <span className="text-[9px] font-bold text-red-600 bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded">ATRASADO</span>}
-                    </div>
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
-                      {tx.category} • {format(new Date(tx.date), 'dd/MM HH:mm')}
-                      {(() => {
-                        const account = useFinancialStore.getState().accounts.find(a => a.id === tx.accountId);
-                        return account ? (
-                          <>
-                             <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-zinc-700" />
-                             <span className="font-medium text-gray-600 dark:text-gray-400">{account.name}</span>
-                          </>
-                        ) : null;
-                      })()}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                    <span className={`font-bold block ${tx.type === 'income' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
-                    {tx.type === 'income' ? '+' : '-'} R$ {tx.amount.toFixed(2)}
-                    </span>
-                    {tx.status === 'pending' ? (
-                         <span className={`text-[10px] font-medium ${isOverdue ? 'text-red-500' : 'text-yellow-600'}`}>
-                             {isOverdue ? 'Vencido' : 'Pendente'}
-                         </span>
-                    ) : (
-                         <span className="text-[10px] text-green-600 font-medium">Pago</span>
-                    )}
-                </div>
-              </div>
-              </EditTransactionSheet>
-            )})}
+            {recentTransactions.map((item, idx) => {
+               if ('isGroup' in item) {
+                   return <DashboardGroupedTransactionItem key={`group-${item.key}-${idx}`} group={item as any} />;
+               } else {
+                   return <DashboardTransactionItem key={item.id} tx={item} />;
+               }
+            })}
           </div>
         </div>
       </div>
     </MobileLayout>
   );
+}
+
+function DashboardGroupedTransactionItem({ group }: { group: { isGroup: true, items: any[], key: string } }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const firstItem = group.items[0];
+    const match = firstItem.description.match(/^(.*) \((\d+)\/(\d+)\)$/);
+    const baseDesc = match ? match[1] : firstItem.description;
+    const totalInstallments = match ? match[3] : '?';
+    
+    // Summary values
+    const totalAmount = group.items.reduce((acc, curr) => acc + curr.amount, 0);
+    const paidCount = group.items.filter(i => i.status === 'paid').length;
+    const totalCount = group.items.length;
+    const isOverdue = group.items.some(i => i.status === 'pending' && isBefore(new Date(i.date), startOfDay(new Date())));
+
+    return (
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+            <div className={`bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 overflow-hidden mb-3 animate-in fade-in slide-in-from-bottom-2 ${isOverdue ? 'border-red-200 dark:border-red-900/50' : ''}`}>
+                <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-xl relative">
+                                {getCategoryIcon(firstItem.category)}
+                                <div className="absolute -bottom-1 -right-1 bg-purple-600 text-white text-[8px] px-1.5 py-0.5 rounded-full border-2 border-white dark:border-zinc-900 font-bold">
+                                    {totalCount}x
+                                </div>
+                            </div>
+                            <div className="text-left">
+                                <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                    {baseDesc}
+                                    {isOpen ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                    {totalInstallments} parcelas • {paidCount} Pagas
+                                </p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <span className="font-bold block text-gray-900 dark:text-white">
+                                R$ {totalAmount.toFixed(2)}
+                            </span>
+                            <span className="text-[10px] text-purple-600 font-medium">
+                                Agrupado
+                            </span>
+                        </div>
+                    </div>
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent>
+                    <div className="bg-gray-50 dark:bg-zinc-950/50 border-t border-gray-100 dark:border-zinc-800 pl-4">
+                        {group.items.map((tx, idx) => (
+                            <div key={tx.id} className={`pr-3 ${idx !== group.items.length - 1 ? 'border-b border-gray-100 dark:border-zinc-800' : ''}`}>
+                                <DashboardTransactionItem tx={tx} isChild={true} />
+                            </div>
+                        ))}
+                    </div>
+                </CollapsibleContent>
+            </div>
+        </Collapsible>
+    );
+}
+
+function DashboardTransactionItem({ tx, isChild = false }: { tx: any, isChild?: boolean }) {
+    const isOverdue = tx.status === 'pending' && isBefore(new Date(tx.date), startOfDay(new Date()));
+    
+    return (
+        <EditTransactionSheet transaction={tx}>
+            <div className={`flex items-center justify-between p-4 ${isChild ? 'py-3 hover:bg-gray-100 dark:hover:bg-zinc-800/80 -ml-4 pl-4 rounded-none' : 'bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 animate-in fade-in slide-in-from-bottom-2'} ${isOverdue ? 'border-red-200 dark:border-red-900/50 bg-red-50/10' : ''}`}>
+                <div className="flex items-center gap-4">
+                    {!isChild && (
+                        <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xl relative">
+                            {getCategoryIcon(tx.category)}
+                            {isOverdue && (
+                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center border border-white dark:border-zinc-950">
+                                    <AlertCircle className="w-2.5 h-2.5 text-white" />
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    
+                    <div className={isChild ? "ml-1" : ""}>
+                        <div className="flex items-center gap-2">
+                            <p className={`font-semibold text-gray-900 dark:text-white ${isChild ? 'text-sm' : ''}`}>{tx.description}</p>
+                            {isOverdue && <span className="text-[9px] font-bold text-red-600 bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded">ATRASADO</span>}
+                        </div>
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                            {!isChild && <>{tx.category} • </>} {format(new Date(tx.date), 'dd/MM HH:mm')}
+                            {(() => {
+                                const account = useFinancialStore.getState().accounts.find(a => a.id === tx.accountId);
+                                return account ? (
+                                    <>
+                                        <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-zinc-700" />
+                                        <span className="font-medium text-gray-600 dark:text-gray-400">{account.name}</span>
+                                    </>
+                                ) : null;
+                            })()}
+                        </p>
+                    </div>
+                </div>
+                <div className="text-right">
+                    <span className={`font-bold block ${tx.type === 'income' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
+                        {tx.type === 'income' ? '+' : '-'} R$ {tx.amount.toFixed(2)}
+                    </span>
+                    {tx.status === 'pending' ? (
+                        <span className={`text-[10px] font-medium ${isOverdue ? 'text-red-500' : 'text-yellow-600'}`}>
+                            {isOverdue ? 'Vencido' : 'Pendente'}
+                        </span>
+                    ) : (
+                        <span className="text-[10px] text-green-600 font-medium">Pago</span>
+                    )}
+                </div>
+            </div>
+        </EditTransactionSheet>
+    );
 }
