@@ -30,6 +30,7 @@ export default function ManualEntry() {
   const [installments, setInstallments] = useState(2);
   const [frequency, setFrequency] = useState<'monthly' | 'biweekly' | 'yearly'>('monthly');
   const [occurrences, setOccurrences] = useState(12);
+  const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
 
   const formatCurrency = (val: string) => {
     // Simple mock formatter
@@ -77,7 +78,7 @@ export default function ManualEntry() {
     }
 
     if (isRecurring) {
-        const baseDate = new Date(date);
+        const baseDate = new Date(startDate);
         
         if (recurrenceType === 'installments') {
             // Installments Logic (Total Amount / N)
@@ -294,6 +295,16 @@ export default function ManualEntry() {
 
             {isRecurring && (
                 <div className="bg-gray-50 dark:bg-zinc-900 p-4 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2">
+                    <div className="space-y-2">
+                        <Label>Data de Início (1ª Parcela/Cobrança)</Label>
+                        <Input 
+                          type="date" 
+                          className="h-12 bg-white dark:bg-black border-gray-200 dark:border-zinc-800" 
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                        />
+                    </div>
+
                     <Tabs value={recurrenceType} onValueChange={(v) => setRecurrenceType(v as any)} className="w-full">
                         <TabsList className="w-full grid grid-cols-2">
                             <TabsTrigger value="installments">Parcelado</TabsTrigger>
