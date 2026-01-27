@@ -14,8 +14,8 @@ const SUBSCRIPTIONS = [
     name: "Netflix Premium",
     price: 55.90,
     date: "15/05",
-    logo: "N",
-    color: "bg-red-600",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/7/75/Netflix_icon.svg",
+    color: "bg-black",
     usage: "high", // high, medium, low
     usageLabel: "Uso Intenso",
     lastUsed: "Ontem",
@@ -26,8 +26,8 @@ const SUBSCRIPTIONS = [
     name: "Spotify Duo",
     price: 27.90,
     date: "10/05",
-    logo: "S",
-    color: "bg-green-500",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/8/84/Spotify_icon.svg",
+    color: "bg-white",
     usage: "high",
     usageLabel: "Uso Intenso",
     lastUsed: "Hoje",
@@ -38,8 +38,8 @@ const SUBSCRIPTIONS = [
     name: "Adobe Creative Cloud",
     price: 124.00,
     date: "22/05",
-    logo: "A",
-    color: "bg-red-500",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/4/4c/Adobe_Creative_Cloud_Rainbow_Icon.svg",
+    color: "bg-[#0b0c22]",
     usage: "low",
     usageLabel: "Sem uso recente",
     lastUsed: "45 dias atrás",
@@ -50,8 +50,8 @@ const SUBSCRIPTIONS = [
     name: "Amazon Prime",
     price: 19.90,
     date: "05/05",
-    logo: "P",
-    color: "bg-blue-400",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/4/4a/Amazon_icon.svg",
+    color: "bg-white",
     usage: "medium",
     usageLabel: "Uso Moderado",
     lastUsed: "5 dias atrás",
@@ -62,8 +62,8 @@ const SUBSCRIPTIONS = [
     name: "HBO Max",
     price: 34.90,
     date: "28/05",
-    logo: "H",
-    color: "bg-purple-600",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/1/17/HBO_Max_Logo.svg",
+    color: "bg-[#240e3f]",
     usage: "low",
     usageLabel: "Sem uso recente",
     lastUsed: "32 dias atrás",
@@ -158,8 +158,8 @@ export default function Subscriptions() {
                                 onClick={() => toggleExpand(sub.id)}
                             >
                                 {/* Logo */}
-                                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-sm shrink-0", sub.color)}>
-                                    {sub.logo}
+                                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-xl shadow-sm shrink-0 overflow-hidden p-2", sub.color)}>
+                                    <img src={sub.logo} alt={sub.name} className="w-full h-full object-contain" />
                                 </div>
 
                                 {/* Info */}
