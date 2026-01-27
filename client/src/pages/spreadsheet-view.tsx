@@ -618,10 +618,14 @@ export default function SpreadsheetView() {
                                     <TableCell className="p-0">
                                         <input 
                                             className={`w-full h-full bg-transparent px-2 text-xs text-right focus:bg-white dark:focus:bg-black focus:outline-none focus:ring-1 focus:ring-green-500 font-mono ${row.type === 'income' ? 'text-green-600' : 'text-red-600'}`}
-                                            value={row.amount}
-                                            type="number"
-                                            step="0.01"
-                                            onChange={(e) => updateTransaction(row.id, { amount: parseFloat(e.target.value) })}
+                                            value={formatCurrency(row.amount)}
+                                            type="text"
+                                            inputMode="numeric"
+                                            onChange={(e) => {
+                                                const value = e.target.value.replace(/\D/g, "");
+                                                const numberValue = Number(value) / 100;
+                                                updateTransaction(row.id, { amount: numberValue });
+                                            }}
                                         />
                                     </TableCell>
                                     <TableCell className="p-0 text-center">
