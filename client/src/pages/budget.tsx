@@ -1,4 +1,5 @@
 import { MobileLayout } from "@/components/mobile-layout";
+import { formatCurrency } from "@/lib/utils";
 import { useFinancialStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,7 +56,7 @@ export default function Budget() {
               <Card className="p-4 border-none shadow-sm bg-gray-50 dark:bg-zinc-900">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-gray-500">Gasto Atual</span>
-                  <span className="font-bold">R$ {expense.toFixed(2)}</span>
+                  <span className="font-bold">{formatCurrency(expense)}</span>
                 </div>
                 <Progress value={spendingPercentage} className="h-3 mb-2" />
                 <div className="flex justify-between items-center text-xs text-gray-400">

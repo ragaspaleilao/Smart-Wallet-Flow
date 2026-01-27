@@ -1,4 +1,5 @@
 import { MobileLayout } from "@/components/mobile-layout";
+import { formatCurrency } from "@/lib/utils";
 import { useFinancialStore, Account, AccountType } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -168,7 +169,7 @@ export default function Accounts() {
            <div className="flex justify-between items-start relative z-10">
                <div>
                     <p className="text-gray-400 text-sm mb-1">Patrimônio Total</p>
-                    <h2 className="text-4xl font-bold">R$ {grandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h2>
+                    <h2 className="text-4xl font-bold">{formatCurrency(grandTotal)}</h2>
                </div>
                <div className="h-24 w-24 -mt-4 -mr-4">
                   <ResponsiveContainer width="100%" height="100%">
@@ -195,14 +196,14 @@ export default function Accounts() {
                 <div className="w-2 h-2 rounded-full bg-purple-500" />
                 <div>
                     <p>Contas</p>
-                    <p className="text-white font-semibold">R$ {totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-white font-semibold">{formatCurrency(totalBalance)}</p>
                 </div>
              </div>
              <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-orange-500" />
                 <div>
                     <p>Investimentos</p>
-                    <p className="text-white font-semibold">R$ {totalInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-white font-semibold">{formatCurrency(totalInvested)}</p>
                 </div>
              </div>
            </div>
@@ -241,7 +242,7 @@ export default function Accounts() {
                     ) : (
                         <div className="flex items-center gap-3">
                             <span className="font-bold text-gray-900 dark:text-white block">
-                            R$ {acc.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            {formatCurrency(acc.balance)}
                             </span>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-primary" onClick={() => startEditing(acc)}>
                             <Edit2 className="w-4 h-4" />
@@ -269,7 +270,7 @@ export default function Accounts() {
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="font-bold text-gray-900 dark:text-white">
-                            R$ {totalInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            {formatCurrency(totalInvested)}
                         </span>
                         <ChevronRight className="w-4 h-4 text-gray-400" />
                     </div>

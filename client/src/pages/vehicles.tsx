@@ -1,3 +1,4 @@
+import { formatCurrency as globalFormatCurrency } from "@/lib/utils";
 import { useState } from "react";
 import { Link } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
@@ -326,7 +327,7 @@ export default function Vehicles() {
                             </div>
                             <div className="flex items-center gap-3">
                                 <div className="text-right">
-                                    <span className="font-bold text-sm block">R$ {totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                    <span className="font-bold text-sm block">{globalFormatCurrency(totalAmount)}</span>
                                     <span className="text-[10px] text-gray-400">Total</span>
                                 </div>
                                 {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
@@ -352,7 +353,7 @@ export default function Vehicles() {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-xs font-semibold ${isPaid ? 'text-green-600 line-through opacity-50' : 'text-gray-900 dark:text-white'}`}>
-                                                    R$ {exp.amount.toFixed(2)}
+                                                    {globalFormatCurrency(exp.amount)}
                                                 </span>
                                                 {isPaid ? (
                                                     <CheckCircle className="w-3.5 h-3.5 text-green-500" />

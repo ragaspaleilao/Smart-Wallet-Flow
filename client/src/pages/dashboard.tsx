@@ -1,4 +1,4 @@
-import { getCategoryIcon } from "@/lib/utils";
+import { getCategoryIcon, formatCurrency } from "@/lib/utils";
 import { Link } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
@@ -96,7 +96,7 @@ export default function Dashboard() {
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Saldo disponível (Pessoal)</p>
               <h1 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mt-1">
-                R$ {personalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {formatCurrency(personalBalance)}
               </h1>
             </div>
             <div className="flex gap-2">
@@ -121,7 +121,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                     <p className="text-xs text-green-600/80 dark:text-green-400/80 font-medium">Entradas</p>
-                    <p className="text-sm font-bold text-green-700 dark:text-green-300">R$ {personalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+                    <p className="text-sm font-bold text-green-700 dark:text-green-300">{formatCurrency(personalIncome)}</p>
                 </div>
                 </div>
             </Link>
@@ -132,7 +132,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                     <p className="text-xs text-red-600/80 dark:text-red-400/80 font-medium">Saídas</p>
-                    <p className="text-sm font-bold text-red-700 dark:text-red-300">R$ {personalExpense.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
+                    <p className="text-sm font-bold text-red-700 dark:text-red-300">{formatCurrency(personalExpense)}</p>
                 </div>
                 </div>
             </Link>
@@ -215,7 +215,7 @@ export default function Dashboard() {
                     <h4 className="font-semibold text-sm text-red-700 dark:text-red-400">Contas Atrasadas!</h4>
                     <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-1">
                         Você tem {overdueTransactions.length} contas vencidas totalizando 
-                        <span className="font-bold"> R$ {overdueTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>.
+                        <span className="font-bold"> {formatCurrency(overdueTotal)}</span>.
                     </p>
                     <p className="text-[10px] font-medium text-red-500 mt-2 flex items-center gap-1 group-hover:underline">
                         Resolver agora <ArrowUp className="w-3 h-3 rotate-45" />
@@ -229,7 +229,7 @@ export default function Dashboard() {
           <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
           <div>
             <h4 className="font-semibold text-sm text-orange-700 dark:text-orange-400">Atenção: IPVA Vencendo</h4>
-            <p className="text-xs text-orange-600/80 dark:text-orange-400/80 mt-1">O IPVA do Honda Civic vence em 3 dias. Valor: R$ 1.250,00</p>
+            <p className="text-xs text-orange-600/80 dark:text-orange-400/80 mt-1">O IPVA do Honda Civic vence em 3 dias. Valor: {formatCurrency(1250)}</p>
           </div>
         </div>
 
@@ -308,7 +308,7 @@ function DashboardGroupedTransactionItem({ group }: { group: { isGroup: true, it
                         </div>
                         <div className="text-right">
                             <span className="font-bold block text-gray-900 dark:text-white">
-                                R$ {totalAmount.toFixed(2)}
+                                {formatCurrency(totalAmount)}
                             </span>
                             <span className="text-[10px] text-purple-600 font-medium">
                                 Agrupado
@@ -370,7 +370,7 @@ function DashboardTransactionItem({ tx, isChild = false }: { tx: any, isChild?: 
                 </div>
                 <div className="text-right">
                     <span className={`font-bold block ${tx.type === 'income' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
-                        {tx.type === 'income' ? '+' : '-'} R$ {tx.amount.toFixed(2)}
+                        {tx.type === 'income' ? '+' : '-'} {formatCurrency(tx.amount)}
                     </span>
                     {tx.status === 'pending' ? (
                         <span className={`text-[10px] font-medium ${isOverdue ? 'text-red-500' : 'text-yellow-600'}`}>

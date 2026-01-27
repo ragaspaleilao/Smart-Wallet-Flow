@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/utils";
 import { MobileLayout } from "@/components/mobile-layout";
 import { useFinancialStore, Category, Transaction, CreditPurchase } from "@/lib/store";
 import { Card } from "@/components/ui/card";
@@ -364,11 +365,11 @@ export default function Analytics() {
                     <div className="grid grid-cols-2 gap-3">
                         <Card className="p-3 bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30">
                             <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">Entradas</p>
-                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">R$ {totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalIncome)}</p>
                         </Card>
                         <Card className="p-3 bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30">
                             <p className="text-xs text-red-600 dark:text-red-400 font-medium mb-1">Saídas</p>
-                            <p className="text-lg font-bold text-red-700 dark:text-red-300">R$ {totalExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                            <p className="text-lg font-bold text-red-700 dark:text-red-300">{formatCurrency(totalExpense)}</p>
                         </Card>
                     </div>
 
@@ -447,14 +448,14 @@ export default function Analytics() {
                                                     {expandedMonths.includes(item.monthLabel) ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                                                 </p>
                                                 <div className="flex gap-3 text-xs mt-1">
-                                                    <span className="text-green-600 flex items-center gap-1"><ArrowUp className="w-3 h-3" /> {item.income.toLocaleString('pt-BR', { notation: 'compact' })}</span>
-                                                    <span className="text-red-600 flex items-center gap-1"><ArrowDown className="w-3 h-3" /> {item.expense.toLocaleString('pt-BR', { notation: 'compact' })}</span>
+                                                    <span className="text-green-600 flex items-center gap-1"><ArrowUp className="w-3 h-3" /> {formatCurrency(item.income)}</span>
+                                                    <span className="text-red-600 flex items-center gap-1"><ArrowDown className="w-3 h-3" /> {formatCurrency(item.expense)}</span>
                                                 </div>
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-[10px] text-gray-500">Saldo Previsto</p>
                                                 <p className={`font-bold ${item.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                    R$ {item.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                    {formatCurrency(item.balance)}
                                                 </p>
                                             </div>
                                         </div>
@@ -469,7 +470,7 @@ export default function Analytics() {
                                                     </div>
                                                     Receitas
                                                 </span>
-                                                <span className="font-medium text-green-600">+ R$ {item.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                <span className="font-medium text-green-600">+ {formatCurrency(item.income)}</span>
                                             </div>
 
                                             <div className="flex justify-between items-center text-xs">
@@ -479,7 +480,7 @@ export default function Analytics() {
                                                     </div>
                                                     Fatura Cartão
                                                 </span>
-                                                <span className="font-medium text-red-600">- R$ {item.creditCardExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                <span className="font-medium text-red-600">- {formatCurrency(item.creditCardExpense)}</span>
                                             </div>
 
                                             <div className="flex justify-between items-center text-xs">
@@ -489,13 +490,13 @@ export default function Analytics() {
                                                     </div>
                                                     Outras Despesas
                                                 </span>
-                                                <span className="font-medium text-red-600">- R$ {item.otherExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                <span className="font-medium text-red-600">- {formatCurrency(item.otherExpense)}</span>
                                             </div>
 
                                             <div className="border-t border-gray-200 dark:border-zinc-700 pt-2 flex justify-between items-center text-sm font-bold">
                                                 <span>Resultado</span>
                                                 <span className={item.balance >= 0 ? 'text-green-600' : 'text-red-600'}>
-                                                    R$ {item.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                    {formatCurrency(item.balance)}
                                                 </span>
                                             </div>
                                         </div>
@@ -556,7 +557,7 @@ export default function Analytics() {
                                                     </div>
                                                     Receitas
                                                 </span>
-                                                <span className="font-medium text-green-600">+ R$ {item.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                <span className="font-medium text-green-600">+ {formatCurrency(item.income)}</span>
                                             </div>
 
                                             <div className="flex justify-between items-center text-xs">
@@ -566,7 +567,7 @@ export default function Analytics() {
                                                     </div>
                                                     Fatura Cartão
                                                 </span>
-                                                <span className="font-medium text-red-600">- R$ {item.creditCardExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                <span className="font-medium text-red-600">- {formatCurrency(item.creditCardExpense)}</span>
                                             </div>
 
                                             <div className="flex justify-between items-center text-xs">
@@ -576,13 +577,13 @@ export default function Analytics() {
                                                     </div>
                                                     Outras Despesas
                                                 </span>
-                                                <span className="font-medium text-red-600">- R$ {item.otherExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                <span className="font-medium text-red-600">- {formatCurrency(item.otherExpense)}</span>
                                             </div>
 
                                             <div className="border-t border-gray-200 dark:border-zinc-700 pt-2 flex justify-between items-center text-sm font-bold">
                                                 <span>Resultado</span>
                                                 <span className={item.balance >= 0 ? 'text-green-600' : 'text-red-600'}>
-                                                    R$ {item.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                    {formatCurrency(item.balance)}
                                                 </span>
                                             </div>
                                         </div>

@@ -36,7 +36,7 @@ import { Link, useLocation } from "wouter";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { format, isBefore, startOfDay, getMonth, getYear, parseISO, addMonths, startOfYear, endOfYear, subMonths } from "date-fns";
 import { AddTransactionSheet } from "@/components/add-transaction-sheet";
@@ -677,18 +677,18 @@ export default function SpreadsheetView() {
                         <div className="flex gap-8">
                             <div className="flex flex-col">
                                 <span className="text-[10px] text-gray-500 uppercase font-semibold">Total Receitas</span>
-                                <span className="text-sm font-bold text-green-600">R$ {totals.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                <span className="text-[10px] text-green-600/70">A receber: R$ {totals.pendingIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                <span className="text-sm font-bold text-green-600">{formatCurrency(totals.income)}</span>
+                                <span className="text-[10px] text-green-600/70">A receber: {formatCurrency(totals.pendingIncome)}</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-[10px] text-gray-500 uppercase font-semibold">Total Despesas</span>
-                                <span className="text-sm font-bold text-red-600">R$ {totals.expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                <span className="text-[10px] text-red-600/70">A pagar: R$ {totals.pendingExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                <span className="text-sm font-bold text-red-600">{formatCurrency(totals.expense)}</span>
+                                <span className="text-[10px] text-red-600/70">A pagar: {formatCurrency(totals.pendingExpense)}</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-[10px] text-gray-500 uppercase font-semibold">Saldo do Período</span>
                                 <span className={`text-sm font-bold ${totals.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                                    R$ {totals.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {formatCurrency(totals.balance)}
                                 </span>
                             </div>
                         </div>
@@ -698,7 +698,7 @@ export default function SpreadsheetView() {
                         <div className="flex flex-col items-end">
                             <span className="text-[10px] text-gray-500 uppercase font-semibold">Previsão de Caixa</span>
                             <span className={`text-lg font-bold ${totals.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                                R$ {(totals.pendingIncome - totals.pendingExpense).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                {formatCurrency(totals.pendingIncome - totals.pendingExpense)}
                             </span>
                             <span className="text-[10px] text-gray-400"> (Receber - Pagar)</span>
                         </div>
@@ -747,11 +747,11 @@ export default function SpreadsheetView() {
                                 </TableCell>
                                 {projectionData.map(m => (
                                     <TableCell key={m.month} className="text-center text-xs text-green-600 font-medium">
-                                        {m.income > 0 ? m.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}
+                                        {m.income > 0 ? formatCurrency(m.income) : '-'}
                                     </TableCell>
                                 ))}
                                 <TableCell className="text-right text-xs font-bold text-green-700 bg-gray-50 dark:bg-zinc-900">
-                                    {projectionData.reduce((acc, curr) => acc + curr.income, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {formatCurrency(projectionData.reduce((acc, curr) => acc + curr.income, 0))}
                                 </TableCell>
                             </TableRow>
 
@@ -762,11 +762,11 @@ export default function SpreadsheetView() {
                                 </TableCell>
                                 {projectionData.map(m => (
                                     <TableCell key={m.month} className="text-center text-xs text-red-600 font-medium">
-                                        {m.expense > 0 ? m.expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}
+                                        {m.expense > 0 ? formatCurrency(m.expense) : '-'}
                                     </TableCell>
                                 ))}
                                 <TableCell className="text-right text-xs font-bold text-red-700 bg-gray-50 dark:bg-zinc-900">
-                                    {projectionData.reduce((acc, curr) => acc + curr.expense, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {formatCurrency(projectionData.reduce((acc, curr) => acc + curr.expense, 0))}
                                 </TableCell>
                             </TableRow>
 
@@ -777,11 +777,11 @@ export default function SpreadsheetView() {
                                 </TableCell>
                                 {projectionData.map(m => (
                                     <TableCell key={m.month} className="text-center text-xs text-purple-600 font-medium">
-                                        {m.creditCardBill > 0 ? m.creditCardBill.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}
+                                        {m.creditCardBill > 0 ? formatCurrency(m.creditCardBill) : '-'}
                                     </TableCell>
                                 ))}
                                 <TableCell className="text-right text-xs font-bold text-purple-700 bg-gray-50 dark:bg-zinc-900">
-                                    {projectionData.reduce((acc, curr) => acc + curr.creditCardBill, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {formatCurrency(projectionData.reduce((acc, curr) => acc + curr.creditCardBill, 0))}
                                 </TableCell>
                             </TableRow>
 
@@ -792,11 +792,11 @@ export default function SpreadsheetView() {
                                 </TableCell>
                                 {projectionData.map(m => (
                                     <TableCell key={m.month} className={`text-center text-xs font-bold ${m.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                                        {m.balance !== 0 ? m.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}
+                                        {m.balance !== 0 ? formatCurrency(m.balance) : '-'}
                                     </TableCell>
                                 ))}
                                 <TableCell className={`text-right text-xs font-bold bg-gray-100 dark:bg-zinc-800 ${projectionData.reduce((acc,curr) => acc + curr.balance, 0) >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                                    {projectionData.reduce((acc, curr) => acc + curr.balance, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {formatCurrency(projectionData.reduce((acc, curr) => acc + curr.balance, 0))}
                                 </TableCell>
                             </TableRow>
                         </TableBody>
@@ -844,7 +844,7 @@ export default function SpreadsheetView() {
                                 </TableCell>
                                 {consolidatedData.map(m => (
                                     <TableCell key={m.month} className="text-center text-xs text-blue-600/80 font-medium">
-                                        {m.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        {formatCurrency(m.previousBalance)}
                                     </TableCell>
                                 ))}
                                 <TableCell className="text-right text-xs font-bold text-gray-400 bg-gray-50 dark:bg-zinc-900">-</TableCell>
@@ -857,11 +857,11 @@ export default function SpreadsheetView() {
                                 </TableCell>
                                 {consolidatedData.map(m => (
                                     <TableCell key={m.month} className="text-center text-xs text-green-600 font-medium">
-                                        {m.income > 0 ? m.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}
+                                        {m.income > 0 ? formatCurrency(m.income) : '-'}
                                     </TableCell>
                                 ))}
                                 <TableCell className="text-right text-xs font-bold text-green-700 bg-gray-50 dark:bg-zinc-900">
-                                    {consolidatedData.reduce((acc, curr) => acc + curr.income, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {formatCurrency(consolidatedData.reduce((acc, curr) => acc + curr.income, 0))}
                                 </TableCell>
                             </TableRow>
 
@@ -872,11 +872,11 @@ export default function SpreadsheetView() {
                                 </TableCell>
                                 {consolidatedData.map(m => (
                                     <TableCell key={m.month} className="text-center text-xs text-red-600 font-medium">
-                                        {m.expense > 0 ? `(${m.expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})` : '-'}
+                                        {m.expense > 0 ? formatCurrency(m.expense) : '-'}
                                     </TableCell>
                                 ))}
                                 <TableCell className="text-right text-xs font-bold text-red-700 bg-gray-50 dark:bg-zinc-900">
-                                    ({consolidatedData.reduce((acc, curr) => acc + curr.expense, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})
+                                    {formatCurrency(consolidatedData.reduce((acc, curr) => acc + curr.expense, 0))}
                                 </TableCell>
                             </TableRow>
 

@@ -1,4 +1,4 @@
-import { getCategoryIcon } from "@/lib/utils";
+import { getCategoryIcon, formatCurrency } from "@/lib/utils";
 import { MobileLayout } from "@/components/mobile-layout";
 import { ArrowLeft, Search, Filter, ArrowUpRight, ArrowDownLeft, Table as TableIcon, AlertCircle, Clock, CheckCircle2, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -311,17 +311,17 @@ export default function Transactions() {
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <span className="text-[10px] text-gray-400 block">A Receber</span>
-                    <span className="text-lg font-bold text-green-400">R$ {projections.pendingIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    <span className="text-lg font-bold text-green-400">{formatCurrency(projections.pendingIncome)}</span>
                 </div>
                 <div>
                     <span className="text-[10px] text-gray-400 block">A Pagar</span>
-                    <span className="text-lg font-bold text-red-400">R$ {projections.pendingExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    <span className="text-lg font-bold text-red-400">{formatCurrency(projections.pendingExpense)}</span>
                 </div>
             </div>
             <div className="mt-3 pt-3 border-t border-white/10 flex justify-between items-center">
                  <span className="text-xs text-gray-400">Saldo Projetado</span>
                  <span className={`font-bold ${projections.net >= 0 ? 'text-blue-300' : 'text-red-300'}`}>
-                    R$ {projections.net.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {formatCurrency(projections.net)}
                  </span>
             </div>
           </div>
@@ -398,7 +398,7 @@ function GroupedTransactionItem({ group }: { group: { isGroup: true, items: any[
                         </div>
                         <div className="text-right">
                             <span className="font-bold block text-gray-900 dark:text-white">
-                                R$ {totalAmount.toFixed(2)}
+                                {formatCurrency(totalAmount)}
                             </span>
                             <span className="text-[10px] text-purple-600 font-medium">
                                 Total do Grupo

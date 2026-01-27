@@ -1,4 +1,5 @@
 import { MobileLayout } from "@/components/mobile-layout";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PieChart, TrendingUp, Plus, Calendar as CalendarIcon, Calculator, Trash2, Save, Info } from "lucide-react";
 import { useFinancialStore, Investment } from "@/lib/store";
@@ -219,7 +220,7 @@ export default function Investments() {
                                 <SelectContent>
                                     <SelectItem value="none">Nenhuma (Manual)</SelectItem>
                                     {accounts.filter(a => a.isPersonal).map(acc => (
-                                        <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {acc.balance.toFixed(2)})</SelectItem>
+                                        <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(acc.balance)})</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -297,7 +298,7 @@ export default function Investments() {
                                 <div className="space-y-3 pt-2">
                                     <div className="flex justify-between items-end">
                                         <span className="text-xs text-gray-500">Valor Bruto</span>
-                                        <span className="font-bold text-gray-700 dark:text-gray-300">R$ {projection.grossValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                                        <span className="font-bold text-gray-700 dark:text-gray-300">{formatCurrency(projection.grossValue)}</span>
                                     </div>
                                     
                                     {formData.hasTax && (
@@ -306,7 +307,7 @@ export default function Investments() {
                                                 IR ({(projection.taxRate * 100).toFixed(1)}%)
                                                 <Info className="w-3 h-3" />
                                             </span>
-                                            <span className="text-xs font-medium">- R$ {projection.taxAmount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                                            <span className="text-xs font-medium">- {formatCurrency(projection.taxAmount)}</span>
                                         </div>
                                     )}
 
@@ -314,11 +315,11 @@ export default function Investments() {
                                         <div className="flex flex-col">
                                             <span className="text-sm font-bold text-purple-700 dark:text-purple-300">Valor Líquido</span>
                                             <span className="text-[10px] text-purple-500">
-                                                Lucro: +R$ {(projection.netValue - Number(formData.value)).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                                                Lucro: +{formatCurrency(projection.netValue - Number(formData.value))}
                                             </span>
                                         </div>
                                         <span className="text-xl font-bold text-purple-700 dark:text-purple-300">
-                                            R$ {projection.netValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                                            {formatCurrency(projection.netValue)}
                                         </span>
                                     </div>
                                 </div>
@@ -353,11 +354,11 @@ export default function Investments() {
         <div className="text-center py-8 border-b border-gray-100 dark:border-zinc-800">
           <span className="text-sm font-medium text-gray-500">Total Investido</span>
           <h2 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mt-2">
-            R$ {totalInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            {formatCurrency(totalInvested)}
           </h2>
           <div className="flex items-center justify-center gap-2 mt-2 text-green-600 bg-green-50 dark:bg-green-900/20 py-1 px-3 rounded-full w-fit mx-auto">
             <TrendingUp className="w-4 h-4" />
-            <span className="text-sm font-medium">+ R$ {(totalInvested * 0.0085).toFixed(2)} (est. 0.85%)</span>
+            <span className="text-sm font-medium">+ {formatCurrency(totalInvested * 0.0085)} (est. 0.85%)</span>
           </div>
         </div>
 
@@ -394,7 +395,7 @@ export default function Investments() {
                   </div>
                 </div>
                 <div className="text-right">
-                    <span className="font-bold text-gray-900 dark:text-white block">R$ {displayValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    <span className="font-bold text-gray-900 dark:text-white block">{formatCurrency(displayValue)}</span>
                     <span className="text-[10px] text-gray-500">
                         Início: {inv.startDate ? format(new Date(inv.startDate), 'dd/MM/yy') : '-'}
                     </span>

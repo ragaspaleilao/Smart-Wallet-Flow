@@ -21,3 +21,12 @@ export const categoryIcons: Record<string, string> = {
 export function getCategoryIcon(category: string) {
   return categoryIcons[category] || '🛍️';
 }
+
+export function formatCurrency(value: number) {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}

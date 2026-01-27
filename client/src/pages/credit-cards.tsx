@@ -21,6 +21,7 @@ import {
   Bell
 } from "lucide-react";
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
+import { formatCurrency } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -332,7 +333,7 @@ export default function CreditCards() {
                                                 return (
                                                     <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg shadow-lg border border-gray-100 dark:border-zinc-800">
                                                         <p className="font-bold text-sm">{payload[0].payload.fullDate}</p>
-                                                        <p className="text-primary font-bold">R$ {Number(payload[0].value).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                                                        <p className="text-primary font-bold">{formatCurrency(Number(payload[0].value))}</p>
                                                     </div>
                                                 );
                                                 }
@@ -347,7 +348,7 @@ export default function CreditCards() {
                                 {totalProjection.filter(p => p.total > 0).map((p, idx) => (
                                     <div key={idx} className="flex justify-between items-center text-sm p-2 bg-gray-50 dark:bg-zinc-900 rounded-lg">
                                         <span className="font-medium">{p.fullDate}</span>
-                                        <span className="font-bold text-gray-900 dark:text-white">R$ {p.total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                                        <span className="font-bold text-gray-900 dark:text-white">{formatCurrency(p.total)}</span>
                                     </div>
                                 ))}
                             </div>
@@ -381,7 +382,7 @@ export default function CreditCards() {
                         <div className="flex justify-between items-end">
                             <div>
                                 <p className="text-xs opacity-80 mb-1">Limite Disponível</p>
-                                <p className="font-bold text-xl">R$ {(card.creditLimit - (selectedCardId === card.id ? usedLimit : 0)).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                                <p className="font-bold text-xl">{formatCurrency(card.creditLimit - (selectedCardId === card.id ? usedLimit : 0))}</p>
                             </div>
                             <div className="text-right">
                                 <p className="text-xs opacity-80">Fatura Atual</p>
@@ -609,7 +610,7 @@ export default function CreditCards() {
                             <div className="space-y-4 py-4">
                                 <div className="p-4 bg-gray-50 dark:bg-zinc-900 rounded-lg text-center">
                                     <p className="text-sm text-gray-500">Valor da Fatura Atual</p>
-                                    <p className="text-2xl font-bold">R$ {invoiceTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                                    <p className="text-2xl font-bold">{formatCurrency(invoiceTotal)}</p>
                                 </div>
                                 
                                 <div className="space-y-2">
@@ -664,8 +665,8 @@ export default function CreditCards() {
                     </div>
                     <Progress value={limitPercentage} className="h-2 mb-2" />
                     <div className="flex justify-between text-xs text-gray-400">
-                        <span>Usado: R$ {usedLimit.toLocaleString('pt-BR')}</span>
-                        <span>Total: R$ {totalLimit.toLocaleString('pt-BR')}</span>
+                        <span>Usado: {formatCurrency(usedLimit)}</span>
+                        <span>Total: {formatCurrency(totalLimit)}</span>
                     </div>
                 </div>
 
@@ -689,7 +690,7 @@ export default function CreditCards() {
                             <div className="text-right">
                                 <span className="text-sm text-gray-500 block">Total da Fatura</span>
                                 <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                                    R$ {invoiceTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                                    {formatCurrency(invoiceTotal)}
                                 </span>
                             </div>
                         </div>
@@ -716,7 +717,7 @@ export default function CreditCards() {
                                             </div>
                                         </div>
                                         <span className="font-bold text-gray-900 dark:text-white">
-                                            R$ {item.value.toFixed(2)}
+                                            {formatCurrency(item.value)}
                                         </span>
                                     </div>
                                 ))
@@ -738,13 +739,13 @@ export default function CreditCards() {
                                                 <Calendar className="w-4 h-4 text-purple-600" />
                                                 <span className="font-bold capitalize">{format(inv.date, 'MMMM yyyy', { locale: ptBR })}</span>
                                             </div>
-                                            <span className="font-bold text-lg">R$ {inv.total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                                            <span className="font-bold text-lg">{formatCurrency(inv.total)}</span>
                                         </div>
                                         <div className="space-y-2">
                                             {inv.items.map((item, i) => (
                                                 <div key={i} className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
                                                     <span>{item.purchase.description} ({item.installment}/{item.purchase.installments})</span>
-                                                    <span>R$ {item.value.toFixed(2)}</span>
+                                                    <span>{formatCurrency(item.value)}</span>
                                                 </div>
                                             ))}
                                         </div>

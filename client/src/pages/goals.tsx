@@ -1,4 +1,5 @@
 import { MobileLayout } from "@/components/mobile-layout";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Plus, Target, Trophy, Edit2, Wallet, Trash2 } from "lucide-react";
@@ -201,12 +202,12 @@ export default function Goals() {
                 </div>
                 <div>
                 <h3 className="text-xl font-bold">{featuredGoal.name}</h3>
-                <p className="text-primary-foreground/80 text-sm">Falta R$ {Math.max(0, featuredGoal.target - featuredGoal.current).toLocaleString('pt-BR')}</p>
+                <p className="text-primary-foreground/80 text-sm">Falta {formatCurrency(Math.max(0, featuredGoal.target - featuredGoal.current))}</p>
                 </div>
                 <div className="space-y-2">
                 <div className="flex justify-between text-xs font-medium text-white/80">
                     <div className="flex items-center gap-1">
-                        <span>R$ {featuredGoal.current.toLocaleString('pt-BR')}</span>
+                        <span>{formatCurrency(featuredGoal.current)}</span>
                         {featuredGoal.linkedAccountId && <Wallet className="w-3 h-3 text-white/70" />}
                     </div>
                     <span>{Math.min(100, Math.round((featuredGoal.current / featuredGoal.target) * 100))}%</span>
@@ -240,10 +241,10 @@ export default function Goals() {
                   <Progress value={Math.min(100, (goal.current / goal.target) * 100)} className="h-2" />
                   <div className="flex justify-between text-xs text-gray-500">
                     <div className="flex items-center gap-1">
-                        <span>R$ {goal.current.toLocaleString('pt-BR')}</span>
+                        <span>{formatCurrency(goal.current)}</span>
                         {goal.linkedAccountId && <Wallet className="w-3 h-3 text-gray-400" />}
                     </div>
-                    <span>Meta: R$ {goal.target.toLocaleString('pt-BR')}</span>
+                    <span>Meta: {formatCurrency(goal.target)}</span>
                   </div>
                 </div>
               </div>

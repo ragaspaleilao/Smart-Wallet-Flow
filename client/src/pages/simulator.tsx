@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { MobileLayout } from "@/components/mobile-layout";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -473,7 +474,7 @@ export default function Simulator() {
                             <CardContent className="p-4">
                                 <p className="text-xs text-red-600/80 dark:text-red-400 font-medium mb-1">Menor Saldo Projetado</p>
                                 <p className="text-lg font-bold text-red-700 dark:text-red-300">
-                                    R$ {Math.min(...projectionData.map(d => d.simulatedBalance)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {formatCurrency(Math.min(...projectionData.map(d => d.simulatedBalance)))}
                                 </p>
                             </CardContent>
                         </Card>
@@ -481,7 +482,7 @@ export default function Simulator() {
                             <CardContent className="p-4">
                                 <p className="text-xs text-purple-600/80 dark:text-purple-400 font-medium mb-1">Parcela Mensal</p>
                                 <p className="text-lg font-bold text-purple-700 dark:text-purple-300">
-                                    R$ {(
+                                    {formatCurrency((
                                         // Show installment of current edit or first sim
                                         (() => {
                                             const sim = showForm && formData.totalValue ? {
@@ -506,7 +507,7 @@ export default function Simulator() {
 
                                             return (sim.totalValue - sim.downPayment) / sim.installments;
                                         })()
-                                    ).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    ))}
                                 </p>
                             </CardContent>
                         </Card>
@@ -535,15 +536,15 @@ export default function Simulator() {
                                     <h4 className="font-bold text-gray-900 dark:text-white">{sim.name}</h4>
                                     <div className="flex flex-col gap-0.5 mt-1">
                                         <p className="text-xs text-gray-500">
-                                            Valor Inicial: R$ {sim.totalValue.toLocaleString('pt-BR', {minimumFractionDigits:2})}
+                                            Valor Inicial: {formatCurrency(sim.totalValue)}
                                         </p>
                                         {sim.downPayment > 0 && (
                                             <p className="text-xs text-green-600 dark:text-green-400">
-                                                Entrada: R$ {sim.downPayment.toLocaleString('pt-BR', {minimumFractionDigits:2})}
+                                                Entrada: {formatCurrency(sim.downPayment)}
                                             </p>
                                         )}
                                         <p className="text-xs text-gray-500">
-                                            {sim.installments}x de R$ {(
+                                            {sim.installments}x de {formatCurrency((
                                                 (() => {
                                                     if (sim.manualInstallmentValue) return sim.manualInstallmentValue;
                                                     if (sim.interestRate && sim.interestRate > 0) {
@@ -554,14 +555,14 @@ export default function Simulator() {
                                                     }
                                                     return (sim.totalValue - sim.downPayment) / sim.installments;
                                                 })()
-                                            ).toLocaleString('pt-BR', {minimumFractionDigits:2})}
+                                            ))}
                                             {sim.interestRate ? ` (${sim.interestRate}% a.m.)` : ''}
                                         </p>
                                     </div>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-xs text-gray-400 mb-0.5">Valor Final</p>
-                                    <p className="font-bold text-purple-600 text-lg">R$ {(
+                                    <p className="font-bold text-purple-600 text-lg">{formatCurrency(
                                         // Display Total Cost (with interest if applicable)
                                         sim.downPayment + (sim.installments * (() => {
                                             if (sim.manualInstallmentValue) return sim.manualInstallmentValue;
@@ -573,7 +574,7 @@ export default function Simulator() {
                                             }
                                             return (sim.totalValue - sim.downPayment) / sim.installments;
                                         })())
-                                    ).toLocaleString('pt-BR', {minimumFractionDigits:2})}</p>
+                                    )}</p>
                                     <p className="text-[10px] text-gray-400 mt-1">{new Date(sim.startDate).toLocaleDateString()}</p>
                                 </div>
                             </div>
