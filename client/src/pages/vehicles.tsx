@@ -87,6 +87,18 @@ export default function Vehicles() {
      }
   };
 
+  const handleDeleteGroup = (vehicleId: string, groupName: string) => {
+      if (confirm(`Tem certeza que deseja excluir todas as parcelas de "${groupName}"?`)) {
+          const txsToDelete = transactions.filter(t => 
+              t.vehicleId === vehicleId && 
+              t.description.replace(/\s\(\d+\/\d+\)$/, "") === groupName
+          );
+          
+          txsToDelete.forEach(tx => removeTransaction(tx.id));
+          toast({ title: "Despesa completa removida!" });
+      }
+  };
+
   const handleAddExpense = () => {
     if (!expenseAmount || !selectedVehicleId) return;
 
@@ -437,6 +449,17 @@ export default function Vehicles() {
                                     <span className="font-bold text-sm block">{globalFormatCurrency(totalAmount)}</span>
                                     <span className="text-[10px] text-gray-400">Total</span>
                                 </div>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 -mr-2"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteGroup(car.id, groupName);
+                                    }}
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </Button>
                                 {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                             </div>
                         </div>
