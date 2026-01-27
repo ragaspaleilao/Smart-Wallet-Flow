@@ -28,7 +28,7 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
   
   const [formData, setFormData] = useState({
     description: transaction.description,
-    amount: (transaction.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+    amount: (transaction.amount || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
     category: transaction.category,
     type: transaction.type,
     accountId: transaction.accountId || "",
@@ -41,7 +41,7 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
     if (open) {
       setFormData({
         description: transaction.description,
-        amount: (transaction.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+        amount: (transaction.amount || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
         category: transaction.category,
         type: transaction.type,
         accountId: transaction.accountId || "",
