@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp, Zap, Flame } from "lucide-react";
+import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp, Zap, Flame, Car } from "lucide-react";
 import { useFinancialStore } from "@/lib/store";
 import { format, isBefore, startOfDay } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
@@ -192,6 +192,28 @@ export default function Dashboard() {
 
         {/* Management Modules */}
         <div className="grid grid-cols-2 gap-3">
+            <Link href="/investments">
+                <Card className="p-3 border-none shadow-sm bg-green-50 dark:bg-green-900/10 flex items-center gap-3 cursor-pointer hover:bg-green-100 transition-colors">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-600">
+                        <ArrowUp className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Investimentos</h3>
+                        <p className="text-[10px] text-gray-500">Meus Rendimentos</p>
+                    </div>
+                </Card>
+            </Link>
+            <Link href="/vehicles">
+                <Card className="p-3 border-none shadow-sm bg-blue-50 dark:bg-blue-900/10 flex items-center gap-3 cursor-pointer hover:bg-blue-100 transition-colors">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600">
+                        <Car className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Veículos</h3>
+                        <p className="text-[10px] text-gray-500">Gestão de Auto</p>
+                    </div>
+                </Card>
+            </Link>
             <Link href="/ai-chat">
                 <Card className="p-3 border-none shadow-sm bg-purple-50 dark:bg-purple-900/10 flex items-center gap-3 cursor-pointer hover:bg-purple-100 transition-colors">
                     <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-xl text-purple-600">
