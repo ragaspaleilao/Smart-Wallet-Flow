@@ -39,11 +39,49 @@ export default function CreditCards() {
   const addCreditPayment = useFinancialStore((state) => state.addCreditPayment);
   const accounts = useFinancialStore((state) => state.accounts);
   
+  const addCreditCard = useFinancialStore((state) => state.addCreditCard);
+
   const [selectedCardId, setSelectedCardId] = useState<string>(creditCards[0]?.id || "");
   const [activeTab, setActiveTab] = useState("current");
   const [isProjectionOpen, setIsProjectionOpen] = useState(false);
+  const [isAddCardOpen, setIsAddCardOpen] = useState(false);
+  const [newCardData, setNewCardData] = useState({
+    name: "",
+    brand: "mastercard",
+    creditLimit: "",
+    closingDay: "",
+    dueDay: "",
+    color: "bg-black"
+  });
 
   const selectedCard = creditCards.find(c => c.id === selectedCardId);
+
+  const handleAddCard = () => {
+    if (!newCardData.name || !newCardData.creditLimit || !newCardData.closingDay || !newCardData.dueDay) {
+        toast({ title: "Preencha todos os campos", variant: "destructive" });
+        return;
+    }
+
+    addCreditCard({
+        name: newCardData.name,
+        brand: newCardData.brand as any,
+        creditLimit: Number(newCardData.creditLimit),
+        closingDay: Number(newCardData.closingDay),
+        dueDay: Number(newCardData.dueDay),
+        color: newCardData.color,
+    });
+
+    setNewCardData({
+        name: "",
+        brand: "mastercard",
+        creditLimit: "",
+        closingDay: "",
+        dueDay: "",
+        color: "bg-black"
+    });
+    setIsAddCardOpen(false);
+    toast({ title: "Cartão adicionado com sucesso!" });
+  };
 
   // --- Helper Functions ---
 
@@ -335,6 +373,10 @@ export default function CreditCards() {
                             <span className="font-medium">{card.name}</span>
                             {card.brand === 'mastercard' && <div className="flex -space-x-2"><div className="w-6 h-6 rounded-full bg-red-500/80"></div><div className="w-6 h-6 rounded-full bg-yellow-500/80"></div></div>}
                             {card.brand === 'visa' && <span className="font-bold italic text-lg">VISA</span>}
+                            {card.brand === 'elo' && <span className="font-bold text-lg">elo</span>}
+                            {card.brand === 'amex' && <span className="font-bold text-lg tracking-tighter">AMEX</span>}
+                            {card.brand === 'hipercard' && <span className="font-bold italic text-lg">Hiper</span>}
+                            {card.brand === 'other' && <CreditCardIcon className="w-6 h-6" />}
                         </div>
                         <div className="flex justify-between items-end">
                             <div>
@@ -348,9 +390,93 @@ export default function CreditCards() {
                         </div>
                     </div>
                 ))}
-                 <Button variant="outline" className="min-w-[50px] h-auto rounded-xl border-dashed" onClick={() => toast({title: "Feature em breve"})}>
-                    <Plus className="w-6 h-6 text-gray-400" />
-                </Button>
+                 
+                 <Dialog open={isAddCardOpen} onOpenChange={setIsAddCardOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" className="min-w-[50px] h-[140px] rounded-xl border-dashed border-2 flex flex-col gap-2 items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-900">
+                            <Plus className="w-8 h-8 text-gray-400" />
+                            <span className="text-xs text-gray-500 font-medium">Novo</span>
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Adicionar Novo Cartão</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label>Nome do Cartão</Label>
+                                <Input 
+                                    placeholder="Ex: Nubank Platinum" 
+                                    value={newCardData.name}
+                                    onChange={(e) => setNewCardData({...newCardData, name: e.target.value})}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Bandeira</Label>
+                                <Select 
+                                    value={newCardData.brand} 
+                                    onValueChange={(v) => setNewCardData({...newCardData, brand: v})}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="mastercard">Mastercard</SelectItem>
+                                        <SelectItem value="visa">Visa</SelectItem>
+                                        <SelectItem value="elo">Elo</SelectItem>
+                                        <SelectItem value="amex">American Express</SelectItem>
+                                        <SelectItem value="hipercard">Hipercard</SelectItem>
+                                        <SelectItem value="other">Outra</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Limite de Crédito (R$)</Label>
+                                <Input 
+                                    type="number"
+                                    placeholder="0,00" 
+                                    value={newCardData.creditLimit}
+                                    onChange={(e) => setNewCardData({...newCardData, creditLimit: e.target.value})}
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Dia Fechamento</Label>
+                                    <Input 
+                                        type="number"
+                                        placeholder="Dia" 
+                                        min="1" max="31"
+                                        value={newCardData.closingDay}
+                                        onChange={(e) => setNewCardData({...newCardData, closingDay: e.target.value})}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Dia Vencimento</Label>
+                                    <Input 
+                                        type="number"
+                                        placeholder="Dia" 
+                                        min="1" max="31"
+                                        value={newCardData.dueDay}
+                                        onChange={(e) => setNewCardData({...newCardData, dueDay: e.target.value})}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Cor do Cartão</Label>
+                                <div className="flex gap-2 overflow-x-auto pb-2">
+                                    {['bg-black', 'bg-purple-600', 'bg-blue-600', 'bg-red-600', 'bg-green-600', 'bg-orange-500', 'bg-yellow-500', 'bg-pink-600', 'bg-indigo-600', 'bg-gray-600'].map(color => (
+                                        <div 
+                                            key={color}
+                                            className={`w-8 h-8 rounded-full cursor-pointer ${color} ${newCardData.color === color ? 'ring-2 ring-offset-2 ring-black dark:ring-white' : ''}`}
+                                            onClick={() => setNewCardData({...newCardData, color})}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                            <Button className="w-full mt-2" onClick={handleAddCard}>Criar Cartão</Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </div>
         </div>
 
