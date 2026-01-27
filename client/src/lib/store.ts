@@ -438,9 +438,9 @@ export const useFinancialStore = create<FinancialStore>()(
 
         const newTransactions = [newTx, ...state.transactions];
         
-        // Update account balance if accountId is provided
+        // Update account balance if accountId is provided AND status is 'paid'
         let newAccounts = [...state.accounts];
-        if (txData.accountId) {
+        if (txData.accountId && (txData.status === 'paid' || !txData.status)) { // Default to paid if undefined for backward compat, though interfaces says optional
           newAccounts = newAccounts.map(acc => {
             if (acc.id === txData.accountId) {
               const amountChange = txData.type === 'income' ? txData.amount : -txData.amount;
@@ -481,8 +481,12 @@ export const useFinancialStore = create<FinancialStore>()(
         
         let newAccounts = [...state.accounts];
         
-        // Revert old transaction effect on balance
-        if (oldTx.accountId) {
+        // Helper to check if tx affects balance (must be 'paid')
+        const wasPaid = oldTx.status === 'paid' || !oldTx.status;
+        const isPaid = (txData.status !== undefined ? txData.status === 'paid' : wasPaid); 
+
+        // Revert old transaction effect on balance ONLY if it was paid
+        if (oldTx.accountId && wasPaid) {
           newAccounts = newAccounts.map(acc => {
              if (acc.id === oldTx.accountId) {
                const amountChange = oldTx.type === 'income' ? -oldTx.amount : oldTx.amount;
@@ -492,9 +496,9 @@ export const useFinancialStore = create<FinancialStore>()(
           });
         }
         
-        // Apply new transaction effect on balance
+        // Apply new transaction effect on balance ONLY if it is paid
         const newTx = newTransactions.find(t => t.id === id)!;
-        if (newTx.accountId) {
+        if (newTx.accountId && isPaid) {
            newAccounts = newAccounts.map(acc => {
              if (acc.id === newTx.accountId) {
                const amountChange = newTx.type === 'income' ? newTx.amount : -newTx.amount;
@@ -528,7 +532,10 @@ export const useFinancialStore = create<FinancialStore>()(
         const newTransactions = state.transactions.filter(t => t.id !== id);
         
         let newAccounts = [...state.accounts];
-        if (txToRemove && txToRemove.accountId) {
+        // Only revert balance if it was 'paid'
+        const wasPaid = txToRemove?.status === 'paid' || !txToRemove?.status;
+
+        if (txToRemove && txToRemove.accountId && wasPaid) {
            newAccounts = newAccounts.map(acc => {
             if (acc.id === txToRemove.accountId) {
               // Reverse the operation
