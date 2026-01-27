@@ -27,6 +27,7 @@ export interface Transaction {
   source: 'manual' | 'notification' | 'voice' | 'photo';
   isPersonal: boolean; // true = personal, false = business
   accountId?: string; // Optional for backward compatibility, but should be used going forward
+  vehicleId?: string; // Optional link to a vehicle
   paymentMethod?: 'debit' | 'credit' | 'cash' | 'pix' | 'transfer';
   
   // New fields for Spreadsheet View
