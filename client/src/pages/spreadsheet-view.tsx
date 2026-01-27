@@ -363,6 +363,7 @@ export default function SpreadsheetView() {
             </Button>
           </Link>
           
+          {/* Context Switcher Hidden for Personal MVP
           <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-lg p-1">
             <button 
                 onClick={() => setContext("personal")}
@@ -389,6 +390,7 @@ export default function SpreadsheetView() {
                 MEI / Empresa
             </button>
           </div>
+          */}
         </div>
 
         <div className="flex items-center gap-2">

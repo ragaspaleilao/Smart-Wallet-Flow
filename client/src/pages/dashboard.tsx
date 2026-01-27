@@ -132,7 +132,7 @@ export default function Dashboard() {
         </div>
 
         {/* Management Modules */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
             <Link href="/ai-chat">
                 <Card className="p-3 border-none shadow-sm bg-purple-50 dark:bg-purple-900/10 flex items-center gap-3 cursor-pointer hover:bg-purple-100 transition-colors">
                     <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-xl text-purple-600">
@@ -144,6 +144,7 @@ export default function Dashboard() {
                     </div>
                 </Card>
             </Link>
+            {/* Business Module Hidden for Personal MVP
             <Link href="/business">
                 <Card className="p-3 border-none shadow-sm bg-indigo-50 dark:bg-indigo-900/10 flex items-center gap-3 cursor-pointer hover:bg-indigo-100 transition-colors">
                     <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl text-indigo-600">
@@ -155,6 +156,7 @@ export default function Dashboard() {
                     </div>
                 </Card>
             </Link>
+            */}
         </div>
 
         {/* Alerts */}
