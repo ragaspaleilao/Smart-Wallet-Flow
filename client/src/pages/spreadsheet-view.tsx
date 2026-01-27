@@ -1005,6 +1005,32 @@ export default function SpreadsheetView() {
                         )}
                     </TableBody>
                 </Table>
+                
+                {/* Total Footer for Investments */}
+                {filteredInvestments.length > 0 && (
+                    <div className="bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 p-3 shadow-lg z-20 sticky bottom-0">
+                        <div className="flex justify-between items-center max-w-5xl mx-auto px-4">
+                            <span className="text-xs text-gray-500 uppercase font-semibold">Total Investido</span>
+                            <div className="flex flex-col items-end">
+                                <span className="text-lg font-bold text-green-600">
+                                    {formatCurrency(filteredInvestments.reduce((acc, inv) => {
+                                        const linkedAccount = inv.accountId ? accounts.find(a => a.id === inv.accountId) : null;
+                                        return acc + (linkedAccount ? linkedAccount.balance : inv.value);
+                                    }, 0))}
+                                </span>
+                                <span className="text-[10px] text-green-600/70">
+                                    + {formatCurrency(filteredInvestments.reduce((acc, inv) => {
+                                        const linkedAccount = inv.accountId ? accounts.find(a => a.id === inv.accountId) : null;
+                                        const val = linkedAccount ? linkedAccount.balance : inv.value;
+                                        // Use approximate yield or stored yield rate
+                                        const rate = inv.yieldRate ? (inv.yieldRate / 100) : 0.0085;
+                                        return acc + (val * rate);
+                                    }, 0))} (est. rendimento)
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </TabsContent>
         </div>
       </Tabs>
