@@ -12,8 +12,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, Landmark, Wallet, Banknote, HelpCircle, Edit2, Check, TrendingUp, ChevronRight, Download, PieChart as PieChartIcon } from "lucide-react";
+import { ArrowLeft, Plus, Landmark, Wallet, Banknote, HelpCircle, Edit2, Check, TrendingUp, ChevronRight, Download, PieChart as PieChartIcon, Trash2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
@@ -21,15 +31,32 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 export default function Accounts() {
   const [_, setLocation] = useLocation();
-  const { accounts, addAccount, updateAccountBalance, investments, transactions } = useFinancialStore();
+  const { accounts, addAccount, updateAccountBalance, removeAccount, investments, transactions } = useFinancialStore();
   
   const [open, setOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
+
   const [newAccount, setNewAccount] = useState<{name: string, type: AccountType, balance: string}>({ 
     name: "", type: "bank", balance: "" 
   });
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBalance, setEditBalance] = useState("");
+
+  const confirmDelete = (id: string) => {
+    setAccountToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteAccount = () => {
+    if (accountToDelete) {
+        removeAccount(accountToDelete);
+        setDeleteDialogOpen(false);
+        setAccountToDelete(null);
+        toast({ title: "Conta removida com sucesso!" });
+    }
+  };
 
   const handleAddAccount = () => {
     if (!newAccount.name) {
@@ -247,12 +274,32 @@ export default function Accounts() {
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-primary" onClick={() => startEditing(acc)}>
                             <Edit2 className="w-4 h-4" />
                             </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-500" onClick={() => confirmDelete(acc.id)}>
+                                <Trash2 className="w-4 h-4" />
+                            </Button>
                         </div>
                     )}
                     </div>
                 </Card>
             ))}
            </div>
+           
+           <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta ação não pode ser desfeita. A conta e seu saldo serão removidos permanentemente.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction className="bg-red-500 hover:bg-red-600" onClick={handleDeleteAccount}>
+                        Remover Conta
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+           </AlertDialog>
 
            {/* Investments Link */}
            <div className="pt-2 pb-6">

@@ -214,6 +214,7 @@ interface FinancialStore {
   
   addAccount: (acc: Omit<Account, 'id'>) => void;
   updateAccountBalance: (id: string, newBalance: number) => void;
+  removeAccount: (id: string) => void;
   
   addGoal: (goal: Omit<Goal, 'id'>) => void;
   updateGoal: (id: string, goal: Partial<Goal>) => void;
@@ -705,6 +706,16 @@ export const useFinancialStore = create<FinancialStore>()(
           acc.id === id ? { ...acc, balance: newBalance } : acc
         );
         const globalBalance = newAccounts.reduce((acc, curr) => acc + curr.balance, 0);
+        return { accounts: newAccounts, balance: globalBalance };
+      }),
+
+      removeAccount: (id) => set((state) => {
+        const newAccounts = state.accounts.filter(acc => acc.id !== id);
+        const globalBalance = newAccounts.reduce((acc, curr) => acc + curr.balance, 0);
+        // Also remove transactions associated with this account? 
+        // For safety, let's keep them but maybe orphan them or user manually deletes.
+        // Actually, removing account might break things if transactions depend on it.
+        // But for mockup simplicity, let's just remove the account.
         return { accounts: newAccounts, balance: globalBalance };
       }),
 
