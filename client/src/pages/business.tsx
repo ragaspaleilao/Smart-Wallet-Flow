@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Package, DollarSign, BarChart3, Plus, Settings2, Trash2, Edit2, Wallet, ArrowRightLeft, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Link } from "wouter";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 import { Sparkles, MessageSquare } from "lucide-react";
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -82,7 +83,8 @@ export default function Business() {
         category: 'Outros', // Or specific category for transfers
         source: 'manual',
         isPersonal: false,
-        accountId: transferData.fromAccountId
+        accountId: transferData.fromAccountId,
+        date: new Date().toISOString()
     });
 
     // 2. Deposit into Personal Account
@@ -93,7 +95,8 @@ export default function Business() {
         category: 'Salário', // Or specific category
         source: 'manual',
         isPersonal: true,
-        accountId: transferData.toAccountId
+        accountId: transferData.toAccountId,
+        date: new Date().toISOString()
     });
 
     setTransferOpen(false);
@@ -137,7 +140,8 @@ export default function Business() {
         category: dailyEntry.category,
         source: 'manual',
         isPersonal: false, // Business Transaction
-        accountId: dailyEntry.accountId
+        accountId: dailyEntry.accountId,
+        date: new Date().toISOString()
     });
 
     setDailyEntryOpen(false);
@@ -464,7 +468,7 @@ export default function Business() {
                         </div>
                         <div className="space-y-2 flex-1">
                             <p className="text-xs text-gray-700 dark:text-gray-300 font-medium">
-                                "Baseado nas suas vendas de {format(new Date(), 'MMMM', { locale: undefined })} (R$ {businessTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0).toLocaleString('pt-BR')}), sua margem de lucro está em {(metrics.averageMargin || 0).toFixed(0)}%. Sugiro focar no produto '{metrics.calculatedProducts[0]?.name || 'Principal'}' que tem a maior margem."
+                                "Baseado nas suas vendas de {format(new Date(), 'MMMM', { locale: undefined })} (R$ {businessTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0).toLocaleString('pt-BR')}), sua margem de lucro está em {(metrics.totalMonthlyRevenue > 0 ? (metrics.totalMonthlyProfit / metrics.totalMonthlyRevenue * 100) : 0).toFixed(0)}%. Sugiro focar no produto '{metrics.calculatedProducts[0]?.name || 'Principal'}' que tem a maior margem."
                             </p>
                             <Link href="/ai-chat">
                                 <Button size="sm" variant="outline" className="w-full h-7 text-xs border-purple-200 text-purple-700 hover:bg-purple-100">
