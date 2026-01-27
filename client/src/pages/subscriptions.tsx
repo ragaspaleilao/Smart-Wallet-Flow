@@ -2,10 +2,11 @@ import { useState } from "react";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Flame, Snowflake, ChevronDown, ChevronUp, ExternalLink, Zap } from "lucide-react";
+import { ArrowLeft, Flame, Snowflake, ChevronDown, ChevronUp, ExternalLink, Zap, Clock, Hourglass, Bell, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 
 // Mock Data for Subscriptions
 const SUBSCRIPTIONS = [
@@ -71,6 +72,32 @@ const SUBSCRIPTIONS = [
   }
 ];
 
+// Mock Data for Free Trials
+const FREE_TRIALS = [
+    {
+        id: 101,
+        name: "Disney+",
+        futurePrice: 33.90,
+        daysLeft: 1,
+        hoursLeft: 20,
+        logo: "https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg",
+        color: "bg-[#113ccf]",
+        progress: 90,
+        usage: "low"
+    },
+    {
+        id: 102,
+        name: "Apple TV+",
+        futurePrice: 21.90,
+        daysLeft: 5,
+        hoursLeft: null,
+        logo: "https://upload.wikimedia.org/wikipedia/commons/2/28/Apple_TV_Plus_Logo.svg",
+        color: "bg-black",
+        progress: 40,
+        usage: "medium"
+    }
+];
+
 export default function Subscriptions() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
@@ -110,6 +137,93 @@ export default function Subscriptions() {
 
         <div className="px-6 -mt-6 relative z-20 space-y-6">
             
+            {/* Free Trial Sentinel - NEW SECTION */}
+            {FREE_TRIALS.length > 0 && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-4">
+                    <div className="flex items-center gap-2">
+                         <div className="bg-yellow-100 dark:bg-yellow-900/30 p-1.5 rounded-full animate-pulse">
+                            <Hourglass className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                         </div>
+                         <h3 className="font-bold text-gray-900 dark:text-white text-sm">Sentinela de Testes Grátis</h3>
+                    </div>
+
+                    {FREE_TRIALS.map(trial => {
+                        const isUrgent = trial.daysLeft <= 1;
+                        
+                        return (
+                            <div key={trial.id} className={cn(
+                                "bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border relative overflow-hidden",
+                                isUrgent ? "border-red-200 dark:border-red-900/50 ring-1 ring-red-100 dark:ring-red-900/30" : "border-gray-100 dark:border-zinc-800"
+                            )}>
+                                {/* Status Badge */}
+                                <div className={cn(
+                                    "absolute top-0 right-0 px-3 py-1 rounded-bl-xl text-[10px] font-bold uppercase tracking-wider",
+                                    isUrgent ? "bg-red-500 text-white" : "bg-green-500 text-white"
+                                )}>
+                                    {isUrgent ? 'Cobra em breve!' : 'Teste Grátis'}
+                                </div>
+
+                                <div className="flex gap-4">
+                                     {/* Logo */}
+                                    <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center font-bold text-xl shadow-sm shrink-0 overflow-hidden p-2 mt-1", trial.color)}>
+                                        <img src={trial.logo} alt={trial.name} className="w-full h-full object-contain" />
+                                    </div>
+                                    
+                                    <div className="flex-1 min-w-0 pt-0.5">
+                                        <div className="flex justify-between items-start pr-12">
+                                            <h4 className="font-bold text-gray-900 dark:text-white truncate">{trial.name}</h4>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 font-medium">
+                                            <Clock className="w-3 h-3" />
+                                            {isUrgent ? (
+                                                <span className="text-red-600 font-bold animate-pulse">Cobra em: {trial.hoursLeft} horas</span>
+                                            ) : (
+                                                <span>Restam {trial.daysLeft} dias</span>
+                                            )}
+                                        </div>
+
+                                        <p className="text-[10px] text-gray-400 mt-1">
+                                            Valor futuro: <span className="text-gray-900 dark:text-white font-semibold">{formatCurrency(trial.futurePrice)}/mês</span>
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Progress Bar */}
+                                <div className="mt-4 mb-3">
+                                    <div className="flex justify-between text-[10px] mb-1.5 font-medium">
+                                        <span className="text-gray-400">Início</span>
+                                        <span className={isUrgent ? "text-red-500" : "text-green-500"}>
+                                            {isUrgent ? 'Vence Amanhã' : 'Vence em breve'}
+                                        </span>
+                                    </div>
+                                    <Progress value={trial.progress} className="h-2" indicatorClassName={isUrgent ? "bg-red-500" : "bg-green-500"} />
+                                </div>
+
+                                {/* AI Insight & Action */}
+                                <div className="flex items-center justify-between gap-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
+                                    {trial.usage === 'low' ? (
+                                        <div className="flex items-center gap-2 text-[10px] text-gray-500 bg-gray-50 dark:bg-zinc-800/50 px-2 py-1 rounded-lg flex-1">
+                                            <Brain className="w-3 h-3 text-purple-500 shrink-0" />
+                                            <span className="leading-tight">Sem uso detectado. Cancelar?</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex-1"></div>
+                                    )}
+                                    
+                                    <Button size="sm" variant="outline" className={cn(
+                                        "rounded-full text-xs h-8 px-4 border-none shadow-sm",
+                                        isUrgent ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                    )}>
+                                        Cancelar Agora
+                                    </Button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
             {/* AI Insights Card */}
             <Card className="border-none shadow-lg bg-gradient-to-br from-purple-100 to-indigo-50 dark:from-purple-900/40 dark:to-indigo-900/20 overflow-hidden">
                 <div className="p-5 relative">
@@ -229,7 +343,7 @@ export default function Subscriptions() {
             </div>
 
             {/* Discovery Section (Bottom) */}
-            <div className="pt-4 pb-8">
+            <div className="pt-4 pb-8 space-y-4">
                 <Link href="/add-subscription">
                     <Card className="p-4 border-dashed border-2 border-gray-200 dark:border-zinc-800 bg-transparent flex flex-col items-center justify-center text-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors group">
                         <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-purple-100 dark:group-hover:bg-purple-900/30 transition-colors">
@@ -238,6 +352,16 @@ export default function Subscriptions() {
                         <p className="text-sm font-medium text-gray-500 group-hover:text-purple-600 transition-colors">Adicionar Assinatura Manualmente</p>
                     </Card>
                 </Link>
+
+                {/* Simulated Notification Preview */}
+                <div className="bg-gray-100 dark:bg-zinc-900 rounded-xl p-3 opacity-60 hover:opacity-100 transition-opacity cursor-default select-none scale-90 origin-bottom">
+                     <div className="flex items-center gap-2 mb-1">
+                        <div className="w-4 h-4 bg-gray-800 rounded flex items-center justify-center text-[8px] text-white font-bold">X</div>
+                        <span className="text-[10px] font-semibold text-gray-500 uppercase">Xô Preguiça • Agora</span>
+                     </div>
+                     <h4 className="font-bold text-sm text-gray-900 dark:text-white">⚠️ Alerta de Cobrança Amanhã</h4>
+                     <p className="text-xs text-gray-600 dark:text-gray-400">Seu teste da Disney+ vence amanhã. Toque para cancelar agora e economizar {formatCurrency(33.90)}.</p>
+                </div>
             </div>
         </div>
       </div>
