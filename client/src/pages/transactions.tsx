@@ -1,6 +1,6 @@
 import { getCategoryIcon } from "@/lib/utils";
 import { MobileLayout } from "@/components/mobile-layout";
-import { ArrowLeft, Search, Filter, ArrowUpRight, ArrowDownLeft, Table as TableIcon, AlertCircle, Clock, CheckCircle2, X } from "lucide-react";
+import { ArrowLeft, Search, Filter, ArrowUpRight, ArrowDownLeft, Table as TableIcon, AlertCircle, Clock, CheckCircle2, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,6 +9,7 @@ import { useFinancialStore, Category } from "@/lib/store";
 import { format, isBefore, startOfDay, endOfDay, startOfMonth, endOfMonth, addMonths } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 import { useState, useMemo, useEffect } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export default function Transactions() {
   const [location, setLocation] = useLocation();
@@ -103,6 +104,59 @@ export default function Transactions() {
     // Sort logic
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [allTransactions, filterPeriod, customStart, customEnd, filterType, filterCategory, filterAccount, searchQuery, accounts]);
+
+  // Grouping Logic for Installments
+  const groupedTransactions = useMemo(() => {
+      const groups: Record<string, typeof transactions> = {};
+      const standalone: typeof transactions = [];
+      const processedIds = new Set<string>();
+
+      // Identify installments pattern: "Description (X/Y)"
+      const installmentRegex = /^(.*) \((\d+)\/(\d+)\)$/;
+
+      // First pass: Group potential installments
+      transactions.forEach(tx => {
+          const match = tx.description.match(installmentRegex);
+          if (match) {
+              const baseDesc = match[1].trim();
+              const totalInstallments = match[3]; // Y part
+              // Use a composite key including amount/category to avoid mixing similar named items
+              const key = `${baseDesc}|${totalInstallments}|${tx.category}|${tx.amount.toFixed(2)}`;
+              
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(tx);
+          } else {
+              standalone.push(tx);
+          }
+      });
+
+      // Second pass: Decide what to group vs keep standalone
+      type TransactionItem = typeof transactions[number];
+      const finallist: (TransactionItem | { isGroup: true, items: TransactionItem[], key: string })[] = [];
+      
+      // Add standalone items
+      finallist.push(...standalone);
+
+      // Process groups
+      Object.entries(groups).forEach(([key, items]) => {
+          if (items.length > 1) {
+              // If we have multiple items for this "purchase" in the current view, group them
+              // Sort items by installment number usually, or date
+              items.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+              finallist.push({ isGroup: true, items, key });
+          } else {
+              // Only 1 item visible in this filter? Show as normal item
+              finallist.push(...items);
+          }
+      });
+
+      // Re-sort everything by date (using the date of the first item for groups)
+      return finallist.sort((a, b) => {
+          const dateA = new Date('isGroup' in a ? a.items[0].date : a.date).getTime();
+          const dateB = new Date('isGroup' in b ? b.items[0].date : b.date).getTime();
+          return dateB - dateA; // Newest first
+      });
+  }, [transactions]);
 
   // Projections
   const projections = useMemo(() => {
@@ -285,16 +339,20 @@ export default function Transactions() {
 
         {/* List */}
         <div className="flex-1 p-6 space-y-6 overflow-y-auto">
-          {transactions.length === 0 ? (
+          {groupedTransactions.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               Nenhuma transação encontrada.
             </div>
           ) : (
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide sticky top-0 bg-white dark:bg-black py-2">Recentes</h3>
-              {transactions.map((tx) => (
-                <TransactionItem key={tx.id} tx={tx} />
-              ))}
+              {groupedTransactions.map((item, idx) => {
+                  if ('isGroup' in item) {
+                      return <GroupedTransactionItem key={`group-${item.key}-${idx}`} group={item as any} />;
+                  } else {
+                      return <TransactionItem key={item.id} tx={item} />;
+                  }
+              })}
             </div>
           )}
         </div>
@@ -303,7 +361,67 @@ export default function Transactions() {
   );
 }
 
-function TransactionItem({ tx }: { tx: any }) {
+function GroupedTransactionItem({ group }: { group: { isGroup: true, items: any[], key: string } }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const firstItem = group.items[0];
+    const match = firstItem.description.match(/^(.*) \((\d+)\/(\d+)\)$/);
+    const baseDesc = match ? match[1] : firstItem.description;
+    const totalInstallments = match ? match[3] : '?';
+    
+    // Summary values
+    const totalAmount = group.items.reduce((acc, curr) => acc + curr.amount, 0);
+    const paidCount = group.items.filter(i => i.status === 'paid').length;
+    const totalCount = group.items.length;
+    const isOverdue = group.items.some(i => i.status === 'pending' && isBefore(new Date(i.date), startOfDay(new Date())));
+
+    return (
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+            <div className={`rounded-xl border border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden mb-3 shadow-sm ${isOverdue ? 'border-red-200 dark:border-red-900/30' : ''}`}>
+                <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-2xl relative">
+                                {getCategoryIcon(firstItem.category)}
+                                <div className="absolute -bottom-1 -right-1 bg-purple-600 text-white text-[9px] px-1.5 py-0.5 rounded-full border-2 border-white dark:border-zinc-900 font-bold">
+                                    {totalCount}x
+                                </div>
+                            </div>
+                            <div className="text-left">
+                                <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                    {baseDesc}
+                                    {isOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                    Parcelado em {totalInstallments}x • {paidCount} Pagos
+                                </p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <span className="font-bold block text-gray-900 dark:text-white">
+                                R$ {totalAmount.toFixed(2)}
+                            </span>
+                            <span className="text-[10px] text-purple-600 font-medium">
+                                Total do Grupo
+                            </span>
+                        </div>
+                    </div>
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent>
+                    <div className="bg-gray-50 dark:bg-zinc-950/50 border-t border-gray-100 dark:border-zinc-800 pl-4">
+                        {group.items.map((tx, idx) => (
+                            <div key={tx.id} className={`pr-3 ${idx !== group.items.length - 1 ? 'border-b border-gray-100 dark:border-zinc-800' : ''}`}>
+                                <TransactionItem tx={tx} isChild={true} />
+                            </div>
+                        ))}
+                    </div>
+                </CollapsibleContent>
+            </div>
+        </Collapsible>
+    );
+}
+
+function TransactionItem({ tx, isChild = false }: { tx: any, isChild?: boolean }) {
   const accounts = useFinancialStore(state => state.accounts);
   const account = accounts.find(a => a.id === tx.accountId);
   
@@ -312,31 +430,33 @@ function TransactionItem({ tx }: { tx: any }) {
 
   return (
     <EditTransactionSheet transaction={tx}>
-    <div className={`flex items-center justify-between py-3 group cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-900 rounded-xl px-3 -mx-3 transition-colors ${isOverdue ? 'bg-red-50/50 dark:bg-red-900/10' : ''}`}>
+    <div className={`flex items-center justify-between py-3 group cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800/80 rounded-xl px-3 -mx-3 transition-colors ${isChild ? 'scale-95 origin-left w-full pl-0' : ''} ${isOverdue && !isChild ? 'bg-red-50/50 dark:bg-red-900/10' : ''}`}>
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-2xl relative">
-          {getCategoryIcon(tx.category)}
-          
-          {/* Status Badge on Icon */}
-          {isOverdue && (
-            <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-950">
-                <AlertCircle className="w-3 h-3 text-white" />
+        {!isChild && (
+            <div className={`w-12 h-12 rounded-2xl bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-2xl relative`}>
+            {getCategoryIcon(tx.category)}
+            
+            {/* Status Badge on Icon */}
+            {isOverdue && (
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-950">
+                    <AlertCircle className="w-3 h-3 text-white" />
+                </div>
+            )}
+            {!isOverdue && isPending && (
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-950">
+                    <Clock className="w-3 h-3 text-white" />
+                </div>
+            )}
             </div>
-          )}
-          {!isOverdue && isPending && (
-             <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-950">
-                <Clock className="w-3 h-3 text-white" />
-            </div>
-          )}
-        </div>
-        <div>
+        )}
+        <div className={isChild ? "ml-2" : ""}>
           <div className="flex items-center gap-2">
-            <p className="font-semibold text-gray-900 dark:text-white group-hover:text-primary transition-colors">{tx.description}</p>
-            {isOverdue && <span className="text-[10px] font-bold text-red-600 bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded">ATRASADO</span>}
-            {!isOverdue && isPending && <span className="text-[10px] font-bold text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PENDENTE</span>}
+            <p className={`font-semibold text-gray-900 dark:text-white group-hover:text-primary transition-colors ${isChild ? 'text-sm' : ''}`}>{tx.description}</p>
+            {isOverdue && <span className="text-[9px] font-bold text-red-600 bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded">ATRASADO</span>}
+            {!isOverdue && isPending && <span className="text-[9px] font-bold text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PENDENTE</span>}
           </div>
           <p className="text-xs text-gray-500 flex items-center gap-1">
-            {tx.category} • {format(new Date(tx.date), 'dd/MM HH:mm')}
+            {!isChild && <>{tx.category} • </>} {format(new Date(tx.date), 'dd/MM HH:mm')}
             {account && (
               <>
                 <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-zinc-700" />
