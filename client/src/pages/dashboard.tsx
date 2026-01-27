@@ -3,22 +3,11 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings } from "lucide-react";
-import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 import { useFinancialStore } from "@/lib/store";
 import { format, isBefore, startOfDay } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 
 import { ShareButton } from "@/components/share-button";
-
-const chartData = [
-  { day: '1', value: 1200 },
-  { day: '5', value: 1800 },
-  { day: '10', value: 1600 },
-  { day: '15', value: 2400 },
-  { day: '20', value: 2100 },
-  { day: '25', value: 2800 },
-  { day: '30', value: 3250 },
-];
 
 export default function Dashboard() {
   const { balance, income, expense, transactions: allTransactions } = useFinancialStore();
@@ -166,46 +155,6 @@ export default function Dashboard() {
                     </div>
                 </Card>
             </Link>
-        </div>
-
-        {/* Chart Area */}
-        <div className="pt-2">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Fluxo Mensal</h3>
-                <Link href="/analytics">
-                    <Button variant="ghost" size="sm" className="h-6 px-2 text-purple-600 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 rounded-full text-[10px] font-bold">
-                        <Brain className="w-3 h-3 mr-1" />
-                        IA
-                    </Button>
-                </Link>
-            </div>
-            <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">+12% vs mês anterior</span>
-          </div>
-          <div className="h-32 w-full -ml-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <Tooltip 
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                  cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={3}
-                  fillOpacity={1} 
-                  fill="url(#colorValue)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
         </div>
 
         {/* Alerts */}
