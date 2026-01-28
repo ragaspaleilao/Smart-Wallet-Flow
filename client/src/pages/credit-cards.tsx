@@ -52,7 +52,9 @@ export default function CreditCards() {
     creditLimit: "",
     closingDay: "",
     dueDay: "",
-    color: "bg-black"
+    color: "bg-black",
+    hasAnnualFee: false,
+    annualFeeValue: ""
   });
 
   const selectedCard = creditCards.find(c => c.id === selectedCardId);
@@ -69,6 +71,7 @@ export default function CreditCards() {
     }
 
     const numericLimit = Number(newCardData.creditLimit.replace(/\D/g, "")) / 100;
+    const numericFee = newCardData.hasAnnualFee ? (Number(newCardData.annualFeeValue.replace(/\D/g, "")) / 100) : 0;
 
     addCreditCard({
         name: newCardData.name,
@@ -77,6 +80,8 @@ export default function CreditCards() {
         closingDay: Number(newCardData.closingDay),
         dueDay: Number(newCardData.dueDay),
         color: newCardData.color,
+        hasAnnualFee: newCardData.hasAnnualFee,
+        annualFeeValue: numericFee
     });
 
     setNewCardData({
@@ -85,7 +90,9 @@ export default function CreditCards() {
         creditLimit: "",
         closingDay: "",
         dueDay: "",
-        color: "bg-black"
+        color: "bg-black",
+        hasAnnualFee: false,
+        annualFeeValue: ""
     });
     setIsAddCardOpen(false);
     toast({ title: "Cartão adicionado com sucesso!" });
@@ -483,6 +490,33 @@ export default function CreditCards() {
                                     ))}
                                 </div>
                             </div>
+
+                            <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-zinc-800">
+                                <div className="flex items-center justify-between">
+                                    <Label className="cursor-pointer" htmlFor="annual-fee">Possui Anuidade?</Label>
+                                    <input 
+                                        id="annual-fee"
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                        checked={newCardData.hasAnnualFee}
+                                        onChange={(e) => setNewCardData({...newCardData, hasAnnualFee: e.target.checked})}
+                                    />
+                                </div>
+                                {newCardData.hasAnnualFee && (
+                                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                        <Label>Valor da Anuidade (Total)</Label>
+                                        <Input 
+                                            value={newCardData.annualFeeValue}
+                                            placeholder="R$ 0,00"
+                                            onChange={(e) => setNewCardData({...newCardData, annualFeeValue: formatCurrencyInput(e.target.value)})}
+                                        />
+                                        <p className="text-[10px] text-gray-500">
+                                            O valor será dividido automaticamente nas faturas mensais.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
                             <Button className="w-full mt-2" onClick={handleAddCard}>Criar Cartão</Button>
                         </div>
                     </DialogContent>

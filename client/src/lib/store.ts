@@ -125,6 +125,8 @@ export interface CreditCard {
   linkedAccountId?: string;
   color: string;
   status: 'active' | 'inactive';
+  hasAnnualFee?: boolean;
+  annualFeeValue?: number;
 }
 
 export interface CreditPurchase {
