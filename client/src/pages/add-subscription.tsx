@@ -7,13 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, CheckCircle2, DollarSign, Calendar, Sparkles, AlertTriangle } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { formatCurrency } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useFinancialStore } from "@/lib/store";
+import { formatCurrency } from "@/lib/utils";
+import { addMonths, setDate, startOfDay } from "date-fns";
 
 export default function AddSubscription() {
   const [_, setLocation] = useLocation();
   const addSubscription = useFinancialStore((state) => state.addSubscription);
+  const addCreditPurchase = useFinancialStore((state) => state.addCreditPurchase);
+  const addTransaction = useFinancialStore((state) => state.addTransaction);
   const accounts = useFinancialStore((state) => state.accounts);
   const creditCards = useFinancialStore((state) => state.creditCards);
   
@@ -55,13 +58,16 @@ export default function AddSubscription() {
     }
     
     const price = Number(formData.price);
+    const billingDay = Number(formData.isTrial ? formData.trialDays : formData.billingDay);
 
     // Subscriptions are ALWAYS recurring until cancelled.
-    // For credit card: it behaves like a monthly 1x purchase (not an installment plan).
+    // Behavior:
+    // - credit: generate monthly 1x purchases on the card (no installment plan)
+    // - non-credit: generate monthly pending expense transactions (projections)
     addSubscription({
         name: formData.name,
         price: price,
-        date: formData.isTrial ? "" : formData.billingDay,
+        date: formData.isTrial ? "" : String(billingDay),
         logo: "",
         color: formData.color,
         category: formData.category,
@@ -75,18 +81,56 @@ export default function AddSubscription() {
         futurePrice: formData.isTrial ? price : undefined
     });
 
-    if (formData.isTrial) {
-        toast({ 
-            title: "Sentinela Ativado!", 
-            description: `${formData.name} foi adicionado como teste grátis.` 
+    if (!formData.isTrial) {
+        const start = startOfDay(new Date());
+        const day = Math.max(1, Math.min(31, billingDay || 1));
+        const firstOccurrence = (() => {
+            const thisMonth = setDate(start, day);
+            if (thisMonth >= start) return thisMonth;
+            return setDate(addMonths(start, 1), day);
+        })();
+
+        for (let i = 0; i < 12; i++) {
+            const occurrence = addMonths(firstOccurrence, i);
+            const iso = occurrence.toISOString();
+
+            if (formData.paymentMethod === 'credit') {
+                addCreditPurchase({
+                    creditCardId: formData.creditCardId,
+                    description: `${formData.name} (Assinatura)`,
+                    totalAmount: price,
+                    installments: 1,
+                    installmentValue: price,
+                    category: 'Outros' as any,
+                    purchaseDate: iso,
+                });
+            } else {
+                addTransaction({
+                    amount: price,
+                    type: 'expense',
+                    category: 'Outros' as any,
+                    description: `${formData.name} (Assinatura)`,
+                    date: iso,
+                    source: 'manual',
+                    isPersonal: true,
+                    status: 'pending',
+                    accountId: formData.accountId,
+                    paymentMethod: formData.paymentMethod,
+                });
+            }
+        }
+
+        toast({
+            title: "Assinatura adicionada e projetada!",
+            description: "J\u00e1 lancei automaticamente os pr\u00f3ximos 12 meses nas faturas/proje\u00e7\u00f5es (sem parcelamento).",
         });
     } else {
-        toast({ 
-            title: "Assinatura Adicionada!", 
-            description: `${formData.name} foi adicionado como compra mensal recorrente (1x) at\u00e9 voc\u00ea cancelar.` 
+        toast({
+            title: "Sentinela Ativado!",
+            description: `${formData.name} foi adicionado como teste gr\u00e1tis.`,
         });
     }
-    
+
     setLocation("/subscriptions");
   };
 
