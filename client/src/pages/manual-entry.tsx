@@ -318,6 +318,13 @@ export default function ManualEntry() {
               onChange={handleAmountChange}
               autoFocus
             />
+            <div className="absolute top-full left-0 w-full text-center -mt-2">
+                <p className={`text-xs ${category === 'Moradia' && Number(amount.replace(/\D/g, "")) > 0 && Number(amount.replace(/\D/g, "")) < 50000 ? 'text-orange-600 font-bold animate-pulse' : 'text-gray-400'}`}>
+                    {category === 'Moradia' && Number(amount.replace(/\D/g, "")) > 0 && Number(amount.replace(/\D/g, "")) < 50000 
+                        ? "Valor baixo para Aluguel? Digite 150000 para R$ 1.500,00"
+                        : "Digite os centavos (ex: 150000 = R$ 1.500,00)"}
+                </p>
+            </div>
           </div>
         </div>
 

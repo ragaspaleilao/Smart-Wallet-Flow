@@ -149,13 +149,18 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
                 </div>
                 <div className="space-y-2">
                     <Label>Valor</Label>
-                    <Input 
-                        value={formData.amount} 
-                        placeholder="R$ 0,00"
-                        inputMode="numeric"
-                        onChange={(e) => setFormData({...formData, amount: formatCurrency(e.target.value)})}
-                        className="text-right font-bold"
-                    />
+                    <div className="relative">
+                        <Input 
+                            value={formData.amount} 
+                            placeholder="R$ 0,00"
+                            inputMode="numeric"
+                            onChange={(e) => setFormData({...formData, amount: formatCurrency(e.target.value)})}
+                            className="text-right font-bold"
+                        />
+                        <p className="text-[10px] text-gray-400 text-right mt-1">
+                            Digite os centavos (ex: 150000 = R$ 1.500,00)
+                        </p>
+                    </div>
                 </div>
             </div>
 
