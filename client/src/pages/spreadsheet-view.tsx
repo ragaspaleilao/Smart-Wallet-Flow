@@ -202,21 +202,27 @@ export default function SpreadsheetView() {
     const months = Array.from({ length: 12 }, (_, i) => i);
     
     // 1. Calculate Initial Balance (Start of Selected Year)
-    // Sum of all accounts initial balances (filtered by context)
+    // We derive this from the Current Balance (which is the source of truth for the user)
+    // Start Balance = Current Balance - (All Paid Transactions from Start of Year onwards)
     const filteredAccounts = accounts.filter(a => context === "personal" ? a.isPersonal : !a.isPersonal);
-    let initialBalance = filteredAccounts.reduce((acc, curr) => acc + curr.initialBalance, 0);
+    const currentTotalBalance = filteredAccounts.reduce((acc, curr) => acc + curr.balance, 0);
 
-    // Add all PAID transactions BEFORE this year
-    const pastTransactions = transactions.filter(t => {
+    // Filter transactions that are PAID and occurred on or after the start of the selected year
+    const subsequentTransactions = transactions.filter(t => {
         const tDate = new Date(t.date);
         const isContextMatch = context === "personal" ? t.isPersonal : !t.isPersonal;
-        const isPaid = t.status === 'paid';
-        return isContextMatch && isPaid && tDate.getFullYear() < year;
+        const isPaid = t.status === 'paid'; // Only paid transactions affect balance
+        return isContextMatch && isPaid && tDate.getFullYear() >= year;
     });
 
-    pastTransactions.forEach(t => {
-        if (t.type === 'income') initialBalance += t.amount;
-        else initialBalance -= t.amount;
+    let initialBalance = currentTotalBalance;
+    
+    // Reverse the effect of subsequent transactions to get back to start of year
+    subsequentTransactions.forEach(t => {
+        // If it was income, we subtract it to go back in time
+        if (t.type === 'income') initialBalance -= t.amount;
+        // If it was expense, we add it back to go back in time
+        else initialBalance += t.amount;
     });
 
     // 2. Build Monthly Data
