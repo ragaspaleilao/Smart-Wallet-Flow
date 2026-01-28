@@ -60,8 +60,19 @@ export default function CreditCards() {
   const selectedCard = creditCards.find(c => c.id === selectedCardId);
 
   const formatCurrencyInput = (val: string) => {
+    // Remove all non-numeric characters
     const number = val.replace(/\D/g, "");
-    return (Number(number) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    
+    if (!number) return "";
+    
+    // Convert to value (cents)
+    const value = Number(number) / 100;
+    
+    // Format using BRL currency style
+    return value.toLocaleString("pt-BR", { 
+        style: "currency", 
+        currency: "BRL" 
+    });
   };
 
   const handleAddCard = () => {
@@ -480,6 +491,7 @@ export default function CreditCards() {
                                 <Input 
                                     value={newCardData.creditLimit}
                                     placeholder="R$ 0,00"
+                                    inputMode="numeric"
                                     onChange={(e) => setNewCardData({...newCardData, creditLimit: formatCurrencyInput(e.target.value)})}
                                     className="text-lg font-bold"
                                 />
@@ -536,6 +548,7 @@ export default function CreditCards() {
                                         <Input 
                                             value={newCardData.annualFeeValue}
                                             placeholder="R$ 0,00"
+                                            inputMode="numeric"
                                             onChange={(e) => setNewCardData({...newCardData, annualFeeValue: formatCurrencyInput(e.target.value)})}
                                         />
                                         <p className="text-[10px] text-gray-500">

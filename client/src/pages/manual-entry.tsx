@@ -43,13 +43,19 @@ export default function ManualEntry() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
 
   const formatCurrency = (val: string) => {
-    // Simple mock formatter
+    // Remove all non-numeric characters
     const number = val.replace(/\D/g, "");
-    const formatted = (Number(number) / 100).toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
+    
+    if (!number) return "";
+    
+    // Convert to value (cents)
+    const value = Number(number) / 100;
+    
+    // Format using BRL currency style
+    return value.toLocaleString("pt-BR", { 
+        style: "currency", 
+        currency: "BRL" 
     });
-    return formatted;
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -286,6 +292,7 @@ export default function ManualEntry() {
           <div className="relative">
             <Input
               type="text"
+              inputMode="numeric"
               placeholder="R$ 0,00"
               className={`text-4xl font-bold h-20 border-none px-0 shadow-none focus-visible:ring-0 ${
                 type === 'expense' || paymentMethod === 'credit' ? 'text-red-600 placeholder:text-red-200' : 'text-green-600 placeholder:text-green-200'
