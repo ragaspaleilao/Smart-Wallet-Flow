@@ -305,42 +305,10 @@ export default function CreditCards() {
 
   // Calculate Limits
   const totalLimit = selectedCard?.creditLimit || 0;
-  // Used limit is sum of all remaining installments of all active purchases
+  // Used limit = sum of charges that are in the CURRENT open invoice (monthly subscriptions should not reserve 12 months)
   const usedLimit = useMemo(() => {
       if (!selectedCardId) return 0;
-      let used = 0;
-      creditPurchases.filter(p => p.creditCardId === selectedCardId && p.status === 'active').forEach(p => {
-          // Calculate how many installments are paid/past
-          // This is tricky without marking installments as paid.
-          // Simplified: We sum all "future" installments starting from TODAY's invoice perspective?
-          // Or just sum total remaining balance?
-          // Let's sum ALL installments that haven't been "paid" (we don't strictly track paid invoice yet).
-          // Better approach for Limit: Total Amount of purchase - Amount "cleared" by paid invoices.
-          // Since we don't have paid invoices fully linked yet, let's assume limit is occupied by ALL outstanding installments
-          
-          // Actually, limit is released as you pay the invoice.
-          // For now, let's just sum all installments that fall in current invoice or future.
-          // Any installment in PAST invoices is considered "paid" for limit purposes (simplified).
-          
-          const pDate = new Date(p.purchaseDate);
-          let itemMonth = getInvoiceMonthDate(pDate, selectedCard!.closingDay);
-          
-          // If itemMonth is before Current Invoice Month, it's paid (limit released).
-          // If itemMonth is >= Current Invoice Month, it consumes limit.
-          
-          // Wait, current invoice is "Open", so it consumes limit.
-          
-          for (let i = 1; i <= p.installments; i++) {
-               // Check if this installment is in the past (before current invoice)
-               // currentInvoiceDate is the "Open" invoice.
-               // If installment month < currentInvoiceDate, it's paid.
-               if (!isBefore(itemMonth, new Date(currentInvoiceDate.getFullYear(), currentInvoiceDate.getMonth(), 1))) {
-                   used += p.installmentValue;
-               }
-               itemMonth = addMonths(itemMonth, 1);
-          }
-      });
-      return used;
+      return getInvoiceItems(selectedCardId, currentInvoiceDate).reduce((acc, item) => acc + item.value, 0);
   }, [selectedCardId, creditPurchases, currentInvoiceDate]);
 
   const availableLimit = totalLimit - usedLimit;
