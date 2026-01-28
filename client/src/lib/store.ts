@@ -243,6 +243,12 @@ interface FinancialStore {
   updateSimulation: (id: string, sim: Partial<Simulation>) => void;
   removeSimulation: (id: string) => void;
   convertSimulationToReal: (id: string) => void;
+
+  // Subscription System
+  subscriptions: Subscription[];
+  addSubscription: (sub: Omit<Subscription, 'id'>) => void;
+  removeSubscription: (id: string) => void;
+  resetSubscriptions: () => void;
 }
 
 export interface Simulation {
@@ -259,11 +265,28 @@ export interface Simulation {
   manualInstallmentValue?: number; // User-defined installment value
 }
 
+export interface Subscription {
+  id: string;
+  name: string;
+  price: number;
+  date: string; // Day of month e.g. "15"
+  logo: string;
+  color: string;
+  category: string;
+  usage?: 'high' | 'medium' | 'low';
+  usageLabel?: string;
+  lastUsed?: string;
+  isTrial?: boolean;
+  trialDays?: number;
+  futurePrice?: number;
+}
+
 export const useFinancialStore = create<FinancialStore>()(
   persist(
     (set, get) => ({
       // --- Initial State (Clean for Manual Simulation) ---
       simulations: [],
+      subscriptions: [],
 
       creditCards: [],
       creditPurchases: [],
@@ -369,6 +392,19 @@ export const useFinancialStore = create<FinancialStore>()(
           
           get().removeSimulation(id);
       },
+
+      // Subscription Actions
+      addSubscription: (subData) => set((state) => ({
+        subscriptions: [...(state.subscriptions || []), { ...subData, id: nanoid() }]
+      })),
+
+      removeSubscription: (id) => set((state) => ({
+        subscriptions: (state.subscriptions || []).filter(s => s.id !== id)
+      })),
+      
+      resetSubscriptions: () => set(() => ({
+        subscriptions: []
+      })),
 
       // Credit Card Actions
       addCreditCard: (cardData) => set((state) => ({

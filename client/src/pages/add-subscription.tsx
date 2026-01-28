@@ -9,9 +9,12 @@ import { ArrowLeft, CheckCircle2, DollarSign, Calendar, Sparkles, AlertTriangle 
 import { Link, useLocation } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { useFinancialStore } from "@/lib/store";
 
 export default function AddSubscription() {
   const [_, setLocation] = useLocation();
+  const addSubscription = useFinancialStore((state) => state.addSubscription);
+  
   const [formData, setFormData] = useState({
     name: "",
     price: "",
@@ -36,25 +39,23 @@ export default function AddSubscription() {
         return;
     }
     
-    // In a real app, this would save to a store/backend
+    const price = Number(formData.price);
+
+    addSubscription({
+        name: formData.name,
+        price: price,
+        date: formData.isTrial ? "" : formData.billingDay,
+        logo: "", // We could add logic to pick a logo based on name, or just use first letter
+        color: formData.color,
+        category: formData.category,
+        usage: "medium", // Default
+        usageLabel: "Uso Normal",
+        isTrial: formData.isTrial,
+        trialDays: formData.isTrial ? Number(formData.trialDays) : undefined,
+        futurePrice: formData.isTrial ? price : undefined
+    });
+
     if (formData.isTrial) {
-        // Save to local storage for demo purposes
-        const newTrial = {
-            id: Date.now(),
-            name: formData.name,
-            futurePrice: Number(formData.price),
-            daysLeft: Number(formData.trialDays),
-            hoursLeft: null,
-            logo: "https://upload.wikimedia.org/wikipedia/commons/e/e3/Amazon_Prime_Logo.svg", // Placeholder logo
-            color: formData.color,
-            progress: 10,
-            usage: "low"
-        };
-
-        const existing = localStorage.getItem('custom_trials');
-        const trials = existing ? JSON.parse(existing) : [];
-        localStorage.setItem('custom_trials', JSON.stringify([...trials, newTrial]));
-
         toast({ 
             title: "Sentinela Ativado!", 
             description: `${formData.name} foi adicionado como teste grátis.` 
