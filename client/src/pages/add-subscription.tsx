@@ -14,6 +14,8 @@ import { useFinancialStore } from "@/lib/store";
 export default function AddSubscription() {
   const [_, setLocation] = useLocation();
   const addSubscription = useFinancialStore((state) => state.addSubscription);
+  const accounts = useFinancialStore((state) => state.accounts);
+  const creditCards = useFinancialStore((state) => state.creditCards);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -22,7 +24,10 @@ export default function AddSubscription() {
     billingDay: "",
     color: "bg-purple-600",
     isTrial: false,
-    trialDays: "7"
+    trialDays: "7",
+    paymentMethod: "pix" as "credit" | "debit" | "pix" | "transfer" | "cash",
+    accountId: accounts[0]?.id || "",
+    creditCardId: creditCards[0]?.id || ""
   });
 
   const popularServices = [
@@ -38,6 +43,16 @@ export default function AddSubscription() {
         toast({ title: "Preencha todos os campos", variant: "destructive" });
         return;
     }
+
+    if (formData.paymentMethod === 'credit' && !formData.creditCardId) {
+        toast({ title: "Selecione o cartão", variant: "destructive" });
+        return;
+    }
+
+    if (formData.paymentMethod !== 'credit' && !formData.accountId) {
+        toast({ title: "Selecione a conta/carteira", variant: "destructive" });
+        return;
+    }
     
     const price = Number(formData.price);
 
@@ -48,6 +63,9 @@ export default function AddSubscription() {
         logo: "", // We could add logic to pick a logo based on name, or just use first letter
         color: formData.color,
         category: formData.category,
+        paymentMethod: formData.paymentMethod,
+        accountId: formData.paymentMethod === 'credit' ? undefined : formData.accountId,
+        creditCardId: formData.paymentMethod === 'credit' ? formData.creditCardId : undefined,
         usage: "medium", // Default
         usageLabel: "Uso Normal",
         isTrial: formData.isTrial,
@@ -146,6 +164,7 @@ export default function AddSubscription() {
                         <div className="relative">
                             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <Input 
+                                data-testid="input-subscription-price"
                                 type="number"
                                 placeholder="0,00" 
                                 value={formData.price}
@@ -160,6 +179,7 @@ export default function AddSubscription() {
                         <div className="relative">
                             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <Input 
+                                data-testid="input-subscription-billingday"
                                 type="number"
                                 min="1"
                                 max={formData.isTrial ? "365" : "31"}
@@ -174,6 +194,55 @@ export default function AddSubscription() {
                         </div>
                     </div>
                 </div>
+
+                <div className="space-y-2">
+                    <Label>Como será pago?</Label>
+                    <Select value={formData.paymentMethod} onValueChange={(val: any) => setFormData({...formData, paymentMethod: val})}>
+                        <SelectTrigger data-testid="select-subscription-paymentmethod" className="bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 h-12 rounded-xl">
+                            <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="credit">Cartão (recorrente)</SelectItem>
+                            <SelectItem value="pix">Pix recorrente</SelectItem>
+                            <SelectItem value="debit">Débito</SelectItem>
+                            <SelectItem value="transfer">Transferência</SelectItem>
+                            <SelectItem value="cash">Dinheiro</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                {formData.paymentMethod === 'credit' ? (
+                    <div className="space-y-2">
+                        <Label>Cartão</Label>
+                        <Select value={formData.creditCardId} onValueChange={(val) => setFormData({...formData, creditCardId: val})}>
+                            <SelectTrigger data-testid="select-subscription-card" className="bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 h-12 rounded-xl">
+                                <SelectValue placeholder={creditCards.length ? "Selecione o cartão" : "Nenhum cartão cadastrado"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {creditCards.map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {!creditCards.length && (
+                            <p className="text-[11px] text-gray-500">Cadastre um cartão em “Cartões” para usar aqui.</p>
+                        )}
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        <Label>Conta / Carteira</Label>
+                        <Select value={formData.accountId} onValueChange={(val) => setFormData({...formData, accountId: val})}>
+                            <SelectTrigger data-testid="select-subscription-account" className="bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 h-12 rounded-xl">
+                                <SelectValue placeholder={accounts.length ? "Selecione" : "Nenhuma conta cadastrada"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {accounts.map((a) => (
+                                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
 
                 <div className="space-y-2">
                     <Label>Categoria</Label>

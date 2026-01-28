@@ -273,6 +273,9 @@ export interface Subscription {
   logo: string;
   color: string;
   category: string;
+  paymentMethod?: 'credit' | 'debit' | 'pix' | 'transfer' | 'cash';
+  accountId?: string;
+  creditCardId?: string;
   usage?: 'high' | 'medium' | 'low';
   usageLabel?: string;
   lastUsed?: string;
