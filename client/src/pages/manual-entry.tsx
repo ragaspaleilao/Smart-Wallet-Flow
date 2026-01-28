@@ -41,6 +41,9 @@ export default function ManualEntry() {
   const [frequency, setFrequency] = useState<'monthly' | 'biweekly' | 'yearly'>('monthly');
   const [occurrences, setOccurrences] = useState(12);
   const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
+  
+  // New state for installment input mode
+  const [installmentInputMode, setInstallmentInputMode] = useState<'total' | 'installment'>('total');
 
   const formatCurrency = (val: string) => {
     // Remove all non-numeric characters
@@ -107,21 +110,29 @@ export default function ManualEntry() {
         }
 
         const numInstallments = (isRecurring && recurrenceType === 'installments') ? installments : 1;
+        
+        // Calculate total amount based on input mode
+        let finalTotalAmount = numericAmount;
+        if (isRecurring && recurrenceType === 'installments' && installmentInputMode === 'installment') {
+            // If user entered installment value, multiply by installments to get total
+            finalTotalAmount = numericAmount * numInstallments;
+        }
+
         const purchaseDate = date; // Transaction date
 
         addCreditPurchase({
             creditCardId: cardId,
             purchaseDate: purchaseDate,
-            totalAmount: numericAmount,
+            totalAmount: finalTotalAmount,
             installments: numInstallments,
-            installmentValue: numericAmount / numInstallments,
+            installmentValue: finalTotalAmount / numInstallments,
             category,
             description,
         });
 
         toast({
             title: "Compra no Crédito salva!",
-            description: `${description} - ${numInstallments}x de ${(numericAmount / numInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
+            description: `${description} - ${numInstallments}x de ${(finalTotalAmount / numInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
         });
 
         setLocation("/dashboard");
@@ -142,8 +153,13 @@ export default function ManualEntry() {
         const baseDate = new Date(startDate);
         
         if (recurrenceType === 'installments') {
-            // Installments Logic (Total Amount / N)
-            const installmentValue = numericAmount / installments;
+            // Installments Logic
+            let installmentValue = numericAmount / installments;
+            
+            // If user entered installment value directly
+            if (installmentInputMode === 'installment') {
+                installmentValue = numericAmount;
+            }
             
             for (let i = 0; i < installments; i++) {
                 const newDate = new Date(baseDate);
@@ -435,8 +451,20 @@ export default function ManualEntry() {
                         </TabsList>
                         
                         <TabsContent value="installments" className="pt-4 space-y-4">
-                            <div className="space-y-2">
-                                <Label>Número de Parcelas</Label>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <Label>Número de Parcelas</Label>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-500">
+                                            {installmentInputMode === 'total' ? 'Valor Total' : 'Valor da Parcela'}
+                                        </span>
+                                        <Switch 
+                                            checked={installmentInputMode === 'installment'}
+                                            onCheckedChange={(checked) => setInstallmentInputMode(checked ? 'installment' : 'total')}
+                                        />
+                                    </div>
+                                </div>
+                                
                                 <div className="flex items-center gap-2">
                                     <Button 
                                         variant="outline" size="icon" 
@@ -456,10 +484,17 @@ export default function ManualEntry() {
                                         +
                                     </Button>
                                 </div>
-                                <p className="text-xs text-gray-500 text-center">
-                                    Serão gerados {installments} lançamentos mensais.
-                                    <br/>
-                                    Valor da parcela: <strong>{(Number(amount.replace(/[^0-9,]/g, "").replace(",", ".")) / 100 / installments).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong>
+                                
+                                <p className="text-xs text-gray-500 text-center bg-gray-100 dark:bg-zinc-800 p-2 rounded-lg">
+                                    {installmentInputMode === 'total' ? (
+                                        <>
+                                            Valor da parcela: <strong>{(Number(amount.replace(/\D/g, "")) / 100 / installments).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong>
+                                        </>
+                                    ) : (
+                                        <>
+                                            Valor Total: <strong>{(Number(amount.replace(/\D/g, "")) / 100 * installments).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong>
+                                        </>
+                                    )}
                                 </p>
                             </div>
                         </TabsContent>
