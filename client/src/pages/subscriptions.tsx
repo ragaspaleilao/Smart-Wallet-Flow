@@ -68,11 +68,11 @@ export default function Subscriptions() {
 
           <div className="text-center">
              <p className="text-sm text-gray-500 font-medium mb-1 uppercase tracking-wide">Gasto Mensal Recorrente</p>
-             <h2 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">
+             <h2 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight" data-testid="text-subscriptions-totalmonthly">
                 {formatCurrency(totalMonthly)}
              </h2>
              <p className="text-xs text-gray-400 mt-2">
-                {subscriptions.length} serviços ativos
+                {subscriptions.length} servi\u00e7os ativos \u2022 projetado at\u00e9 cancelar
              </p>
           </div>
         </div>

@@ -56,17 +56,19 @@ export default function AddSubscription() {
     
     const price = Number(formData.price);
 
+    // Subscriptions are ALWAYS recurring until cancelled.
+    // For credit card: it behaves like a monthly 1x purchase (not an installment plan).
     addSubscription({
         name: formData.name,
         price: price,
         date: formData.isTrial ? "" : formData.billingDay,
-        logo: "", // We could add logic to pick a logo based on name, or just use first letter
+        logo: "",
         color: formData.color,
         category: formData.category,
         paymentMethod: formData.paymentMethod,
         accountId: formData.paymentMethod === 'credit' ? undefined : formData.accountId,
         creditCardId: formData.paymentMethod === 'credit' ? formData.creditCardId : undefined,
-        usage: "medium", // Default
+        usage: "medium",
         usageLabel: "Uso Normal",
         isTrial: formData.isTrial,
         trialDays: formData.isTrial ? Number(formData.trialDays) : undefined,
@@ -81,11 +83,10 @@ export default function AddSubscription() {
     } else {
         toast({ 
             title: "Assinatura Adicionada!", 
-            description: `${formData.name} foi adicionado ao seu clube.` 
+            description: `${formData.name} foi adicionado como compra mensal recorrente (1x) at\u00e9 voc\u00ea cancelar.` 
         });
     }
     
-    // Go back to subscriptions list
     setLocation("/subscriptions");
   };
 
@@ -202,13 +203,16 @@ export default function AddSubscription() {
                             <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="credit">Cartão (recorrente)</SelectItem>
-                            <SelectItem value="pix">Pix recorrente</SelectItem>
-                            <SelectItem value="debit">Débito</SelectItem>
-                            <SelectItem value="transfer">Transferência</SelectItem>
-                            <SelectItem value="cash">Dinheiro</SelectItem>
+                            <SelectItem value="credit">Cartão (compra mensal 1x)</SelectItem>
+                            <SelectItem value="pix">Pix (mensal)</SelectItem>
+                            <SelectItem value="debit">Débito (mensal)</SelectItem>
+                            <SelectItem value="transfer">Transferência (mensal)</SelectItem>
+                            <SelectItem value="cash">Dinheiro (mensal)</SelectItem>
                         </SelectContent>
                     </Select>
+                    <p className="text-[11px] text-gray-500">
+                        A assinatura \u00e9 recorrente e fica projetada todo m\u00eas at\u00e9 voc\u00ea cancelar (n\u00e3o \u00e9 parcelamento).
+                    </p>
                 </div>
 
                 {formData.paymentMethod === 'credit' ? (
