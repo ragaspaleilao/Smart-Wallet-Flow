@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { 
+  Settings,
   CreditCard as CreditCardIcon, 
   Plus, 
   Calendar, 
@@ -41,12 +42,25 @@ export default function CreditCards() {
   const accounts = useFinancialStore((state) => state.accounts);
   
   const addCreditCard = useFinancialStore((state) => state.addCreditCard);
+  const updateCreditCard = useFinancialStore((state) => state.updateCreditCard);
 
   const [selectedCardId, setSelectedCardId] = useState<string>(creditCards[0]?.id || "");
   const [activeTab, setActiveTab] = useState("current");
   const [isProjectionOpen, setIsProjectionOpen] = useState(false);
   const [isAddCardOpen, setIsAddCardOpen] = useState(false);
+  const [isEditCardOpen, setIsEditCardOpen] = useState(false);
   const [newCardData, setNewCardData] = useState({
+    name: "",
+    brand: "mastercard",
+    creditLimit: "",
+    closingDay: "",
+    dueDay: "",
+    color: "bg-black",
+    hasAnnualFee: false,
+    annualFeeValue: ""
+  });
+  
+  const [editCardData, setEditCardData] = useState({
     name: "",
     brand: "mastercard",
     creditLimit: "",
@@ -58,6 +72,45 @@ export default function CreditCards() {
   });
 
   const selectedCard = creditCards.find(c => c.id === selectedCardId);
+
+  const openEditCard = () => {
+    if (!selectedCard) return;
+    setEditCardData({
+        name: selectedCard.name,
+        brand: selectedCard.brand,
+        creditLimit: formatCurrencyInput(String(selectedCard.creditLimit * 100)),
+        closingDay: String(selectedCard.closingDay),
+        dueDay: String(selectedCard.dueDay),
+        color: selectedCard.color,
+        hasAnnualFee: selectedCard.hasAnnualFee || false,
+        annualFeeValue: selectedCard.annualFeeValue ? formatCurrencyInput(String(selectedCard.annualFeeValue * 100)) : ""
+    });
+    setIsEditCardOpen(true);
+  };
+
+  const handleEditCard = () => {
+    if (!selectedCardId || !editCardData.name || !editCardData.creditLimit || !editCardData.closingDay || !editCardData.dueDay) {
+        toast({ title: "Preencha todos os campos", variant: "destructive" });
+        return;
+    }
+
+    const numericLimit = Number(editCardData.creditLimit.replace(/\D/g, "")) / 100;
+    const numericFee = editCardData.hasAnnualFee ? (Number(editCardData.annualFeeValue.replace(/\D/g, "")) / 100) : 0;
+
+    updateCreditCard(selectedCardId, {
+        name: editCardData.name,
+        brand: editCardData.brand as any,
+        creditLimit: numericLimit,
+        closingDay: Number(editCardData.closingDay),
+        dueDay: Number(editCardData.dueDay),
+        color: editCardData.color,
+        hasAnnualFee: editCardData.hasAnnualFee,
+        annualFeeValue: numericFee
+    });
+
+    setIsEditCardOpen(false);
+    toast({ title: "Cartão atualizado com sucesso!" });
+  };
 
   const formatCurrencyInput = (val: string) => {
     // Remove all non-numeric characters
@@ -423,8 +476,19 @@ export default function CreditCards() {
                             selectedCardId === card.id 
                             ? 'border-gray-900 dark:border-white shadow-lg scale-[1.02]' 
                             : 'border-transparent bg-gray-100 dark:bg-zinc-900 opacity-70'
-                        } ${card.color} text-white relative overflow-hidden`}
+                        } ${card.color} text-white relative overflow-hidden group`}
                     >
+                        {selectedCardId === card.id && (
+                            <div 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEditCard();
+                                }}
+                                className="absolute top-2 right-2 p-1.5 bg-black/20 hover:bg-black/40 rounded-full transition-colors z-10"
+                            >
+                                <Settings className="w-4 h-4 text-white" />
+                            </div>
+                        )}
                         <div className="flex justify-between items-start mb-8">
                             <span className="font-medium">{card.name}</span>
                             {card.brand === 'mastercard' && <div className="flex -space-x-2"><div className="w-6 h-6 rounded-full bg-red-500/80"></div><div className="w-6 h-6 rounded-full bg-yellow-500/80"></div></div>}
@@ -559,6 +623,111 @@ export default function CreditCards() {
                             </div>
 
                             <Button className="w-full mt-2" onClick={handleAddCard}>Criar Cartão</Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={isEditCardOpen} onOpenChange={setIsEditCardOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Editar Cartão</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label>Nome do Cartão</Label>
+                                <Input 
+                                    placeholder="Ex: Nubank Platinum" 
+                                    value={editCardData.name}
+                                    onChange={(e) => setEditCardData({...editCardData, name: e.target.value})}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Bandeira</Label>
+                                <Select 
+                                    value={editCardData.brand} 
+                                    onValueChange={(v) => setEditCardData({...editCardData, brand: v})}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="mastercard">Mastercard</SelectItem>
+                                        <SelectItem value="visa">Visa</SelectItem>
+                                        <SelectItem value="elo">Elo</SelectItem>
+                                        <SelectItem value="amex">American Express</SelectItem>
+                                        <SelectItem value="hipercard">Hipercard</SelectItem>
+                                        <SelectItem value="other">Outra</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Cor do Cartão</Label>
+                                <div className="flex gap-2 overflow-x-auto pb-2">
+                                    {['bg-black', 'bg-purple-600', 'bg-blue-600', 'bg-red-600', 'bg-green-600', 'bg-orange-500', 'bg-yellow-500', 'bg-pink-600', 'bg-indigo-600', 'bg-gray-600'].map(color => (
+                                        <div 
+                                            key={color}
+                                            className={`w-8 h-8 rounded-full cursor-pointer ${color} ${editCardData.color === color ? 'ring-2 ring-offset-2 ring-black dark:ring-white' : ''}`}
+                                            onClick={() => setEditCardData({...editCardData, color})}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Limite de Crédito</Label>
+                                <Input 
+                                    value={editCardData.creditLimit}
+                                    placeholder="R$ 0,00"
+                                    inputMode="numeric"
+                                    onChange={(e) => setEditCardData({...editCardData, creditLimit: formatCurrencyInput(e.target.value)})}
+                                    className="text-lg font-bold"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Dia Fechamento</Label>
+                                    <Input 
+                                        type="number"
+                                        placeholder="Dia" 
+                                        min="1" max="31"
+                                        value={editCardData.closingDay}
+                                        onChange={(e) => setEditCardData({...editCardData, closingDay: e.target.value})}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Dia Vencimento</Label>
+                                    <Input 
+                                        type="number"
+                                        placeholder="Dia" 
+                                        min="1" max="31"
+                                        value={editCardData.dueDay}
+                                        onChange={(e) => setEditCardData({...editCardData, dueDay: e.target.value})}
+                                    />
+                                </div>
+                            </div>
+                             <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-zinc-800">
+                                <div className="flex items-center justify-between">
+                                    <Label className="cursor-pointer" htmlFor="edit-annual-fee">Possui Anuidade?</Label>
+                                    <input 
+                                        id="edit-annual-fee"
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                        checked={editCardData.hasAnnualFee}
+                                        onChange={(e) => setEditCardData({...editCardData, hasAnnualFee: e.target.checked})}
+                                    />
+                                </div>
+                                {editCardData.hasAnnualFee && (
+                                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                        <Label>Valor da Anuidade (Mensal)</Label>
+                                        <Input 
+                                            value={editCardData.annualFeeValue}
+                                            placeholder="R$ 0,00"
+                                            inputMode="numeric"
+                                            onChange={(e) => setEditCardData({...editCardData, annualFeeValue: formatCurrencyInput(e.target.value)})}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            <Button className="w-full" onClick={handleEditCard}>Salvar Alterações</Button>
                         </div>
                     </DialogContent>
                 </Dialog>
