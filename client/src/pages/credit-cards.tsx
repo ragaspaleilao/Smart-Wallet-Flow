@@ -146,6 +146,34 @@ export default function CreditCards() {
         }
     });
 
+    // Add Annual Fee if applicable
+    if (card.hasAnnualFee && card.annualFeeValue && card.annualFeeValue > 0) {
+        const feeValue = card.annualFeeValue;
+        // Create a synthetic purchase object for the fee
+        const feePurchase: CreditPurchase = {
+            id: `fee-${card.id}-${targetMonth}-${targetYear}`, // Unique ID per month
+            creditCardId: card.id,
+            description: 'Anuidade',
+            totalAmount: feeValue * 12,
+            installments: 12,
+            installmentValue: feeValue,
+            category: 'Outros',
+            purchaseDate: new Date(targetYear, targetMonth, 1).toISOString(),
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        // We calculate a conceptual installment number based on month index for consistency, 
+        // or just rely on the UI to handle it.
+        items.push({
+            purchase: feePurchase,
+            installment: (targetMonth % 12) + 1, 
+            value: feeValue,
+            date: feePurchase.purchaseDate
+        });
+    }
+
     return items;
   };
 
@@ -504,14 +532,14 @@ export default function CreditCards() {
                                 </div>
                                 {newCardData.hasAnnualFee && (
                                     <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                                        <Label>Valor da Anuidade (Total)</Label>
+                                        <Label>Valor da Anuidade (Mensal)</Label>
                                         <Input 
                                             value={newCardData.annualFeeValue}
                                             placeholder="R$ 0,00"
                                             onChange={(e) => setNewCardData({...newCardData, annualFeeValue: formatCurrencyInput(e.target.value)})}
                                         />
                                         <p className="text-[10px] text-gray-500">
-                                            O valor será dividido automaticamente nas faturas mensais.
+                                            Este valor será cobrado automaticamente em todas as faturas.
                                         </p>
                                     </div>
                                 )}
@@ -755,7 +783,10 @@ export default function CreditCards() {
                                             <div>
                                                 <p className="font-medium text-gray-900 dark:text-white">{item.purchase.description}</p>
                                                 <p className="text-xs text-gray-500">
-                                                    {format(new Date(item.purchase.purchaseDate), 'dd/MM')} • Parcela {item.installment}/{item.purchase.installments}
+                                                    {item.purchase.description === 'Anuidade' ? 
+                                                        'Cobrança Mensal' : 
+                                                        `${format(new Date(item.purchase.purchaseDate), 'dd/MM')} • Parcela ${item.installment}/${item.purchase.installments}`
+                                                    }
                                                 </p>
                                             </div>
                                         </div>

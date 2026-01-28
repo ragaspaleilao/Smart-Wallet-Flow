@@ -190,6 +190,17 @@ export default function SpreadsheetView() {
          }
     });
 
+    // Add Annual Fees to projections
+    relevantCardIds.forEach(cardId => {
+        const card = creditCards.find(c => c.id === cardId);
+        if (card && card.hasAnnualFee && card.annualFeeValue && card.annualFeeValue > 0) {
+            const feeValue = card.annualFeeValue;
+            data.forEach(monthData => {
+                 monthData.creditCardBill += feeValue;
+            });
+        }
+    });
+
     // Calculate balances
     data.forEach(d => d.balance = d.income - d.expense - d.creditCardBill);
     
