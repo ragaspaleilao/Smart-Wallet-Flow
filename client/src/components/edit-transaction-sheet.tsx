@@ -52,8 +52,19 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
   }, [open, transaction]);
 
   const formatCurrency = (val: string) => {
+    // Remove all non-numeric characters
     const number = val.replace(/\D/g, "");
-    return (Number(number) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    
+    if (!number) return "";
+    
+    // Convert to value (cents)
+    const value = Number(number) / 100;
+    
+    // Format using BRL currency style
+    return value.toLocaleString("pt-BR", { 
+        style: "currency", 
+        currency: "BRL" 
+    });
   };
 
   const handleSave = () => {
@@ -140,6 +151,8 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
                     <Label>Valor</Label>
                     <Input 
                         value={formData.amount} 
+                        placeholder="R$ 0,00"
+                        inputMode="numeric"
                         onChange={(e) => setFormData({...formData, amount: formatCurrency(e.target.value)})}
                         className="text-right font-bold"
                     />

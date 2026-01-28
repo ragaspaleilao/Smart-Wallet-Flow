@@ -63,8 +63,9 @@ export default function ManualEntry() {
   };
 
   const handleSave = () => {
-    // Parse amount from formatted string (e.g., "R$ 1.234,56")
-    const numericAmount = Number(amount.replace(/[^0-9,]/g, "").replace(",", ".")) / 100;
+    // Parse amount from formatted string (e.g., "R$ 1.234,56") -> 1234.56
+    // We treat the input as a mask where digits are cents
+    const numericAmount = Number(amount.replace(/\D/g, "")) / 100;
 
     if (!numericAmount || numericAmount <= 0) {
       toast({
