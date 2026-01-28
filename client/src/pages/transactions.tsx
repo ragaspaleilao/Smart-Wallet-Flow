@@ -10,6 +10,11 @@ import { format, isBefore, startOfDay, endOfDay, startOfMonth, endOfMonth, addMo
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 import { useState, useMemo, useEffect } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { MoreVertical, Trash2, Edit, Save } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 export default function Transactions() {
   const [location, setLocation] = useLocation();
@@ -401,10 +406,24 @@ export default function Transactions() {
 
 function GroupedTransactionItem({ group }: { group: { isGroup: true, items: any[], key: string } }) {
     const [isOpen, setIsOpen] = useState(false);
+    const { removeTransaction, updateTransaction } = useFinancialStore();
+    
+    // Edit Dialog State
+    const [showEditDialog, setShowEditDialog] = useState(false);
+    
     const firstItem = group.items[0];
     const match = firstItem.description.match(/^(.*) \((\d+)\/(\d+)\)$/);
     const baseDesc = match ? match[1] : firstItem.description;
     const totalInstallments = match ? match[3] : '?';
+    
+    const [editName, setEditName] = useState(baseDesc);
+    const [editCategory, setEditCategory] = useState<Category>(firstItem.category);
+    
+    // Update local state when baseDesc changes
+    useEffect(() => {
+        setEditName(baseDesc);
+        setEditCategory(firstItem.category);
+    }, [baseDesc, firstItem.category]);
     
     // Summary values
     const totalAmount = group.items.reduce((acc, curr) => acc + curr.amount, 0);
@@ -412,11 +431,82 @@ function GroupedTransactionItem({ group }: { group: { isGroup: true, items: any[
     const totalCount = group.items.length;
     const isOverdue = group.items.some(i => i.status === 'pending' && isBefore(new Date(i.date), startOfDay(new Date())));
 
+    const handleDeleteGroup = () => {
+        if (confirm(`Tem certeza que deseja excluir todas as ${totalCount} parcelas de "${baseDesc}"?`)) {
+            group.items.forEach(item => removeTransaction(item.id));
+            toast({
+                title: "Grupo excluído",
+                description: `${totalCount} lançamentos foram removidos.`
+            });
+        }
+    };
+
+    const handleSaveGroup = () => {
+        group.items.forEach(item => {
+            let newDescription = item.description;
+            // Preserve installment number logic: "Desc (X/Y)"
+            const match = item.description.match(/^(.*) \((\d+\/\d+)\)$/);
+            if (match) {
+                newDescription = `${editName} (${match[2]})`;
+            } else {
+                newDescription = editName; 
+            }
+
+            updateTransaction(item.id, {
+                description: newDescription,
+                category: editCategory
+            });
+        });
+        
+        setShowEditDialog(false);
+        toast({
+            title: "Grupo atualizado",
+            description: "Todas as parcelas foram atualizadas."
+        });
+    };
+
+    const categories: Category[] = ['Alimentação', 'Transporte', 'Lazer', 'Saúde', 'Educação', 'Moradia', 'Outros', 'Salário', 'Vendas', 'Serviços'];
+
     return (
+        <>
+        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Editar Grupo</DialogTitle>
+                    <DialogDescription>
+                        Alterações aqui afetarão todas as {totalCount} parcelas deste grupo.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label>Descrição do Grupo</Label>
+                        <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Categoria</Label>
+                        <Select value={editCategory} onValueChange={(v: Category) => setEditCategory(v)}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {categories.map(c => (
+                                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancelar</Button>
+                    <Button onClick={handleSaveGroup}>Salvar Alterações</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
             <div className={`rounded-xl border border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden mb-3 shadow-sm ${isOverdue ? 'border-red-200 dark:border-red-900/30' : ''}`}>
-                <CollapsibleTrigger className="w-full">
-                    <div className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
+                <div className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
+                    <CollapsibleTrigger className="flex-1 flex items-center justify-between mr-2">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-2xl relative">
                                 {getCategoryIcon(firstItem.category)}
@@ -429,7 +519,7 @@ function GroupedTransactionItem({ group }: { group: { isGroup: true, items: any[
                                     {baseDesc}
                                     {isOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                                 </p>
-                                <p className="text-xs text-gray-500">
+                                <p className="text-xs text-gray-500 text-left">
                                     Parcelado em {totalInstallments}x • {paidCount} Pagos
                                 </p>
                             </div>
@@ -442,8 +532,26 @@ function GroupedTransactionItem({ group }: { group: { isGroup: true, items: any[
                                 Total do Grupo
                             </span>
                         </div>
-                    </div>
-                </CollapsibleTrigger>
+                    </CollapsibleTrigger>
+                    
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                                <MoreVertical className="w-4 h-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                Editar Grupo
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleDeleteGroup} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20">
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Excluir Grupo
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
                 
                 <CollapsibleContent>
                     <div className="bg-gray-50 dark:bg-zinc-950/50 border-t border-gray-100 dark:border-zinc-800 pl-4">
@@ -456,6 +564,7 @@ function GroupedTransactionItem({ group }: { group: { isGroup: true, items: any[
                 </CollapsibleContent>
             </div>
         </Collapsible>
+        </>
     );
 }
 
