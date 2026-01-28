@@ -577,9 +577,20 @@ export const useFinancialStore = create<FinancialStore>()(
       }),
 
       updateAccountBalance: (id, newBalance) => set((state) => {
-        const newAccounts = state.accounts.map(acc => 
-          acc.id === id ? { ...acc, balance: newBalance } : acc
-        );
+        const newAccounts = state.accounts.map(acc => {
+          if (acc.id === id) {
+            // When manually updating balance, we must also update initialBalance
+            // to maintain consistency if there are no transactions, or to re-baseline.
+            // Simplified Logic: New Initial = Old Initial + (New Balance - Old Balance)
+            const diff = newBalance - acc.balance;
+            return { 
+                ...acc, 
+                balance: newBalance,
+                initialBalance: acc.initialBalance + diff 
+            };
+          }
+          return acc;
+        });
         const globalBalance = newAccounts.reduce((acc, curr) => acc + curr.balance, 0);
         return { accounts: newAccounts, balance: globalBalance };
       }),
