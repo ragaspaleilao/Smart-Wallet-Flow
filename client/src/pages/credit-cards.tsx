@@ -1146,15 +1146,36 @@ export default function CreditCards() {
                                 </div>
                             ) : (
                                 invoiceItems.map((item, idx) => (
-                                    <div key={`${item.purchase.id}-${idx}`} className="flex items-center justify-between p-3 bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xl">
+                                    <div
+                                        key={`${item.purchase.id}-${idx}`}
+                                        className="flex items-center justify-between p-3 bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800"
+                                        data-testid={`row-credit-invoice-item-${item.purchase.id}-${idx}`}
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div
+                                                className="w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xl shrink-0"
+                                                data-testid={`icon-credit-invoice-item-${item.purchase.id}-${idx}`}
+                                            >
                                                 {item.purchase.category === 'Alimentação' ? '🍔' : 
                                                  item.purchase.category === 'Transporte' ? '🚗' : '🛍️'}
                                             </div>
-                                            <div>
-                                                <p className="font-medium text-gray-900 dark:text-white">{item.purchase.description}</p>
-                                                <p className="text-xs text-gray-500">
+                                            <div className="min-w-0">
+                                                <p
+                                                    className="text-[11px] font-semibold tracking-wide text-primary/80 dark:text-primary/70 uppercase truncate"
+                                                    data-testid={`text-credit-invoice-item-category-${item.purchase.id}-${idx}`}
+                                                >
+                                                    {item.purchase.category}
+                                                </p>
+                                                <p
+                                                    className="font-medium text-gray-900 dark:text-white truncate"
+                                                    data-testid={`text-credit-invoice-item-description-${item.purchase.id}-${idx}`}
+                                                >
+                                                    {item.purchase.description}
+                                                </p>
+                                                <p
+                                                    className="text-xs text-gray-500"
+                                                    data-testid={`text-credit-invoice-item-meta-${item.purchase.id}-${idx}`}
+                                                >
                                                     {item.purchase.description === 'Anuidade' ? 
                                                         'Cobrança Mensal' : 
                                                         `${format(new Date(item.purchase.purchaseDate), 'dd/MM')} • Parcela ${item.installment}/${item.purchase.installments}`
@@ -1162,7 +1183,10 @@ export default function CreditCards() {
                                                 </p>
                                             </div>
                                         </div>
-                                        <span className="font-bold text-gray-900 dark:text-white">
+                                        <span
+                                            className="font-bold text-gray-900 dark:text-white shrink-0"
+                                            data-testid={`text-credit-invoice-item-amount-${item.purchase.id}-${idx}`}
+                                        >
                                             {formatCurrency(item.value)}
                                         </span>
                                     </div>
