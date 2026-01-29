@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp, Zap, Flame, Car } from "lucide-react";
 import { useFinancialStore } from "@/lib/store";
-import { format, isBefore, startOfDay } from "date-fns";
+import { format, isBefore, startOfDay, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, parseISO, isWithinInterval } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 import { useState, useMemo } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -15,15 +15,62 @@ import { ShareButton } from "@/components/share-button";
 export default function Dashboard() {
   const { balance, income, expense, transactions: allTransactions } = useFinancialStore();
 
+  const [period, setPeriod] = useState<'this_month' | 'last_month' | 'year' | 'custom'>('this_month');
+  const [customStart, setCustomStart] = useState<string>(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [customEnd, setCustomEnd] = useState<string>(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+
+  const dateRange = useMemo(() => {
+    const today = new Date();
+
+    if (period === 'this_month') {
+      return { start: startOfMonth(today), end: endOfMonth(today) };
+    }
+
+    if (period === 'last_month') {
+      const lastMonth = subMonths(today, 1);
+      return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+    }
+
+    if (period === 'year') {
+      return { start: startOfYear(today), end: endOfYear(today) };
+    }
+
+    if (period === 'custom' && customStart && customEnd) {
+      return { start: parseISO(customStart), end: parseISO(customEnd) };
+    }
+
+    return { start: startOfMonth(today), end: endOfMonth(today) };
+  }, [period, customStart, customEnd]);
+
+  const periodLabel = useMemo(() => {
+    const today = new Date();
+    if (period === 'this_month') return `Mês atual (${format(today, 'MM/yyyy')})`;
+    if (period === 'last_month') {
+      const lastMonth = subMonths(today, 1);
+      return `Último mês (${format(lastMonth, 'MM/yyyy')})`;
+    }
+    if (period === 'year') return `Ano ${format(today, 'yyyy')}`;
+    if (period === 'custom' && customStart && customEnd) return `${format(parseISO(customStart), 'dd/MM')} – ${format(parseISO(customEnd), 'dd/MM')}`;
+    if (period === 'custom') return 'Personalizado';
+    return `Mês atual (${format(today, 'MM/yyyy')})`;
+  }, [period, customStart, customEnd]);
+
   // Filter ONLY personal transactions for the dashboard
   const transactions = allTransactions.filter(t => t.isPersonal);
 
-  // Recalculate dashboard totals to reflect only personal finance
-  const personalIncome = transactions
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      const d = new Date(t.date);
+      return isWithinInterval(d, dateRange);
+    });
+  }, [transactions, dateRange]);
+
+  // Recalculate dashboard totals to reflect only personal finance (paid only)
+  const personalIncome = filteredTransactions
     .filter(t => t.type === 'income' && t.status === 'paid')
     .reduce((acc, curr) => acc + curr.amount, 0);
-    
-  const personalExpense = transactions
+
+  const personalExpense = filteredTransactions
     .filter(t => t.type === 'expense' && t.status === 'paid')
     .reduce((acc, curr) => acc + curr.amount, 0);
 
@@ -124,27 +171,75 @@ export default function Dashboard() {
             </div>
           </div>
           
-          {/* Status Bar */}
+          {/* Filters + Status Bar */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-500" data-testid="text-dashboard-period-label">{periodLabel}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <select
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value as any)}
+                  className="h-8 rounded-full border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 text-xs font-bold text-gray-700 dark:text-gray-200"
+                  data-testid="select-dashboard-period"
+                >
+                  <option value="this_month">Mês atual</option>
+                  <option value="last_month">Último mês</option>
+                  <option value="year">Ano</option>
+                  <option value="custom">Personalizado</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {period === 'custom' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold text-gray-500">Início</p>
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  className="h-10 w-full rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 text-sm"
+                  data-testid="input-dashboard-custom-start"
+                />
+              </div>
+              <div className="space-y-1">
+                <p className="text-[11px] font-semibold text-gray-500">Fim</p>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  className="h-10 w-full rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 text-sm"
+                  data-testid="input-dashboard-custom-end"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex space-x-4">
-            <Link href="/transactions?type=income" className="flex-1">
-                <div className="bg-green-50 dark:bg-green-950/20 p-3 rounded-2xl flex items-center space-x-3 cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors">
+            <Link href={`/transactions?type=income`} className="flex-1" data-testid="link-dashboard-income">
+                <div className="bg-green-50 dark:bg-green-950/20 p-3 rounded-2xl flex items-center space-x-3 cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors" data-testid="card-dashboard-income">
                 <div className="bg-green-100 dark:bg-green-900/50 p-2 rounded-xl">
                     <ArrowUp className="w-4 h-4 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
                     <p className="text-xs text-green-600/80 dark:text-green-400/80 font-medium">Entradas</p>
-                    <p className="text-sm font-bold text-green-700 dark:text-green-300">{formatCurrency(personalIncome)}</p>
+                    <p className="text-sm font-bold text-green-700 dark:text-green-300" data-testid="text-dashboard-income">{formatCurrency(personalIncome)}</p>
+                    <p className="text-[10px] text-green-700/70 dark:text-green-300/70" data-testid="text-dashboard-income-period">{periodLabel}</p>
                 </div>
                 </div>
             </Link>
-            <Link href="/transactions?type=expense" className="flex-1">
-                <div className="bg-red-50 dark:bg-red-950/20 p-3 rounded-2xl flex items-center space-x-3 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">
+            <Link href={`/transactions?type=expense`} className="flex-1" data-testid="link-dashboard-expense">
+                <div className="bg-red-50 dark:bg-red-950/20 p-3 rounded-2xl flex items-center space-x-3 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors" data-testid="card-dashboard-expense">
                 <div className="bg-red-100 dark:bg-red-900/50 p-2 rounded-xl">
                     <ArrowDown className="w-4 h-4 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
                     <p className="text-xs text-red-600/80 dark:text-red-400/80 font-medium">Saídas</p>
-                    <p className="text-sm font-bold text-red-700 dark:text-red-300">{formatCurrency(personalExpense)}</p>
+                    <p className="text-sm font-bold text-red-700 dark:text-red-300" data-testid="text-dashboard-expense">{formatCurrency(personalExpense)}</p>
+                    <p className="text-[10px] text-red-700/70 dark:text-red-300/70" data-testid="text-dashboard-expense-period">{periodLabel}</p>
                 </div>
                 </div>
             </Link>

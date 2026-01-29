@@ -34,7 +34,7 @@ export default function Analytics() {
   
   // View State
   const [activeTab, setActiveTab] = useState("overview");
-  const [period, setPeriod] = useState<'30' | '90' | 'year' | 'future_6' | 'custom'>('30');
+  const [period, setPeriod] = useState<'this_month' | 'last_month' | 'year' | 'custom'>('this_month');
   const [customStart, setCustomStart] = useState<string>("");
   const [customEnd, setCustomEnd] = useState<string>("");
   const [selectedType, setSelectedType] = useState<'income' | 'expense' | 'all'>('all');
@@ -58,23 +58,36 @@ export default function Analytics() {
   // 1. Helper to determine date range for Overview
   const dateRange = useMemo(() => {
     const today = new Date();
-    if (period === '30') return { start: subDays(today, 30), end: today };
-    if (period === '90') return { start: subDays(today, 90), end: today };
+
+    if (period === 'this_month') {
+      return { start: startOfMonth(today), end: endOfMonth(today) };
+    }
+
+    if (period === 'last_month') {
+      const lastMonth = subMonths(today, 1);
+      return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+    }
+
     if (period === 'year') return { start: startOfYear(today), end: endOfYear(today) };
-    if (period === 'future_6') return { start: today, end: addMonths(today, 6) };
+
     if (period === 'custom' && customStart && customEnd) {
       return { start: parseISO(customStart), end: parseISO(customEnd) };
     }
-    return { start: subDays(today, 30), end: today };
+
+    return { start: startOfMonth(today), end: endOfMonth(today) };
   }, [period, customStart, customEnd]);
 
   const periodLabel = useMemo(() => {
-    if (period === '30') return 'Últimos 30 dias';
-    if (period === '90') return 'Últimos 3 meses';
-    if (period === 'year') return `Ano ${format(new Date(), 'yyyy')}`;
-    if (period === 'future_6') return 'Próximos 6 meses';
+    const today = new Date();
+    if (period === 'this_month') return `Mês atual (${format(today, 'MM/yyyy')})`;
+    if (period === 'last_month') {
+      const lastMonth = subMonths(today, 1);
+      return `Último mês (${format(lastMonth, 'MM/yyyy')})`;
+    }
+    if (period === 'year') return `Ano ${format(today, 'yyyy')}`;
     if (period === 'custom' && customStart && customEnd) return `${format(parseISO(customStart), 'dd/MM')} – ${format(parseISO(customEnd), 'dd/MM')}`;
-    return 'Últimos 30 dias';
+    if (period === 'custom') return 'Personalizado';
+    return `Mês atual (${format(today, 'MM/yyyy')})`;
   }, [period, customStart, customEnd]);
 
   // 2. Generate Virtual Transactions (Installments)
@@ -309,21 +322,37 @@ export default function Analytics() {
                                 {activeTab === 'overview' && (
                                     <div className="space-y-3">
                                         <Label>Período (Visão Geral)</Label>
-                                        <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="30">Últimos 30 dias</SelectItem>
-                                                <SelectItem value="90">Últimos 3 meses</SelectItem>
-                                                <SelectItem value="year">Este Ano</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                        <div className="space-y-2" data-testid="filter-period">
+                                            <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
+                                                <SelectTrigger data-testid="select-period"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="this_month">Mês atual</SelectItem>
+                                                    <SelectItem value="last_month">Último mês</SelectItem>
+                                                    <SelectItem value="year">Ano</SelectItem>
+                                                    <SelectItem value="custom">Personalizado</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+
+                                            {period === 'custom' && (
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <div className="space-y-1">
+                                                        <Label className="text-xs">Início</Label>
+                                                        <Input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} data-testid="input-custom-start" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label className="text-xs">Fim</Label>
+                                                        <Input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} data-testid="input-custom-end" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                                 
                                 <div className="space-y-3">
                                     <Label>Conta</Label>
                                     <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-                                        <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
+                                        <SelectTrigger data-testid="select-account"><SelectValue placeholder="Todas" /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="all">Todas as contas</SelectItem>
                                             {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
@@ -332,7 +361,7 @@ export default function Analytics() {
                                 </div>
                             </div>
                             <SheetFooter>
-                                <SheetClose asChild><Button className="w-full">Aplicar</Button></SheetClose>
+                                <SheetClose asChild><Button className="w-full" data-testid="button-apply-filters">Aplicar</Button></SheetClose>
                             </SheetFooter>
                         </SheetContent>
                     </Sheet>
