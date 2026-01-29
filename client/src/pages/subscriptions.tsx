@@ -14,6 +14,7 @@ export default function Subscriptions() {
     const subscriptions = useFinancialStore((state) => state.subscriptions || []);
     const updateSubscription = useFinancialStore((state) => state.updateSubscription);
     const removeSubscriptionAndCharges = useFinancialStore((state) => state.removeSubscriptionAndCharges);
+    const clearOrphanSubscriptionCharges = useFinancialStore((state) => state.clearOrphanSubscriptionCharges);
     const resetSubscriptions = useFinancialStore((state) => state.resetSubscriptions);
     
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -50,21 +51,42 @@ export default function Subscriptions() {
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">Clube de Assinaturas</h1>
             </div>
             
-            {subscriptions.length > 0 && (
-                <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs"
+            <div className="flex items-center gap-2">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-zinc-800 text-xs"
                     onClick={() => {
-                        if (confirm("Tem certeza que deseja zerar todas as assinaturas?")) {
-                            resetSubscriptions();
-                            toast({ title: "Todas as assinaturas foram removidas." });
+                        if (confirm("Deseja limpar cobranças órfãs? Isso remove lançamentos marcados como (Assinatura) que não estão no Clube.")) {
+                            clearOrphanSubscriptionCharges();
+                            toast({
+                                title: "Cobranças órfãs removidas",
+                                description: "Removi lançamentos (Assinatura) que sobraram em faturas/projeções.",
+                            });
                         }
                     }}
+                    data-testid="button-clear-orphan-charges"
                 >
-                    Zerar Tudo
+                    Limpar órfãs
                 </Button>
-            )}
+
+                {subscriptions.length > 0 && (
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs"
+                        onClick={() => {
+                            if (confirm("Tem certeza que deseja zerar todas as assinaturas?")) {
+                                resetSubscriptions();
+                                toast({ title: "Todas as assinaturas foram removidas." });
+                            }
+                        }}
+                        data-testid="button-reset-subscriptions"
+                    >
+                        Zerar Tudo
+                    </Button>
+                )}
+            </div>
           </div>
 
           <div className="text-center">
