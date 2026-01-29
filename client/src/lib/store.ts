@@ -528,8 +528,18 @@ export const useFinancialStore = create<FinancialStore>()(
         const sub = (state.subscriptions || []).find(s => s.id === id);
         const nextSubs = (state.subscriptions || []).filter(s => s.id !== id);
 
+        // Backward-compat: if the subscription no longer exists in the club,
+        // we still need a way to remove orphaned charges previously created.
+        // In this case, we remove charges by the known "(Assinatura)" marker.
         if (!sub) {
-          return { subscriptions: nextSubs };
+          const nextCreditPurchases = state.creditPurchases.filter(p => !String(p.description || '').includes('(Assinatura)'));
+          const nextTransactions = state.transactions.filter(t => !String(t.description || '').includes('(Assinatura)'));
+
+          return {
+            subscriptions: nextSubs,
+            creditPurchases: nextCreditPurchases,
+            transactions: nextTransactions,
+          };
         }
 
         const desc = `${sub.name} (Assinatura)`;
