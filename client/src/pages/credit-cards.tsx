@@ -244,15 +244,17 @@ export default function CreditCards() {
   const currentInvoiceDate = useMemo(() => {
     if (!selectedCard) return new Date();
     const now = new Date();
+
+    // Regra simples e consistente:
+    // - "Fatura atual" é a que ainda NÃO venceu.
+    // - Se já passou do vencimento do mês atual, mostramos o próximo mês.
     const dueThisMonth = new Date(now.getFullYear(), now.getMonth(), selectedCard.dueDay);
 
-    // If we're already past the due date of this month's invoice, the "current" one shown should advance.
-    // This prevents showing a past-due label like "vence 07/01" when today is 29/01.
     if (isAfter(now, dueThisMonth)) {
-        return addMonths(getInvoiceMonthDate(now, selectedCard.closingDay), 1);
+      return addMonths(now, 1);
     }
 
-    return getInvoiceMonthDate(now, selectedCard.closingDay);
+    return now;
   }, [selectedCard]);
 
   const invoiceItems = useMemo(() => {
