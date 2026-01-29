@@ -289,7 +289,7 @@ export default function CreditCards() {
     let items: { purchase: CreditPurchase, installment: number, value: number, date: string }[] = [];
 
     creditPurchases.filter(p => p.creditCardId === cardId && p.status === 'active').forEach(purchase => {
-        const pDate = parseISO(purchase.purchaseDate);
+        const pDate = parseISO(purchase.purchaseDate.length === 10 ? `${purchase.purchaseDate}T12:00:00` : purchase.purchaseDate);
         // First installment month
         let currentInstallmentMonth = getInvoiceMonthDate(pDate, card.closingDay);
         
@@ -1267,7 +1267,7 @@ export default function CreditCards() {
                                                 >
                                                     {item.purchase.description === 'Anuidade' ? 
                                                         'Cobrança Mensal' : 
-                                                        `${format(parseISO(item.purchase.purchaseDate), 'dd/MM')} • Parcela ${item.installment}/${item.purchase.installments}`
+                                                        `${format(parseISO(item.purchase.purchaseDate.length === 10 ? `${item.purchase.purchaseDate}T12:00:00` : item.purchase.purchaseDate), 'dd/MM')} • Parcela ${item.installment}/${item.purchase.installments}`
                                                     }
                                                 </p>
                                             </div>
