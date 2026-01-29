@@ -153,7 +153,7 @@ export default function CalendarIntegration() {
                                 <div className="space-y-2">
                                     <Label>Categorias para Sincronizar</Label>
                                     <div className="flex flex-wrap gap-2">
-                                        {useFinancialStore.getState().categories.map((cat) => (
+                                        {useFinancialStore.getState().transactionCategories.map((cat) => (
                                             <Badge 
                                                 key={cat}
                                                 variant={calendarSettings.syncCategories.includes(cat as Category) ? "default" : "outline"}

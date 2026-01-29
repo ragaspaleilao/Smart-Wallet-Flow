@@ -21,7 +21,7 @@ interface AddTransactionSheetProps {
 }
 
 export function AddTransactionSheet({ children, defaultType = 'expense', context = 'personal' }: AddTransactionSheetProps) {
-  const { addTransaction, accounts, categories } = useFinancialStore();
+  const { addTransaction, accounts, transactionCategories } = useFinancialStore();
   const [open, setOpen] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -154,7 +154,7 @@ export function AddTransactionSheet({ children, defaultType = 'expense', context
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        {categories.map((cat) => (
+                        {transactionCategories.map((cat) => (
                           <SelectItem key={cat} value={cat} data-testid={`option-add-category-${cat}`}>
                             {cat}
                           </SelectItem>

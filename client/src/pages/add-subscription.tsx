@@ -19,6 +19,7 @@ export default function AddSubscription() {
   const addTransaction = useFinancialStore((state) => state.addTransaction);
   const accounts = useFinancialStore((state) => state.accounts);
   const creditCards = useFinancialStore((state) => state.creditCards);
+  const subscriptionCategories = useFinancialStore((state) => state.subscriptionCategories);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -295,16 +296,15 @@ export default function AddSubscription() {
                 <div className="space-y-2">
                     <Label>Categoria</Label>
                     <Select value={formData.category} onValueChange={(val) => setFormData({...formData, category: val})}>
-                        <SelectTrigger className="bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 h-12 rounded-xl">
+                        <SelectTrigger data-testid="select-subscription-category" className="bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 h-12 rounded-xl">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="Streaming">Streaming de Vídeo</SelectItem>
-                            <SelectItem value="Música">Música & Áudio</SelectItem>
-                            <SelectItem value="Software">Software & Apps</SelectItem>
-                            <SelectItem value="Shopping">Shopping / Entregas</SelectItem>
-                            <SelectItem value="Jogos">Jogos & Gaming</SelectItem>
-                            <SelectItem value="Outros">Outros</SelectItem>
+                            {subscriptionCategories.map((cat) => (
+                              <SelectItem key={cat} value={cat} data-testid={`option-subscription-category-${cat}`}>
+                                {cat}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 </div>

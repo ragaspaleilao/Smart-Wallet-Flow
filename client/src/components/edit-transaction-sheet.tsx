@@ -23,7 +23,7 @@ interface EditTransactionSheetProps {
 }
 
 export function EditTransactionSheet({ transaction, children }: EditTransactionSheetProps) {
-  const { updateTransaction, removeTransaction, accounts, categories } = useFinancialStore();
+  const { updateTransaction, removeTransaction, accounts, transactionCategories } = useFinancialStore();
   const [open, setOpen] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -179,7 +179,7 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        {categories.map((cat) => (
+                        {transactionCategories.map((cat) => (
                           <SelectItem key={cat} value={cat} data-testid={`option-edit-category-${cat}`}>
                             {cat}
                           </SelectItem>

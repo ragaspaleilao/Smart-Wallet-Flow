@@ -40,6 +40,7 @@ export default function CreditCards() {
   const addCreditPurchase = useFinancialStore((state) => state.addCreditPurchase);
   const addCreditPayment = useFinancialStore((state) => state.addCreditPayment);
   const accounts = useFinancialStore((state) => state.accounts);
+  const creditCategories = useFinancialStore((state) => state.creditCategories);
   
   const addCreditCard = useFinancialStore((state) => state.addCreditCard);
   const updateCreditCard = useFinancialStore((state) => state.updateCreditCard);
@@ -802,15 +803,15 @@ export default function CreditCards() {
                                             value={newPurchase.category} 
                                             onValueChange={(v) => setNewPurchase({...newPurchase, category: v})}
                                         >
-                                            <SelectTrigger>
+                                            <SelectTrigger data-testid="select-credit-category">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="Alimentação">Alimentação</SelectItem>
-                                                <SelectItem value="Transporte">Transporte</SelectItem>
-                                                <SelectItem value="Lazer">Lazer</SelectItem>
-                                                <SelectItem value="Moradia">Moradia</SelectItem>
-                                                <SelectItem value="Outros">Outros</SelectItem>
+                                                {creditCategories.map((cat) => (
+                                                  <SelectItem key={cat} value={cat} data-testid={`option-credit-category-${cat}`}>
+                                                    {cat}
+                                                  </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     </div>

@@ -200,7 +200,7 @@ export default function Transactions() {
       return { pendingIncome, pendingExpense, net: pendingIncome - pendingExpense };
   }, [transactions]);
 
-  const categories = useFinancialStore((state) => state.categories);
+  const categories = useFinancialStore((state) => state.transactionCategories);
 
   return (
     <MobileLayout>

@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export default function ManualEntry() {
   const [_, setLocation] = useLocation();
-  const { addTransaction, addCreditPurchase, accounts, creditCards, categories } = useFinancialStore();
+  const { addTransaction, addCreditPurchase, accounts, creditCards, transactionCategories } = useFinancialStore();
   
   const [type, setType] = useState<"expense" | "income">("expense");
   const [paymentMethod, setPaymentMethod] = useState<"debit" | "credit">("debit");
@@ -23,10 +23,10 @@ export default function ManualEntry() {
   const [category, setCategory] = useState<Category>("Alimentação");
 
   useEffect(() => {
-    if (categories?.length && !categories.includes(category)) {
-      setCategory(categories[0] as Category);
+    if (transactionCategories?.length && !transactionCategories.includes(category)) {
+      setCategory(transactionCategories[0] as Category);
     }
-  }, [categories]);
+  }, [transactionCategories]);
   
   // Account / Card Selection
   const [accountId, setAccountId] = useState<string>("");
@@ -384,7 +384,7 @@ export default function ManualEntry() {
           <div className="space-y-2">
             <Label>Categoria</Label>
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-              {categories.map((cat) => (
+              {transactionCategories.map((cat) => (
                 <button 
                   key={cat} 
                   className={`px-4 py-2 border rounded-full text-sm whitespace-nowrap transition-colors ${

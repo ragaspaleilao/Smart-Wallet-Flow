@@ -164,9 +164,17 @@ interface FinancialStore {
   businessProducts: BusinessProduct[];
   businessSettings: BusinessSettings;
 
-  categories: string[];
-  addCategory: (name: string) => void;
-  removeCategory: (name: string) => void;
+  transactionCategories: string[];
+  addTransactionCategory: (name: string) => void;
+  removeTransactionCategory: (name: string) => void;
+
+  creditCategories: string[];
+  addCreditCategory: (name: string) => void;
+  removeCreditCategory: (name: string) => void;
+
+  subscriptionCategories: string[];
+  addSubscriptionCategory: (name: string) => void;
+  removeSubscriptionCategory: (name: string) => void;
 
   // Credit Card State
   creditCards: CreditCard[];
@@ -295,7 +303,9 @@ export const useFinancialStore = create<FinancialStore>()(
   persist(
     (set, get) => ({
       // --- Initial State (Clean for Manual Simulation) ---
-      categories: ['Alimentação', 'Transporte', 'Lazer', 'Saúde', 'Educação', 'Moradia', 'Outros', 'Salário', 'Vendas', 'Serviços', 'Investimento'],
+      transactionCategories: ['Alimentação', 'Transporte', 'Lazer', 'Saúde', 'Educação', 'Moradia', 'Outros', 'Salário', 'Vendas', 'Serviços', 'Investimento'],
+      creditCategories: ['Alimentação', 'Transporte', 'Lazer', 'Moradia', 'Outros'],
+      subscriptionCategories: ['Streaming', 'Música', 'Software', 'Shopping', 'Jogos', 'Outros'],
       simulations: [],
       subscriptions: [],
 
@@ -356,7 +366,9 @@ export const useFinancialStore = create<FinancialStore>()(
         ];
 
         set(() => ({
-          categories: ['Alimentação', 'Transporte', 'Lazer', 'Saúde', 'Educação', 'Moradia', 'Outros', 'Salário', 'Vendas', 'Serviços', 'Investimento'],
+          transactionCategories: ['Alimentação', 'Transporte', 'Lazer', 'Saúde', 'Educação', 'Moradia', 'Outros', 'Salário', 'Vendas', 'Serviços', 'Investimento'],
+          creditCategories: ['Alimentação', 'Transporte', 'Lazer', 'Moradia', 'Outros'],
+          subscriptionCategories: ['Streaming', 'Música', 'Software', 'Shopping', 'Jogos', 'Outros'],
           transactions: [],
           accounts,
           goals: [],
@@ -392,18 +404,46 @@ export const useFinancialStore = create<FinancialStore>()(
         }
       },
 
-      addCategory: (name) => set((state) => {
+      addTransactionCategory: (name) => set((state) => {
         const cleaned = (name || '').trim();
         if (!cleaned) return {};
-        const exists = state.categories.some(c => c.toLowerCase() === cleaned.toLowerCase());
+        const exists = state.transactionCategories.some(c => c.toLowerCase() === cleaned.toLowerCase());
         if (exists) return {};
-        return { categories: [...state.categories, cleaned].sort((a, b) => a.localeCompare(b, 'pt-BR')) };
+        return { transactionCategories: [...state.transactionCategories, cleaned].sort((a, b) => a.localeCompare(b, 'pt-BR')) };
       }),
 
-      removeCategory: (name) => set((state) => {
+      removeTransactionCategory: (name) => set((state) => {
         const cleaned = (name || '').trim();
         if (!cleaned) return {};
-        return { categories: state.categories.filter(c => c !== cleaned) };
+        return { transactionCategories: state.transactionCategories.filter(c => c !== cleaned) };
+      }),
+
+      addCreditCategory: (name) => set((state) => {
+        const cleaned = (name || '').trim();
+        if (!cleaned) return {};
+        const exists = state.creditCategories.some(c => c.toLowerCase() === cleaned.toLowerCase());
+        if (exists) return {};
+        return { creditCategories: [...state.creditCategories, cleaned].sort((a, b) => a.localeCompare(b, 'pt-BR')) };
+      }),
+
+      removeCreditCategory: (name) => set((state) => {
+        const cleaned = (name || '').trim();
+        if (!cleaned) return {};
+        return { creditCategories: state.creditCategories.filter(c => c !== cleaned) };
+      }),
+
+      addSubscriptionCategory: (name) => set((state) => {
+        const cleaned = (name || '').trim();
+        if (!cleaned) return {};
+        const exists = state.subscriptionCategories.some(c => c.toLowerCase() === cleaned.toLowerCase());
+        if (exists) return {};
+        return { subscriptionCategories: [...state.subscriptionCategories, cleaned].sort((a, b) => a.localeCompare(b, 'pt-BR')) };
+      }),
+
+      removeSubscriptionCategory: (name) => set((state) => {
+        const cleaned = (name || '').trim();
+        if (!cleaned) return {};
+        return { subscriptionCategories: state.subscriptionCategories.filter(c => c !== cleaned) };
       }),
 
       addSimulation: (simData) => set((state) => ({
