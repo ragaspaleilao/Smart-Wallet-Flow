@@ -261,12 +261,11 @@ export default function CreditCards() {
   // --- Helper Functions ---
 
   const getInvoiceMonthDate = (date: Date, closingDay: number) => {
-    // Compras feitas ATÉ o dia de fechamento (inclusive) pertencem à mesma fatura.
-    // Só vai para o próximo mês quando o dia da compra for DEPOIS do fechamento.
+    // Competência da fatura (regra simples e consistente):
+    // Se a compra foi feita ATÉ o dia de fechamento (inclusive), pertence ao mês da COMPRA.
+    // Se foi feita DEPOIS do fechamento, pertence ao mês seguinte.
     const purchaseDay = date.getDate();
-    if (purchaseDay > closingDay) {
-        return addMonths(date, 1);
-    }
+    if (purchaseDay > closingDay) return addMonths(date, 1);
     return date;
   };
 
@@ -367,10 +366,8 @@ export default function CreditCards() {
       if (!selectedCard) return [];
       const invoices: { date: Date; total: number; items: any[] }[] = [];
 
-      // FUTURAS lista os próximos meses de competência da fatura.
-      // Aqui usamos o mês do "agora" (calendário) como referência,
-      // porque a fatura atual pode fechar no mês seguinte (ex: Jan fecha em 03/02).
-      // Ex: hoje 29/01 -> futuras começa em Fevereiro.
+      // FUTURAS deve mostrar os próximos meses (calendário) SEM puxar compras do mês anterior.
+      // Ex: hoje em Janeiro -> começa em Fevereiro.
       const now = new Date();
       let date = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
