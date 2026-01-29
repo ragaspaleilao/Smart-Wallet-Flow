@@ -19,7 +19,10 @@ import {
   BarChart2,
   Mic,
   Camera,
-  Bell
+  Bell,
+  MoreVertical,
+  Edit,
+  Trash2
 } from "lucide-react";
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
@@ -33,6 +36,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 function ManageInlineCategories({
   scope,
@@ -114,6 +129,8 @@ export default function CreditCards() {
   const creditCards = useFinancialStore((state) => state.creditCards);
   const creditPurchases = useFinancialStore((state) => state.creditPurchases);
   const addCreditPurchase = useFinancialStore((state) => state.addCreditPurchase);
+  const updateCreditPurchase = useFinancialStore((state) => state.updateCreditPurchase);
+  const removeCreditPurchase = useFinancialStore((state) => state.removeCreditPurchase);
   const addCreditPayment = useFinancialStore((state) => state.addCreditPayment);
   const accounts = useFinancialStore((state) => state.accounts);
   const creditCategories = useFinancialStore((state) => state.creditCategories);
@@ -417,8 +434,32 @@ export default function CreditCards() {
       date: new Date().toISOString().split('T')[0]
   });
   const [isPurchaseOpen, setIsPurchaseOpen] = useState(false);
+  const [editingPurchaseId, setEditingPurchaseId] = useState<string | null>(null);
 
-  const handleAddPurchase = () => {
+  const resetPurchaseForm = () => {
+      setNewPurchase({
+          description: "",
+          amount: "",
+          installments: "1",
+          category: "Outros",
+          date: new Date().toISOString().split('T')[0]
+      });
+      setEditingPurchaseId(null);
+  };
+
+  const openEditPurchase = (purchase: CreditPurchase) => {
+      setEditingPurchaseId(purchase.id);
+      setNewPurchase({
+          description: purchase.description,
+          amount: formatCurrencyInput(String(purchase.totalAmount * 100)),
+          installments: String(purchase.installments),
+          category: purchase.category as any,
+          date: purchase.purchaseDate
+      });
+      setIsPurchaseOpen(true);
+  };
+
+  const handleSavePurchase = () => {
       if (!newPurchase.description || !newPurchase.amount || !selectedCardId) {
           toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
           return;
@@ -427,19 +468,56 @@ export default function CreditCards() {
       const total = Number(newPurchase.amount.replace(/\D/g, "")) / 100;
       const inst = Number(newPurchase.installments);
 
-      addCreditPurchase({
-          creditCardId: selectedCardId,
-          description: newPurchase.description,
-          totalAmount: total,
-          installments: inst,
-          installmentValue: total / inst,
-          category: newPurchase.category as any,
-          purchaseDate: newPurchase.date,
-      });
+      if (editingPurchaseId) {
+          updateCreditPurchase(editingPurchaseId, {
+              description: newPurchase.description,
+              totalAmount: total,
+              installments: inst,
+              installmentValue: total / inst,
+              category: newPurchase.category as any,
+              purchaseDate: newPurchase.date,
+          });
+          toast({ title: "Lançamento atualizado" });
+      } else {
+          addCreditPurchase({
+              creditCardId: selectedCardId,
+              description: newPurchase.description,
+              totalAmount: total,
+              installments: inst,
+              installmentValue: total / inst,
+              category: newPurchase.category as any,
+              purchaseDate: newPurchase.date,
+          });
+          toast({ title: "Compra adicionada com sucesso!" });
+      }
 
-      setNewPurchase({ description: "", amount: "", installments: "1", category: "Outros", date: new Date().toISOString().split('T')[0] });
+      resetPurchaseForm();
       setIsPurchaseOpen(false);
-      toast({ title: "Compra adicionada com sucesso!" });
+  };
+
+  const handleDeleteInstallmentOnly = (purchaseId: string) => {
+      // Mockup: remove esta parcela apenas marcando a compra como reembolsada parcial.
+      // Como o modelo atual n\u00e3o armazena parcelas individualmente, removemos 1 parcela do total.
+      const p = creditPurchases.find(x => x.id === purchaseId);
+      if (!p) return;
+
+      if (p.installments <= 1) {
+          removeCreditPurchase(purchaseId);
+          toast({ title: "Lançamento removido" });
+          return;
+      }
+
+      const newInstallments = p.installments - 1;
+      updateCreditPurchase(purchaseId, {
+          installments: newInstallments,
+          totalAmount: p.installmentValue * newInstallments,
+      });
+      toast({ title: "Parcela removida", description: "Removeu 1 parcela deste lançamento." });
+  };
+
+  const handleDeleteEntirePurchase = (purchaseId: string) => {
+      removeCreditPurchase(purchaseId);
+      toast({ title: "Lançamento excluído" });
   };
 
   // --- Payment Form ---
@@ -835,10 +913,16 @@ export default function CreditCards() {
 
                 {/* Main Actions */}
                 <div className="grid grid-cols-1 gap-3">
-                    <Dialog open={isPurchaseOpen} onOpenChange={setIsPurchaseOpen}>
+                    <Dialog open={isPurchaseOpen} onOpenChange={(open) => {
+                        setIsPurchaseOpen(open);
+                        if (!open) resetPurchaseForm();
+                    }}>
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>Lançar Compra - {selectedCard.name}</DialogTitle>
+                                <DialogTitle>{editingPurchaseId ? 'Editar Lançamento' : 'Lançar Compra'} - {selectedCard.name}</DialogTitle>
+                                <DialogDescription>
+                                    {editingPurchaseId ? 'As alterações serão aplicadas ao lançamento inteiro (todas as parcelas).' : 'Registre uma compra no cartão para compor a fatura.'}
+                                </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">
                                 <div className="space-y-2">
@@ -847,6 +931,7 @@ export default function CreditCards() {
                                         placeholder="Ex: Supermercado, Uber..." 
                                         value={newPurchase.description}
                                         onChange={(e) => setNewPurchase({...newPurchase, description: e.target.value})}
+                                        data-testid="input-credit-purchase-description"
                                     />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
@@ -857,6 +942,7 @@ export default function CreditCards() {
                                             placeholder="R$ 0,00"
                                             onChange={(e) => setNewPurchase({...newPurchase, amount: formatCurrencyInput(e.target.value)})}
                                             className="text-lg font-bold"
+                                            data-testid="input-credit-purchase-amount"
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -865,7 +951,7 @@ export default function CreditCards() {
                                             value={newPurchase.installments} 
                                             onValueChange={(v) => setNewPurchase({...newPurchase, installments: v})}
                                         >
-                                            <SelectTrigger>
+                                            <SelectTrigger data-testid="select-credit-purchase-installments">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -938,10 +1024,13 @@ export default function CreditCards() {
                                             type="date"
                                             value={newPurchase.date}
                                             onChange={(e) => setNewPurchase({...newPurchase, date: e.target.value})}
+                                            data-testid="input-credit-purchase-date"
                                         />
                                     </div>
                                 </div>
-                                <Button className="w-full" onClick={handleAddPurchase}>Salvar Compra</Button>
+                                <Button className="w-full" onClick={handleSavePurchase} data-testid="button-save-credit-purchase">
+                                    {editingPurchaseId ? 'Salvar Alterações' : 'Salvar Compra'}
+                                </Button>
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -1183,12 +1272,84 @@ export default function CreditCards() {
                                                 </p>
                                             </div>
                                         </div>
-                                        <span
-                                            className="font-bold text-gray-900 dark:text-white shrink-0"
-                                            data-testid={`text-credit-invoice-item-amount-${item.purchase.id}-${idx}`}
-                                        >
-                                            {formatCurrency(item.value)}
-                                        </span>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <span
+                                                className="font-bold text-gray-900 dark:text-white"
+                                                data-testid={`text-credit-invoice-item-amount-${item.purchase.id}-${idx}`}
+                                            >
+                                                {formatCurrency(item.value)}
+                                            </span>
+
+                                            {item.purchase.description !== 'Anuidade' && (
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                                                            data-testid={`button-credit-invoice-item-actions-${item.purchase.id}-${idx}`}
+                                                        >
+                                                            <MoreVertical className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-48" data-testid={`menu-credit-invoice-item-actions-${item.purchase.id}-${idx}`}>
+                                                        <DropdownMenuItem
+                                                            onClick={() => openEditPurchase(item.purchase)}
+                                                            data-testid={`menuitem-credit-invoice-item-edit-${item.purchase.id}-${idx}`}
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                            Editar lançamento
+                                                        </DropdownMenuItem>
+
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <DropdownMenuItem
+                                                                    className="text-red-600 focus:text-red-700"
+                                                                    onSelect={(e) => e.preventDefault()}
+                                                                    data-testid={`menuitem-credit-invoice-item-delete-${item.purchase.id}-${idx}`}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                    Excluir...
+                                                                </DropdownMenuItem>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent data-testid={`dialog-credit-invoice-item-delete-${item.purchase.id}-${idx}`}>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Excluir lançamento</AlertDialogTitle>
+                                                                    <AlertDialogDescription>
+                                                                        Escolha como deseja excluir este lançamento.
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <div className="rounded-xl border border-gray-100 dark:border-zinc-800 p-3">
+                                                                    <div className="text-sm font-semibold text-gray-900 dark:text-white" data-testid={`text-credit-delete-title-${item.purchase.id}-${idx}`}>
+                                                                        {item.purchase.description}
+                                                                    </div>
+                                                                    <div className="text-xs text-gray-500 mt-1" data-testid={`text-credit-delete-subtitle-${item.purchase.id}-${idx}`}>
+                                                                        {item.purchase.installments > 1 ? `Parcelado em ${item.purchase.installments}x • Remover parcela afeta as futuras no mockup.` : 'À vista'}
+                                                                    </div>
+                                                                </div>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel data-testid={`button-credit-delete-cancel-${item.purchase.id}-${idx}`}>Cancelar</AlertDialogCancel>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        onClick={() => handleDeleteInstallmentOnly(item.purchase.id)}
+                                                                        data-testid={`button-credit-delete-one-${item.purchase.id}-${idx}`}
+                                                                    >
+                                                                        Excluir só esta parcela
+                                                                    </Button>
+                                                                    <AlertDialogAction
+                                                                        className="bg-red-600 hover:bg-red-700"
+                                                                        onClick={() => handleDeleteEntirePurchase(item.purchase.id)}
+                                                                        data-testid={`button-credit-delete-all-${item.purchase.id}-${idx}`}
+                                                                    >
+                                                                        Excluir tudo
+                                                                    </AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            )}
+                                        </div>
                                     </div>
                                 ))
                             )}

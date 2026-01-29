@@ -191,6 +191,7 @@ interface FinancialStore {
   
   addCreditPurchase: (purchase: Omit<CreditPurchase, 'id' | 'createdAt' | 'updatedAt' | 'status'>) => void;
   updateCreditPurchase: (id: string, data: Partial<CreditPurchase>) => void;
+  removeCreditPurchase: (id: string) => void;
   
   addCreditPayment: (payment: Omit<CreditInvoicePayment, 'id'>) => void;
 
@@ -546,6 +547,10 @@ export const useFinancialStore = create<FinancialStore>()(
 
       updateCreditPurchase: (id, data) => set((state) => ({
         creditPurchases: state.creditPurchases.map(p => p.id === id ? { ...p, ...data, updatedAt: new Date().toISOString() } : p)
+      })),
+
+      removeCreditPurchase: (id) => set((state) => ({
+        creditPurchases: state.creditPurchases.filter(p => p.id !== id)
       })),
 
       addCreditPayment: (paymentData) => set((state) => {
