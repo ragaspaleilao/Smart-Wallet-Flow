@@ -319,7 +319,7 @@ export default function CreditCards() {
             installments: 12,
             installmentValue: feeValue,
             category: 'Outros',
-            purchaseDate: new Date(targetYear, targetMonth, 1).toISOString(),
+            purchaseDate: `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-01`,
             status: 'active',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
@@ -366,9 +366,9 @@ export default function CreditCards() {
       if (!selectedCard) return [];
       const invoices: { date: Date; total: number; items: any[] }[] = [];
 
-      // FUTURAS lista os pr f3ximos meses de COMPET eancia da fatura.
-      // getInvoiceItems espera o "m eas de compet eancia".
-      // Ex: fatura atual = Janeiro -> futuras come e7a em Fevereiro.
+      // FUTURAS lista os próximos meses de competência da fatura.
+      // getInvoiceItems espera o "mês de competência".
+      // Ex: fatura atual = Janeiro -> futuras começa em Fevereiro.
       let date = new Date(currentInvoiceDate.getFullYear(), currentInvoiceDate.getMonth() + 1, 1);
 
       for (let i = 0; i < 12; i++) {
