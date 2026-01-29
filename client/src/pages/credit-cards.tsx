@@ -348,11 +348,12 @@ export default function CreditCards() {
     // mesmo que o fechamento/vencimento ocorram no mês seguinte.
     // Ex: hoje 29/01, fecha 03/02 => ainda é FATURA DE JANEIRO (em aberto).
 
-    const closesNextMonth = selectedCard.closingDay <= now.getDate();
+    // Se ainda não passou do dia de fechamento, a fatura atual continua sendo do mês atual.
+    // Ex: hoje 29/01 e fechamento 03 => ainda é fatura de Janeiro (fecha em 03/02).
+    const closesThisMonth = now.getDate() > selectedCard.closingDay;
 
-    // Se o fechamento do ciclo ainda não aconteceu dentro do mês corrente,
-    // então a fatura atual é a do mês atual. Caso contrário, já virou a do próximo mês.
-    return closesNextMonth ? addMonths(now, 1) : now;
+    // Se o ciclo já fechou neste mês (ex: hoje 10 e fechamento 03), a fatura atual já é a do próximo mês.
+    return closesThisMonth ? addMonths(now, 1) : now;
   }, [selectedCard]);
 
   const invoiceItems = useMemo(() => {
