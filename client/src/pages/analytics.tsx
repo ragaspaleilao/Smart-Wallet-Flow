@@ -362,14 +362,46 @@ export default function Analytics() {
             {/* --- OVERVIEW TAB --- */}
             {activeTab === 'overview' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                    {/* Clarity block */}
+                    <div className="rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm" data-testid="card-analytics-explainer">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <p className="text-sm font-bold text-gray-900 dark:text-white" data-testid="text-analytics-explainer-title">Como funciona a Visão Geral</p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1" data-testid="text-analytics-explainer-body">
+                                    Esta aba mostra o <span className="font-semibold">fluxo de caixa</span> do período (entradas e saídas) somando todas as contas.
+                                    Compras de cartão entram aqui como <span className="font-semibold">parcelas virtuais</span> (uma por mês) para você enxergar o impacto mês a mês.
+                                    Pagamentos de fatura são ignorados nesta visão para evitar contar a mesma despesa duas vezes.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-1 gap-2">
+                            <div className="flex items-center justify-between rounded-xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 px-3 py-2" data-testid="row-analytics-explainer-sources">
+                                <div className="min-w-0">
+                                    <p className="text-xs font-semibold text-gray-900 dark:text-white">Fontes usadas</p>
+                                    <p className="text-[11px] text-gray-600 dark:text-gray-400">Extrato (transações) + Cartões (parcelas/faturas como eventos mensais)</p>
+                                </div>
+                                <Badge variant="secondary" className="rounded-full" data-testid="badge-analytics-explainer-scope">Consolidado</Badge>
+                            </div>
+
+                            <div className="flex items-center justify-between rounded-xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 px-3 py-2" data-testid="row-analytics-explainer-filters">
+                                <div className="min-w-0">
+                                    <p className="text-xs font-semibold text-gray-900 dark:text-white">Filtros</p>
+                                    <p className="text-[11px] text-gray-600 dark:text-gray-400">Período, tipo (entrada/saída), conta e modo (pessoal/empresa)</p>
+                                </div>
+                                <Badge variant="outline" className="rounded-full" data-testid="badge-analytics-explainer-filters">Aplicam aqui</Badge>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
-                        <Card className="p-3 bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30">
+                        <Card className="p-3 bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30" data-testid="card-total-income">
                             <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">Entradas</p>
-                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalIncome)}</p>
+                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300" data-testid="text-total-income">{formatCurrency(totalIncome)}</p>
                         </Card>
-                        <Card className="p-3 bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30">
+                        <Card className="p-3 bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30" data-testid="card-total-expense">
                             <p className="text-xs text-red-600 dark:text-red-400 font-medium mb-1">Saídas</p>
-                            <p className="text-lg font-bold text-red-700 dark:text-red-300">{formatCurrency(totalExpense)}</p>
+                            <p className="text-lg font-bold text-red-700 dark:text-red-300" data-testid="text-total-expense">{formatCurrency(totalExpense)}</p>
                         </Card>
                     </div>
 
@@ -424,13 +456,13 @@ export default function Analytics() {
             {/* --- PROJECTION TAB --- */}
             {activeTab === 'projection' && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <div className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-2xl border border-purple-100 dark:border-purple-900/30">
+                    <div className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-2xl border border-purple-100 dark:border-purple-900/30" data-testid="card-projection-explainer">
                         <div className="flex items-center gap-3 mb-2">
                             <Brain className="w-5 h-5 text-purple-600" />
-                            <h3 className="font-bold text-purple-900 dark:text-purple-300">Análise Preditiva</h3>
+                            <h3 className="font-bold text-purple-900 dark:text-purple-300">Projeção (planejamento)</h3>
                         </div>
-                        <p className="text-xs text-purple-800 dark:text-purple-400">
-                            Baseado nos seus gastos recorrentes e parcelas futuras, prevemos um saldo positivo nos próximos 3 meses. Cuidado com Dezembro!
+                        <p className="text-xs text-purple-800 dark:text-purple-400" data-testid="text-projection-explainer">
+                            Aqui entram <span className="font-semibold">lançamentos previstos/pendentes</span> (ex.: parcelas futuras do cartão e compromissos recorrentes). Use para enxergar o impacto mês a mês.
                         </p>
                     </div>
 
@@ -511,13 +543,13 @@ export default function Analytics() {
             {/* --- CONSOLIDATION TAB --- */}
             {activeTab === 'consolidation' && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <div className="bg-green-50 dark:bg-green-900/10 p-4 rounded-2xl border border-green-100 dark:border-green-900/30">
+                    <div className="bg-green-50 dark:bg-green-900/10 p-4 rounded-2xl border border-green-100 dark:border-green-900/30" data-testid="card-consolidation-explainer">
                         <div className="flex items-center gap-3 mb-2">
                             <Check className="w-5 h-5 text-green-600" />
-                            <h3 className="font-bold text-green-900 dark:text-green-300">Histórico Realizado</h3>
+                            <h3 className="font-bold text-green-900 dark:text-green-300">Consolidação (realizado)</h3>
                         </div>
-                        <p className="text-xs text-green-800 dark:text-green-400">
-                            Apenas transações efetivamente pagas e recebidas são contabilizadas aqui.
+                        <p className="text-xs text-green-800 dark:text-green-400" data-testid="text-consolidation-explainer">
+                            Aqui contam <span className="font-semibold">somente</span> lançamentos marcados como <span className="font-semibold">pagos/recebidos</span> no Extrato. Serve para fechar o mês e comparar com o planejado.
                         </p>
                     </div>
 
