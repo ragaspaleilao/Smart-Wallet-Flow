@@ -143,9 +143,14 @@ export default function SpreadsheetView() {
     }));
 
     // 1. Transactions Logic
+    // IMPORTANT: In projections, we do NOT count credit card invoice payments as expenses,
+    // because the spend is already represented in "Faturas Cartão" (installments per month).
     transactions.filter(t => {
         const tDate = new Date(t.date);
-        return tDate.getFullYear() === year && (context === "personal" ? t.isPersonal : !t.isPersonal);
+        const isContextMatch = context === "personal" ? t.isPersonal : !t.isPersonal;
+        const isSameYear = tDate.getFullYear() === year;
+        const isInvoicePayment = t.description.toLowerCase().includes('pagamento fatura') || t.description.toLowerCase().includes('pagamento da fatura');
+        return isSameYear && isContextMatch && !isInvoicePayment;
     }).forEach(t => {
         const month = t.date.includes('T') ? new Date(t.date).getMonth() : new Date(t.date + 'T00:00:00').getMonth();
         if (data[month]) {
@@ -769,9 +774,10 @@ export default function SpreadsheetView() {
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500"></div> Receitas</span>
-                        <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500"></div> Despesas</span>
+                    <div className="flex items-center gap-2 text-xs text-gray-500" data-testid="legend-projections">
+                        <span className="flex items-center gap-1" data-testid="legend-projections-income"><div className="w-2 h-2 rounded-full bg-green-500"></div> Receitas</span>
+                        <span className="flex items-center gap-1" data-testid="legend-projections-expense"><div className="w-2 h-2 rounded-full bg-red-500"></div> Despesas</span>
+                        <span className="flex items-center gap-1" data-testid="legend-projections-cc"><div className="w-2 h-2 rounded-full bg-purple-500"></div> Faturas</span>
                     </div>
                 </div>
 
