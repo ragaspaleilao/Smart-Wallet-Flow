@@ -24,7 +24,7 @@ import {
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import { useState, useMemo } from "react";
-import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
+import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -908,22 +908,115 @@ export default function CreditCards() {
                     </TabsList>
 
                     <TabsContent value="current" className="space-y-4">
-                        <div className="flex justify-between items-end mb-2">
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                                    {format(currentInvoiceDate, 'MMMM', { locale: ptBR })}
-                                </h3>
-                                <p className="text-sm text-gray-500">
-                                    Vence dia {selectedCard.dueDay}/{format(currentInvoiceDate, 'MM')} • Fecha dia {selectedCard.closingDay}
-                                </p>
-                            </div>
-                            <div className="text-right">
-                                <span className="text-sm text-gray-500 block">Total da Fatura</span>
-                                <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                                    {formatCurrency(invoiceTotal)}
-                                </span>
-                            </div>
-                        </div>
+                        {(() => {
+                            const now = new Date();
+                            const dueDate = new Date(currentInvoiceDate.getFullYear(), currentInvoiceDate.getMonth(), selectedCard.dueDay);
+                            const daysUntilDue = Math.ceil((startOfDay(dueDate).getTime() - startOfDay(now).getTime()) / (1000 * 60 * 60 * 24));
+                            const isOverdue = isAfter(startOfDay(now), startOfDay(dueDate));
+                            const isDueSoon = !isOverdue && daysUntilDue >= 0 && daysUntilDue <= 3;
+
+                            return (
+                                <>
+                                    {(isOverdue || isDueSoon) && (
+                                        <div
+                                            className={`rounded-2xl border p-3 flex items-start gap-3 ${isOverdue ? 'bg-red-50 border-red-100 dark:bg-red-900/10 dark:border-red-900/30' : 'bg-yellow-50 border-yellow-100 dark:bg-yellow-900/10 dark:border-yellow-900/30'}`}
+                                            data-testid="status-invoice-alert"
+                                        >
+                                            <div className={`mt-0.5 h-8 w-8 rounded-xl flex items-center justify-center ${isOverdue ? 'bg-red-500 text-white' : 'bg-yellow-500 text-white'}`}>
+                                                <AlertCircle className="h-4 w-4" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className={`text-sm font-bold ${isOverdue ? 'text-red-700 dark:text-red-300' : 'text-yellow-800 dark:text-yellow-300'}`}>{isOverdue ? 'Fatura vencida' : 'Fatura vencendo'}</p>
+                                                <p className={`text-xs mt-0.5 ${isOverdue ? 'text-red-700/80 dark:text-red-300/80' : 'text-yellow-800/80 dark:text-yellow-300/80'}`}>
+                                                    {isOverdue ? `Venceu em ${format(dueDate, 'dd/MM')}.` : `Vence em ${daysUntilDue} dia(s) (${format(dueDate, 'dd/MM')}).`}
+                                                </p>
+                                            </div>
+                                            <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
+                                                <DialogTrigger asChild>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className={`h-9 rounded-xl ${isOverdue ? 'border-red-200 bg-white hover:bg-red-50 text-red-700 dark:bg-zinc-900 dark:border-red-900/30 dark:hover:bg-red-900/20' : 'border-yellow-200 bg-white hover:bg-yellow-50 text-yellow-800 dark:bg-zinc-900 dark:border-yellow-900/30 dark:hover:bg-yellow-900/20'}`}
+                                                        data-testid="button-pay-invoice-alert"
+                                                    >
+                                                        Pagar
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogHeader>
+                                                        <DialogTitle>Pagar Fatura - {selectedCard.name}</DialogTitle>
+                                                    </DialogHeader>
+                                                    <div className="space-y-4 py-4">
+                                                        <div className="p-4 bg-gray-50 dark:bg-zinc-900 rounded-lg text-center">
+                                                            <p className="text-sm text-gray-500">Valor da Fatura Atual</p>
+                                                            <p className="text-2xl font-bold">{formatCurrency(invoiceTotal)}</p>
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <Label>Valor do Pagamento</Label>
+                                                            <Input
+                                                                value={paymentData.amount}
+                                                                onChange={(e) => setPaymentData({ ...paymentData, amount: formatCurrencyInput(e.target.value) })}
+                                                                placeholder={formatCurrency(invoiceTotal)}
+                                                                className="text-lg font-bold"
+                                                                data-testid="input-invoice-payment-amount"
+                                                            />
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <Label>Conta de Origem</Label>
+                                                            <Select value={paymentData.accountId} onValueChange={(v) => setPaymentData({ ...paymentData, accountId: v })}>
+                                                                <SelectTrigger data-testid="select-invoice-payment-account">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {accounts.map((acc) => (
+                                                                        <SelectItem key={acc.id} value={acc.id}>
+                                                                            {acc.name} ({formatCurrency(acc.balance)})
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <Label>Data do Pagamento</Label>
+                                                            <Input
+                                                                type="date"
+                                                                value={paymentData.date}
+                                                                onChange={(e) => setPaymentData({ ...paymentData, date: e.target.value })}
+                                                                data-testid="input-invoice-payment-date"
+                                                            />
+                                                        </div>
+
+                                                        <Button className="w-full bg-green-600 hover:bg-green-700" onClick={handlePayInvoice} data-testid="button-confirm-invoice-payment">
+                                                            <Check className="w-4 h-4 mr-2" /> Confirmar Pagamento
+                                                        </Button>
+                                                    </div>
+                                                </DialogContent>
+                                            </Dialog>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between items-end mb-2">
+                                        <div>
+                                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                                                {format(currentInvoiceDate, 'MMMM', { locale: ptBR })}
+                                            </h3>
+                                            <p className="text-sm text-gray-500" data-testid="text-invoice-due">
+                                                Vence dia {selectedCard.dueDay}/{format(currentInvoiceDate, 'MM')} • Fecha dia {selectedCard.closingDay}
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-sm text-gray-500 block">Total da Fatura</span>
+                                            <span className="text-2xl font-bold text-gray-900 dark:text-white" data-testid="text-invoice-total">
+                                                {formatCurrency(invoiceTotal)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </>
+                            );
+                        })()}
 
                         {/* Transaction List */}
                         <div className="space-y-3">
