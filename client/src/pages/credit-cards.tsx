@@ -23,16 +23,92 @@ import {
 } from "lucide-react";
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+
+function ManageInlineCategories({
+  scope,
+  categories,
+  onAdd,
+  onRemove,
+}: {
+  scope: 'credit';
+  categories: string[];
+  onAdd: (name: string) => void;
+  onRemove: (name: string) => void;
+}) {
+  const [value, setValue] = useState('');
+
+  const handleAdd = () => {
+    const cleaned = value.trim();
+    if (!cleaned) return;
+    onAdd(cleaned);
+    setValue('');
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Ex: Farmácia, Mercado, Viagem"
+          data-testid={`input-${scope}-category-new`}
+        />
+        <Button onClick={handleAdd} data-testid={`button-${scope}-category-add`}>
+          Adicionar
+        </Button>
+      </div>
+
+      <div className="rounded-xl border border-gray-100 dark:border-zinc-800 overflow-hidden">
+        <div className="max-h-64 overflow-y-auto">
+          {categories.length === 0 ? (
+            <div className="p-4 text-sm text-gray-500" data-testid={`text-${scope}-categories-empty`}>
+              Nenhuma categoria cadastrada.
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100 dark:divide-zinc-800">
+              {categories.map((cat) => (
+                <div
+                  key={cat}
+                  className="flex items-center justify-between gap-3 px-4 py-3"
+                  data-testid={`row-${scope}-category-${cat}`}
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm text-gray-900 dark:text-white truncate" data-testid={`text-${scope}-category-${cat}`}>
+                      {cat}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    onClick={() => onRemove(cat)}
+                    data-testid={`button-${scope}-category-remove-${cat}`}
+                  >
+                    Remover
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <p className="text-xs text-gray-500" data-testid={`text-${scope}-category-tip`}>
+        Dica: categorias aqui s\u00f3 afetam compras no cart\u00e3o.
+      </p>
+    </div>
+  );
+}
 
 export default function CreditCards() {
   const creditCards = useFinancialStore((state) => state.creditCards);
@@ -41,6 +117,8 @@ export default function CreditCards() {
   const addCreditPayment = useFinancialStore((state) => state.addCreditPayment);
   const accounts = useFinancialStore((state) => state.accounts);
   const creditCategories = useFinancialStore((state) => state.creditCategories);
+  const addCreditCategory = useFinancialStore((state) => state.addCreditCategory);
+  const removeCreditCategory = useFinancialStore((state) => state.removeCreditCategory);
   
   const addCreditCard = useFinancialStore((state) => state.addCreditCard);
   const updateCreditCard = useFinancialStore((state) => state.updateCreditCard);
@@ -798,7 +876,43 @@ export default function CreditCards() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label>Categoria</Label>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <Label>Categoria</Label>
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 px-2 text-xs"
+                                                        data-testid="button-manage-credit-categories"
+                                                    >
+                                                        Gerenciar
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent className="max-w-md" data-testid="dialog-manage-credit-categories">
+                                                    <DialogHeader>
+                                                        <DialogTitle data-testid="text-manage-credit-categories-title">Categorias do Cartão</DialogTitle>
+                                                        <DialogDescription data-testid="text-manage-credit-categories-description">
+                                                            Adicione ou remova categorias usadas em compras no cartão.
+                                                        </DialogDescription>
+                                                    </DialogHeader>
+
+                                                    <ManageInlineCategories
+                                                      scope="credit"
+                                                      categories={creditCategories}
+                                                      onAdd={(name) => {
+                                                        addCreditCategory(name);
+                                                        toast({ title: "Categoria adicionada" });
+                                                      }}
+                                                      onRemove={(name) => {
+                                                        removeCreditCategory(name);
+                                                        toast({ title: "Categoria removida" });
+                                                      }}
+                                                    />
+                                                </DialogContent>
+                                            </Dialog>
+                                        </div>
+
                                         <Select 
                                             value={newPurchase.category} 
                                             onValueChange={(v) => setNewPurchase({...newPurchase, category: v})}
