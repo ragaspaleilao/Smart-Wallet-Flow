@@ -110,7 +110,7 @@ export default function AddSubscription() {
             // If the charge is due in the current month AND the card cycle hasn't closed yet, it must enter the CURRENT invoice month.
             // To do that, we post it as "today" (midday) so it stays within the open cycle.
             const iso = (i === 0 && isSameMonthAndYear(occurrence, start) && isCardCycleStillOpen)
-                ? new Date(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T12:00:00`).toISOString()
+                ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
                 : ymd;
 
             if (formData.paymentMethod === 'credit') {
