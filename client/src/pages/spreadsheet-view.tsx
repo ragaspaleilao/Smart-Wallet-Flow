@@ -38,7 +38,7 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { format, isBefore, startOfDay, getMonth, getYear, parseISO, addMonths, startOfYear, endOfYear, subMonths } from "date-fns";
+import { format, isBefore, startOfDay, getMonth, getYear, parseISO, addMonths, startOfYear, endOfYear, subMonths, startOfMonth } from "date-fns";
 import { AddTransactionSheet } from "@/components/add-transaction-sheet";
 
 export default function SpreadsheetView() {
@@ -175,11 +175,13 @@ export default function SpreadsheetView() {
 
          const pDate = new Date(purchase.purchaseDate);
          
-         // Helper to get invoice date
+         // Helper to get invoice month competency based on closing day.
+         // Rule: closing day = 3 means 04/M..03/M+1 belongs to month M.
+         // So: if purchase day <= closingDay => belongs to previous month; else belongs to same month.
          const getInvoiceDate = (date: Date) => {
              const d = new Date(date);
-             if (d.getDate() >= card.closingDay) {
-                 return addMonths(d, 1);
+             if (d.getDate() <= card.closingDay) {
+                 return subMonths(d, 1);
              }
              return d;
          };
