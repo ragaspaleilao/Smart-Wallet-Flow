@@ -263,6 +263,7 @@ interface FinancialStore {
   // Subscription System
   subscriptions: Subscription[];
   addSubscription: (sub: Omit<Subscription, 'id'>) => void;
+  updateSubscription: (id: string, sub: Partial<Subscription>) => void;
   removeSubscription: (id: string) => void;
   resetSubscriptions: () => void;
 }
@@ -512,6 +513,10 @@ export const useFinancialStore = create<FinancialStore>()(
       // Subscription Actions
       addSubscription: (subData) => set((state) => ({
         subscriptions: [...(state.subscriptions || []), { ...subData, id: nanoid() }]
+      })),
+
+      updateSubscription: (id, subData) => set((state) => ({
+        subscriptions: (state.subscriptions || []).map(s => s.id === id ? ({ ...s, ...subData }) : s)
       })),
 
       removeSubscription: (id) => set((state) => ({

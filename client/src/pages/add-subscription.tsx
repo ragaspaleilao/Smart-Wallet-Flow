@@ -59,7 +59,7 @@ export default function AddSubscription() {
     }
     
     const price = Number(formData.price);
-    const billingDay = Number(formData.isTrial ? formData.trialDays : formData.billingDay);
+    const billingDay = Math.max(1, Math.min(31, Number(formData.isTrial ? formData.trialDays : formData.billingDay)));
 
     // Subscriptions are ALWAYS recurring until cancelled.
     // Behavior:

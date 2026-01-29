@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 
 export default function Subscriptions() {
     const subscriptions = useFinancialStore((state) => state.subscriptions || []);
+    const updateSubscription = useFinancialStore((state) => state.updateSubscription);
     const removeSubscription = useFinancialStore((state) => state.removeSubscription);
     const resetSubscriptions = useFinancialStore((state) => state.resetSubscriptions);
     
@@ -211,6 +212,7 @@ export default function Subscriptions() {
                     subscriptions.filter(s => !s.isTrial).map((sub) => {
                         const isExpanded = expandedId === sub.id;
                         const isFrozen = sub.usage === 'low';
+                        const subDay = Math.max(1, Math.min(31, Number(sub.date) || 1));
 
                         return (
                             <div 
@@ -242,7 +244,20 @@ export default function Subscriptions() {
                                         </div>
                                         <div className="flex justify-between items-center mt-1">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] text-gray-500">Vence dia {sub.date}</span>
+                                                <span className="text-[10px] text-gray-500" data-testid={`text-subscription-dueday-${sub.id}`}>Vence dia</span>
+                                                <input
+                                                    data-testid={`input-subscription-dueday-${sub.id}`}
+                                                    type="number"
+                                                    min={1}
+                                                    max={31}
+                                                    value={subDay}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    onChange={(e) => {
+                                                        const next = Math.max(1, Math.min(31, Number(e.target.value) || 1));
+                                                        updateSubscription(sub.id, { date: String(next) });
+                                                    }}
+                                                    className="w-[52px] h-6 rounded-md border border-gray-200 bg-white px-2 text-[10px] font-semibold text-gray-900 shadow-sm outline-none focus:ring-2 focus:ring-purple-200 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:focus:ring-purple-900/40"
+                                                />
                                                 {isFrozen ? (
                                                     <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded text-[10px] text-blue-600 dark:text-blue-400 font-medium">
                                                         <Snowflake className="w-3 h-3" />
