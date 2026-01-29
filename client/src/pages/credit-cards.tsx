@@ -363,33 +363,35 @@ export default function CreditCards() {
   // --- Total Projection Calculation (All Cards) ---
   const totalProjection = useMemo(() => {
       const projection = [];
-      // Start from next month relative to TODAY, to show future commitments
-      // Or start from current month? Let's start from current month (to show immediate commitment) + 11 months
-      
-      let date = new Date();
-      // Normalize to 1st of month to align
-      date.setDate(1);
+      // Próximos 12 meses (competência da FATURA, não do vencimento).
+      // A "competência" da fatura é o mês anterior ao fechamento.
+      // Ex: fatura de JANEIRO fecha em 03/02 -> aparece em JANEIRO na projeção.
+
+      let monthCursor = new Date();
+      monthCursor.setDate(1);
 
       for (let i = 0; i < 12; i++) {
           let monthTotal = 0;
-          
+
           creditCards.forEach(card => {
-               // Determine the invoice date for THIS card for the target 'date'
-               // Actually we need to find what invoice corresponds to 'date' month/year
-               // For simplicity, let's just use getInvoiceItems for that month
-               const items = getInvoiceItems(card.id, date);
-               monthTotal += items.reduce((a, b) => a + b.value, 0);
+              // getInvoiceItems espera o mês "competência" (mesmo mês usado por getInvoiceMonthDate).
+              // A projeção foi sendo exibida como se fosse o mês de vencimento;
+              // para corrigir, somamos 1 mês ao pedir os itens.
+              const invoiceMonthForItems = addMonths(monthCursor, 1);
+              const items = getInvoiceItems(card.id, invoiceMonthForItems);
+              monthTotal += items.reduce((a, b) => a + b.value, 0);
           });
 
           projection.push({
-              name: format(date, 'MMM', { locale: ptBR }),
-              fullDate: format(date, 'MMMM yyyy', { locale: ptBR }),
+              name: format(monthCursor, 'MMM', { locale: ptBR }),
+              fullDate: format(monthCursor, 'MMMM yyyy', { locale: ptBR }),
               total: monthTotal,
-              month: date.getMonth()
+              month: monthCursor.getMonth()
           });
-          
-          date = addMonths(date, 1);
+
+          monthCursor = addMonths(monthCursor, 1);
       }
+
       return projection;
   }, [creditCards, creditPurchases]);
 
