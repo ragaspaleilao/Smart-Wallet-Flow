@@ -68,6 +68,15 @@ export default function Analytics() {
     return { start: subDays(today, 30), end: today };
   }, [period, customStart, customEnd]);
 
+  const periodLabel = useMemo(() => {
+    if (period === '30') return 'Últimos 30 dias';
+    if (period === '90') return 'Últimos 3 meses';
+    if (period === 'year') return `Ano ${format(new Date(), 'yyyy')}`;
+    if (period === 'future_6') return 'Próximos 6 meses';
+    if (period === 'custom' && customStart && customEnd) return `${format(parseISO(customStart), 'dd/MM')} – ${format(parseISO(customEnd), 'dd/MM')}`;
+    return 'Últimos 30 dias';
+  }, [period, customStart, customEnd]);
+
   // 2. Generate Virtual Transactions (Installments)
   const virtualTransactions = useMemo(() => {
     const virtual: Transaction[] = [];
@@ -364,10 +373,10 @@ export default function Analytics() {
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                     {/* Visual breakdown */}
                     <div className="rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm" data-testid="card-analytics-breakdown">
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider" data-testid="text-analytics-breakdown-title">De onde vem esse número</p>
-                                <p className="text-sm font-bold text-gray-900 dark:text-white" data-testid="text-analytics-breakdown-subtitle">Resumo por fonte (período atual)</p>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider" data-testid="text-analytics-breakdown-title">Período</p>
+                                <p className="text-sm font-bold text-gray-900 dark:text-white" data-testid="text-analytics-breakdown-subtitle">{periodLabel}</p>
                             </div>
                             <Badge variant="secondary" className="rounded-full" data-testid="badge-analytics-breakdown-scope">Consolidado</Badge>
                         </div>
@@ -425,10 +434,12 @@ export default function Analytics() {
                         <Card className="p-3 bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30" data-testid="card-total-income">
                             <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">Entradas</p>
                             <p className="text-lg font-bold text-blue-700 dark:text-blue-300" data-testid="text-total-income">{formatCurrency(totalIncome)}</p>
+                            <p className="text-[11px] text-blue-700/70 dark:text-blue-300/70 mt-1" data-testid="text-total-income-context">No período: {periodLabel}</p>
                         </Card>
                         <Card className="p-3 bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30" data-testid="card-total-expense">
                             <p className="text-xs text-red-600 dark:text-red-400 font-medium mb-1">Saídas</p>
                             <p className="text-lg font-bold text-red-700 dark:text-red-300" data-testid="text-total-expense">{formatCurrency(totalExpense)}</p>
+                            <p className="text-[11px] text-red-700/70 dark:text-red-300/70 mt-1" data-testid="text-total-expense-context">No período: {periodLabel}</p>
                         </Card>
                     </div>
 
