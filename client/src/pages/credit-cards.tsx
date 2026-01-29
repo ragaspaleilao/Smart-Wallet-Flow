@@ -261,9 +261,10 @@ export default function CreditCards() {
   // --- Helper Functions ---
 
   const getInvoiceMonthDate = (date: Date, closingDay: number) => {
-    // If purchase date day >= closing day, it goes to next month
+    // Compras feitas ATÉ o dia de fechamento (inclusive) pertencem à mesma fatura.
+    // Só vai para o próximo mês quando o dia da compra for DEPOIS do fechamento.
     const purchaseDay = date.getDate();
-    if (purchaseDay >= closingDay) {
+    if (purchaseDay > closingDay) {
         return addMonths(date, 1);
     }
     return date;
