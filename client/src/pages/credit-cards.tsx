@@ -243,7 +243,16 @@ export default function CreditCards() {
 
   const currentInvoiceDate = useMemo(() => {
     if (!selectedCard) return new Date();
-    return getInvoiceMonthDate(new Date(), selectedCard.closingDay);
+    const now = new Date();
+    const dueThisMonth = new Date(now.getFullYear(), now.getMonth(), selectedCard.dueDay);
+
+    // If we're already past the due date of this month's invoice, the "current" one shown should advance.
+    // This prevents showing a past-due label like "vence 07/01" when today is 29/01.
+    if (isAfter(now, dueThisMonth)) {
+        return addMonths(getInvoiceMonthDate(now, selectedCard.closingDay), 1);
+    }
+
+    return getInvoiceMonthDate(now, selectedCard.closingDay);
   }, [selectedCard]);
 
   const invoiceItems = useMemo(() => {
