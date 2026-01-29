@@ -260,13 +260,22 @@ export default function CreditCards() {
 
   // --- Helper Functions ---
 
-  const getInvoiceMonthDate = (date: Date, closingDay: number) => {
-    // Competência da fatura (regra simples e consistente):
-    // Se a compra foi feita ATÉ o dia de fechamento (inclusive), pertence ao mês da COMPRA.
-    // Se foi feita DEPOIS do fechamento, pertence ao mês seguinte.
-    const purchaseDay = date.getDate();
-    if (purchaseDay > closingDay) return addMonths(date, 1);
-    return date;
+  const getInvoiceMonthDate = (purchaseDate: Date, closingDay: number) => {
+    // Regra do ciclo conforme você descreveu:
+    // Ex: fechamento dia 03
+    // - De 04/01 até 03/02 -> competência de JANEIRO
+    // - De 04/02 até 03/03 -> competência de FEVEREIRO
+    // Ou seja: a compra entra na competência do mês ANTERIOR ao mês em que ocorre o fechamento.
+
+    const d = new Date(purchaseDate);
+
+    // Se a compra foi feita ATÉ o dia de fechamento (inclusive), ela pertence ao mês anterior.
+    if (d.getDate() <= closingDay) {
+      return addMonths(d, -1);
+    }
+
+    // Se foi depois do fechamento, pertence ao mês da própria compra.
+    return d;
   };
 
   const getInvoiceStatus = (card: CreditCard, month: Date) => {
@@ -341,18 +350,17 @@ export default function CreditCards() {
     if (!selectedCard) return new Date();
     const now = new Date();
 
-    // Regra correta para "fatura atual":
-    // "Fatura atual" é a fatura que AINDA NÃO FECHOU.
-    // Compras feitas até o dia de fechamento (inclusive) pertencem à mesma fatura,
-    // mesmo que o fechamento/vencimento ocorram no mês seguinte.
-    // Ex: hoje 29/01, fecha 03/02 => ainda é FATURA DE JANEIRO (em aberto).
+    // "Fatura atual" = competência do ciclo que ainda não fechou.
+    // Com fechamento dia 03:
+    // - Em 29/01, o ciclo que ainda não fechou é o que fecha em 03/02 -> competência de JANEIRO
+    // - Em 02/02, ainda é competência de JANEIRO
+    // - Em 04/02, já virou competência de FEVEREIRO
 
-    // Se ainda não passou do dia de fechamento, a fatura atual continua sendo do mês atual.
-    // Ex: hoje 29/01 e fechamento 03 => ainda é fatura de Janeiro (fecha em 03/02).
-    const closesThisMonth = now.getDate() > selectedCard.closingDay;
+    // Se hoje está até o dia de fechamento (inclusive), a competência continua sendo do mês anterior.
+    const competence = now.getDate() <= selectedCard.closingDay ? addMonths(now, -1) : now;
 
-    // Se o ciclo já fechou neste mês (ex: hoje 10 e fechamento 03), a fatura atual já é a do próximo mês.
-    return closesThisMonth ? addMonths(now, 1) : now;
+    // Normalize para o primeiro dia do mês (evita inconsistências em comparações/formatos)
+    return new Date(competence.getFullYear(), competence.getMonth(), 1);
   }, [selectedCard]);
 
   const invoiceItems = useMemo(() => {
@@ -366,10 +374,9 @@ export default function CreditCards() {
       if (!selectedCard) return [];
       const invoices: { date: Date; total: number; items: any[] }[] = [];
 
-      // FUTURAS deve mostrar os próximos meses (calendário) SEM puxar compras do mês anterior.
-      // Ex: hoje em Janeiro -> começa em Fevereiro.
-      const now = new Date();
-      let date = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      // FUTURAS deve mostrar os próximos meses de COMPETÊNCIA.
+      // Ex: se a fatura atual é Janeiro, futuras começa em Fevereiro.
+      let date = new Date(currentInvoiceDate.getFullYear(), currentInvoiceDate.getMonth() + 1, 1);
 
       for (let i = 0; i < 12; i++) {
           const items = getInvoiceItems(selectedCard.id, date);
