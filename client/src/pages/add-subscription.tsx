@@ -91,9 +91,15 @@ export default function AddSubscription() {
             return setDate(addMonths(start, 1), day);
         })();
 
+        const isSameMonthAndYear = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+
         for (let i = 0; i < 12; i++) {
             const occurrence = addMonths(firstOccurrence, i);
-            const iso = occurrence.toISOString();
+            // Store as local YYYY-MM-DD so date-fns parseISO won't shift days by timezone
+            const ymd = `${occurrence.getFullYear()}-${String(occurrence.getMonth() + 1).padStart(2, '0')}-${String(occurrence.getDate()).padStart(2, '0')}`;
+
+            // If the first occurrence is in the current month, we want it to appear in the CURRENT invoice (not only future)
+            const iso = (i === 0 && isSameMonthAndYear(occurrence, start)) ? new Date(`${ymd}T12:00:00`).toISOString() : ymd;
 
             if (formData.paymentMethod === 'credit') {
                 addCreditPurchase({
