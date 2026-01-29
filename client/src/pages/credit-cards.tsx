@@ -325,20 +325,16 @@ export default function CreditCards() {
     const now = new Date();
 
     // Regra correta para "fatura atual":
-    // A compra entra na fatura do mês em que ela FECHA.
-    // Ex: fecha dia 03/02 e vence dia 07/02 => isso é a fatura de FEVEREIRO.
-    // Logo, enquanto ainda não passou do dia de fechamento do ciclo atual,
-    // consideramos a fatura do PRÓXIMO mês (mês do vencimento/fechamento).
+    // "Fatura atual" é a fatura que AINDA NÃO FECHOU.
+    // Compras feitas até o dia de fechamento (inclusive) pertencem à mesma fatura,
+    // mesmo que o fechamento/vencimento ocorram no mês seguinte.
+    // Ex: hoje 29/01, fecha 03/02 => ainda é FATURA DE JANEIRO (em aberto).
 
-    const closingThisMonth = new Date(now.getFullYear(), now.getMonth(), selectedCard.closingDay);
+    const closesNextMonth = selectedCard.closingDay <= now.getDate();
 
-    // Se ainda não fechou neste mês, a fatura "atual" é a do próximo mês.
-    if (isBefore(now, closingThisMonth)) {
-      return addMonths(now, 1);
-    }
-
-    // Se já fechou, a fatura "atual" é a deste mês.
-    return now;
+    // Se o fechamento do ciclo ainda não aconteceu dentro do mês corrente,
+    // então a fatura atual é a do mês atual. Caso contrário, já virou a do próximo mês.
+    return closesNextMonth ? addMonths(now, 1) : now;
   }, [selectedCard]);
 
   const invoiceItems = useMemo(() => {
