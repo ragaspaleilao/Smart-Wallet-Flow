@@ -324,15 +324,20 @@ export default function CreditCards() {
     if (!selectedCard) return new Date();
     const now = new Date();
 
-    // Regra simples e consistente:
-    // - "Fatura atual" é a que ainda NÃO venceu.
-    // - Se já passou do vencimento do mês atual, mostramos o próximo mês.
-    const dueThisMonth = new Date(now.getFullYear(), now.getMonth(), selectedCard.dueDay);
+    // Regra correta para "fatura atual":
+    // A compra entra na fatura do mês em que ela FECHA.
+    // Ex: fecha dia 03/02 e vence dia 07/02 => isso é a fatura de FEVEREIRO.
+    // Logo, enquanto ainda não passou do dia de fechamento do ciclo atual,
+    // consideramos a fatura do PRÓXIMO mês (mês do vencimento/fechamento).
 
-    if (isAfter(now, dueThisMonth)) {
+    const closingThisMonth = new Date(now.getFullYear(), now.getMonth(), selectedCard.closingDay);
+
+    // Se ainda não fechou neste mês, a fatura "atual" é a do próximo mês.
+    if (isBefore(now, closingThisMonth)) {
       return addMonths(now, 1);
     }
 
+    // Se já fechou, a fatura "atual" é a deste mês.
     return now;
   }, [selectedCard]);
 
