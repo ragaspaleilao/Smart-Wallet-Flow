@@ -169,6 +169,9 @@ interface FinancialStore {
   creditPurchases: CreditPurchase[];
   creditPayments: CreditInvoicePayment[];
 
+  // Reset / Seed
+  resetAllData: () => void;
+
   // Credit Card Actions
   addCreditCard: (card: Omit<CreditCard, 'id' | 'status'>) => void;
   updateCreditCard: (id: string, data: Partial<CreditCard>) => void;
@@ -333,6 +336,51 @@ export const useFinancialStore = create<FinancialStore>()(
       balance: 0, 
       income: 0,
       expense: 0,
+
+      resetAllData: () => set(() => {
+        const accounts: Account[] = [
+          {
+            id: nanoid(),
+            name: 'Conta Principal',
+            type: 'bank',
+            balance: 0,
+            initialBalance: 0,
+            color: '#22c55e',
+            isPersonal: true,
+          }
+        ];
+
+        return {
+          transactions: [],
+          accounts,
+          goals: [],
+          investments: [],
+          vehicles: [],
+
+          creditCards: [],
+          creditPurchases: [],
+          creditPayments: [],
+
+          subscriptions: [],
+          simulations: [],
+
+          businessProducts: [],
+          businessSettings: { fixedCosts: [] },
+
+          budget: {
+            income: 0,
+            spendingLimit: 0,
+            creditLimit: 0,
+            alertThresholds: [70, 90],
+          },
+
+          // Keep referral + backup + calendar preferences untouched
+
+          income: 0,
+          expense: 0,
+          balance: accounts.reduce((acc, curr) => acc + curr.balance, 0),
+        };
+      }),
 
       addSimulation: (simData) => set((state) => ({
         simulations: [...state.simulations, { ...simData, id: nanoid(), createdAt: new Date().toISOString() }]

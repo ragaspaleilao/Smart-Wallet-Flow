@@ -2,12 +2,20 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { User, Moon, HelpCircle, LogOut, Car, Shield, CreditCard, ChevronRight, Wallet, Crown, Star, Gift, Cloud, Calendar } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { User, Moon, HelpCircle, LogOut, Car, Shield, CreditCard, ChevronRight, Wallet, Crown, Gift, Cloud, Calendar, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 
 import { ShareButton } from "@/components/share-button";
+import { useFinancialStore } from "@/lib/store";
 
-export default function Settings() {
+export default function Settings() { 
+  const resetAllData = useFinancialStore((s) => s.resetAllData);
+
+  const handleReset = () => {
+    resetAllData();
+  };
+
   return (
     <MobileLayout>
       <div className="flex flex-col min-h-full p-6 bg-white dark:bg-black">
@@ -150,13 +158,58 @@ export default function Settings() {
              </Link>
           </div>
 
+          {/* Danger zone */}
+          <div className="pt-6">
+            <div className="rounded-2xl border border-red-100 dark:border-red-900/30 bg-red-50/60 dark:bg-red-950/20 p-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 w-9 h-9 rounded-xl bg-white/80 dark:bg-zinc-900/60 border border-red-100 dark:border-red-900/30 flex items-center justify-center">
+                  <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-red-700 dark:text-red-300">Zerar dados para testes</h3>
+                  <p className="text-xs text-red-700/70 dark:text-red-300/70 mt-0.5">
+                    Isso apaga extrato, cartões, assinaturas, investimentos, veículos etc. e deixa apenas 1 conta padrão com saldo R$ 0,00.
+                  </p>
+
+                  <div className="mt-3">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          className="w-full"
+                          data-testid="button-reset-all"
+                        >
+                          Zerar tudo agora
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent data-testid="dialog-reset-all">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle data-testid="text-reset-title">Confirmar reset total?</AlertDialogTitle>
+                          <AlertDialogDescription data-testid="text-reset-description">
+                            Isso vai apagar TODOS os dados salvos neste aparelho. Essa ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel data-testid="button-cancel-reset">Cancelar</AlertDialogCancel>
+                          <AlertDialogAction data-testid="button-confirm-reset" onClick={handleReset}>
+                            Sim, zerar tudo
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Other */}
-          <div className="pt-8 space-y-4">
-            <Button variant="ghost" className="w-full justify-start text-gray-600 dark:text-gray-400 hover:text-primary pl-0">
+          <div className="pt-6 space-y-4">
+            <Button variant="ghost" className="w-full justify-start text-gray-600 dark:text-gray-400 hover:text-primary pl-0" data-testid="button-help">
               <HelpCircle className="w-5 h-5 mr-3" />
               Ajuda e Suporte
             </Button>
-            <Button variant="ghost" className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 pl-0">
+            <Button variant="ghost" className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 pl-0" data-testid="button-logout">
               <LogOut className="w-5 h-5 mr-3" />
               Sair da conta
             </Button>
