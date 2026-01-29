@@ -91,6 +91,15 @@ export default function AddSubscription() {
             return setDate(addMonths(start, 1), day);
         })();
 
+        const now = new Date();
+        const cardForPosting = creditCards.find(c => c.id === formData.creditCardId);
+        const isCardCycleStillOpen = (() => {
+            if (!cardForPosting) return false;
+            const closesNextMonth = cardForPosting.closingDay <= now.getDate();
+            // Same rule used on credit-cards page: if cycle closes next month, current open invoice is "this month"
+            return !closesNextMonth;
+        })();
+
         const isSameMonthAndYear = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 
         for (let i = 0; i < 12; i++) {
@@ -98,8 +107,11 @@ export default function AddSubscription() {
             // Store as local YYYY-MM-DD so date-fns parseISO won't shift days by timezone
             const ymd = `${occurrence.getFullYear()}-${String(occurrence.getMonth() + 1).padStart(2, '0')}-${String(occurrence.getDate()).padStart(2, '0')}`;
 
-            // If the first occurrence is in the current month, we want it to appear in the CURRENT invoice (not only future)
-            const iso = (i === 0 && isSameMonthAndYear(occurrence, start)) ? new Date(`${ymd}T12:00:00`).toISOString() : ymd;
+            // If the charge is due in the current month AND the card cycle hasn't closed yet, it must enter the CURRENT invoice month.
+            // To do that, we post it as "today" (midday) so it stays within the open cycle.
+            const iso = (i === 0 && isSameMonthAndYear(occurrence, start) && isCardCycleStillOpen)
+                ? new Date(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T12:00:00`).toISOString()
+                : ymd;
 
             if (formData.paymentMethod === 'credit') {
                 addCreditPurchase({
