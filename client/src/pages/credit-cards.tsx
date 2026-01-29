@@ -364,9 +364,14 @@ export default function CreditCards() {
 
   const futureInvoices = useMemo(() => {
       if (!selectedCard) return [];
-      const invoices = [];
-      let date = addMonths(currentInvoiceDate, 1);
-      for (let i = 0; i < 12; i++) { // Next 12 months
+      const invoices: { date: Date; total: number; items: any[] }[] = [];
+
+      // FUTURAS lista os pr f3ximos meses de COMPET eancia da fatura.
+      // getInvoiceItems espera o "m eas de compet eancia".
+      // Ex: fatura atual = Janeiro -> futuras come e7a em Fevereiro.
+      let date = new Date(currentInvoiceDate.getFullYear(), currentInvoiceDate.getMonth() + 1, 1);
+
+      for (let i = 0; i < 12; i++) {
           const items = getInvoiceItems(selectedCard.id, date);
           const total = items.reduce((acc, curr) => acc + curr.value, 0);
           if (total > 0) {
@@ -374,6 +379,7 @@ export default function CreditCards() {
           }
           date = addMonths(date, 1);
       }
+
       return invoices;
   }, [selectedCard, currentInvoiceDate]);
 
