@@ -337,7 +337,7 @@ export const useFinancialStore = create<FinancialStore>()(
       income: 0,
       expense: 0,
 
-      resetAllData: () => set(() => {
+      resetAllData: () => {
         const accounts: Account[] = [
           {
             id: nanoid(),
@@ -350,7 +350,7 @@ export const useFinancialStore = create<FinancialStore>()(
           }
         ];
 
-        return {
+        set(() => ({
           transactions: [],
           accounts,
           goals: [],
@@ -374,13 +374,17 @@ export const useFinancialStore = create<FinancialStore>()(
             alertThresholds: [70, 90],
           },
 
-          // Keep referral + backup + calendar preferences untouched
-
           income: 0,
           expense: 0,
           balance: accounts.reduce((acc, curr) => acc + curr.balance, 0),
-        };
-      }),
+        }));
+
+        try {
+          localStorage.removeItem('finsmart-storage-v2');
+        } catch {
+          // ignore
+        }
+      },
 
       addSimulation: (simData) => set((state) => ({
         simulations: [...state.simulations, { ...simData, id: nanoid(), createdAt: new Date().toISOString() }]
