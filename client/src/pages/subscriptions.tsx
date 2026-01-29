@@ -13,7 +13,7 @@ import { toast } from "@/hooks/use-toast";
 export default function Subscriptions() {
     const subscriptions = useFinancialStore((state) => state.subscriptions || []);
     const updateSubscription = useFinancialStore((state) => state.updateSubscription);
-    const removeSubscription = useFinancialStore((state) => state.removeSubscription);
+    const removeSubscriptionAndCharges = useFinancialStore((state) => state.removeSubscriptionAndCharges);
     const resetSubscriptions = useFinancialStore((state) => state.resetSubscriptions);
     
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -27,10 +27,10 @@ export default function Subscriptions() {
     };
     
     const handleRemove = (id: string, name: string) => {
-        removeSubscription(id);
+        removeSubscriptionAndCharges(id);
         toast({
             title: "Assinatura removida",
-            description: `${name} foi removido do seu clube.`
+            description: `${name} foi removido do seu clube e os lan\u00e7amentos futuros foram apagados.`
         });
     };
 

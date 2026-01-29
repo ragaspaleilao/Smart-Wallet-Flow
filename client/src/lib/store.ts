@@ -265,6 +265,7 @@ interface FinancialStore {
   addSubscription: (sub: Omit<Subscription, 'id'>) => void;
   updateSubscription: (id: string, sub: Partial<Subscription>) => void;
   removeSubscription: (id: string) => void;
+  removeSubscriptionAndCharges: (id: string) => void;
   resetSubscriptions: () => void;
 }
 
@@ -522,6 +523,25 @@ export const useFinancialStore = create<FinancialStore>()(
       removeSubscription: (id) => set((state) => ({
         subscriptions: (state.subscriptions || []).filter(s => s.id !== id)
       })),
+
+      removeSubscriptionAndCharges: (id) => set((state) => {
+        const sub = (state.subscriptions || []).find(s => s.id === id);
+        const nextSubs = (state.subscriptions || []).filter(s => s.id !== id);
+
+        if (!sub) {
+          return { subscriptions: nextSubs };
+        }
+
+        const desc = `${sub.name} (Assinatura)`;
+        const nextCreditPurchases = state.creditPurchases.filter(p => p.description !== desc);
+        const nextTransactions = state.transactions.filter(t => t.description !== desc);
+
+        return {
+          subscriptions: nextSubs,
+          creditPurchases: nextCreditPurchases,
+          transactions: nextTransactions,
+        };
+      }),
       
       resetSubscriptions: () => set(() => ({
         subscriptions: []
