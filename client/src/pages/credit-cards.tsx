@@ -368,9 +368,11 @@ export default function CreditCards() {
       const invoices: { date: Date; total: number; items: any[] }[] = [];
 
       // FUTURAS lista os próximos meses de competência da fatura.
-      // getInvoiceItems espera o "mês de competência".
-      // Ex: fatura atual = Janeiro -> futuras começa em Fevereiro.
-      let date = new Date(currentInvoiceDate.getFullYear(), currentInvoiceDate.getMonth() + 1, 1);
+      // Aqui usamos o mês do "agora" (calendário) como referência,
+      // porque a fatura atual pode fechar no mês seguinte (ex: Jan fecha em 03/02).
+      // Ex: hoje 29/01 -> futuras começa em Fevereiro.
+      const now = new Date();
+      let date = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
       for (let i = 0; i < 12; i++) {
           const items = getInvoiceItems(selectedCard.id, date);
