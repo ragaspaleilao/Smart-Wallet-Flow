@@ -1133,7 +1133,10 @@ export default function CreditCards() {
                     <TabsContent value="current" className="space-y-4">
                         {(() => {
                             const now = new Date();
-                            const dueDate = new Date(currentInvoiceDate.getFullYear(), currentInvoiceDate.getMonth(), selectedCard.dueDay);
+                            // Vencimento sempre ocorre no MÊS SEGUINTE à competência.
+                            // Ex: competência Janeiro -> vence em 07/02.
+                            const dueBase = addMonths(currentInvoiceDate, 1);
+                            const dueDate = new Date(dueBase.getFullYear(), dueBase.getMonth(), selectedCard.dueDay);
                             const daysUntilDue = Math.ceil((startOfDay(dueDate).getTime() - startOfDay(now).getTime()) / (1000 * 60 * 60 * 24));
                             const isOverdue = isAfter(startOfDay(now), startOfDay(dueDate));
                             const isDueSoon = !isOverdue && daysUntilDue >= 0 && daysUntilDue <= 3;
@@ -1227,7 +1230,7 @@ export default function CreditCards() {
                                                 {format(currentInvoiceDate, 'MMMM', { locale: ptBR })}
                                             </h3>
                                             <p className="text-sm text-gray-500" data-testid="text-invoice-due">
-                                                Vence dia {selectedCard.dueDay}/{format(currentInvoiceDate, 'MM')} • Fecha dia {selectedCard.closingDay}
+                                                Vence dia {selectedCard.dueDay}/{format(addMonths(currentInvoiceDate, 1), 'MM')} • Fecha dia {selectedCard.closingDay}
                                             </p>
                                         </div>
                                         <div className="text-right">
