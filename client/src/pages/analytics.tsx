@@ -362,34 +362,61 @@ export default function Analytics() {
             {/* --- OVERVIEW TAB --- */}
             {activeTab === 'overview' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                    {/* Clarity block */}
-                    <div className="rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm" data-testid="card-analytics-explainer">
-                        <div className="flex items-start justify-between gap-3">
+                    {/* Visual breakdown */}
+                    <div className="rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm" data-testid="card-analytics-breakdown">
+                        <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0">
-                                <p className="text-sm font-bold text-gray-900 dark:text-white" data-testid="text-analytics-explainer-title">Como funciona a Visão Geral</p>
-                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1" data-testid="text-analytics-explainer-body">
-                                    Esta aba mostra o <span className="font-semibold">fluxo de caixa</span> do período (entradas e saídas) somando todas as contas.
-                                    Compras de cartão entram aqui como <span className="font-semibold">parcelas virtuais</span> (uma por mês) para você enxergar o impacto mês a mês.
-                                    Pagamentos de fatura são ignorados nesta visão para evitar contar a mesma despesa duas vezes.
-                                </p>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider" data-testid="text-analytics-breakdown-title">De onde vem esse número</p>
+                                <p className="text-sm font-bold text-gray-900 dark:text-white" data-testid="text-analytics-breakdown-subtitle">Resumo por fonte (período atual)</p>
                             </div>
+                            <Badge variant="secondary" className="rounded-full" data-testid="badge-analytics-breakdown-scope">Consolidado</Badge>
                         </div>
 
                         <div className="mt-3 grid grid-cols-1 gap-2">
-                            <div className="flex items-center justify-between rounded-xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 px-3 py-2" data-testid="row-analytics-explainer-sources">
-                                <div className="min-w-0">
-                                    <p className="text-xs font-semibold text-gray-900 dark:text-white">Fontes usadas</p>
-                                    <p className="text-[11px] text-gray-600 dark:text-gray-400">Extrato (transações) + Cartões (parcelas/faturas como eventos mensais)</p>
+                            <div className="rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/50 p-3" data-testid="card-breakdown-income">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                                            <ArrowUp className="h-4 w-4" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-semibold text-gray-900 dark:text-white">Entradas</p>
+                                            <p className="text-[11px] text-gray-500">Extrato (recebido/pago no período)</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300" data-testid="text-breakdown-income-total">{formatCurrency(totalIncome)}</p>
                                 </div>
-                                <Badge variant="secondary" className="rounded-full" data-testid="badge-analytics-explainer-scope">Consolidado</Badge>
                             </div>
 
-                            <div className="flex items-center justify-between rounded-xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 px-3 py-2" data-testid="row-analytics-explainer-filters">
-                                <div className="min-w-0">
-                                    <p className="text-xs font-semibold text-gray-900 dark:text-white">Filtros</p>
-                                    <p className="text-[11px] text-gray-600 dark:text-gray-400">Período, tipo (entrada/saída), conta e modo (pessoal/empresa)</p>
+                            <div className="rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/50 p-3" data-testid="card-breakdown-expense">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-8 w-8 rounded-xl bg-red-500/10 text-red-600 flex items-center justify-center">
+                                            <ArrowDown className="h-4 w-4" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-semibold text-gray-900 dark:text-white">Saídas</p>
+                                            <p className="text-[11px] text-gray-500">Extrato + parcelas do cartão (impacto mensal)</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm font-bold text-red-700 dark:text-red-300" data-testid="text-breakdown-expense-total">{formatCurrency(totalExpense)}</p>
                                 </div>
-                                <Badge variant="outline" className="rounded-full" data-testid="badge-analytics-explainer-filters">Aplicam aqui</Badge>
+
+                                <div className="mt-3 space-y-2" data-testid="list-breakdown-expense-sources">
+                                    <div className="flex items-center justify-between text-xs" data-testid="row-breakdown-expense-extrato">
+                                        <span className="text-gray-600 dark:text-gray-400">Extrato (despesas)</span>
+                                        <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(filteredOverviewData.filter(t => t.type === 'expense' && !t.id.startsWith('virtual-') && t.accountId !== 'virtual-card').reduce((s, t) => s + t.amount, 0))}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs" data-testid="row-breakdown-expense-card">
+                                        <span className="text-gray-600 dark:text-gray-400">Cartão (parcelas)</span>
+                                        <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(filteredOverviewData.filter(t => t.type === 'expense' && (t.id.startsWith('virtual-') || t.accountId === 'virtual-card')).reduce((s, t) => s + t.amount, 0))}</span>
+                                    </div>
+                                    <div className="h-px bg-gray-200 dark:bg-zinc-800" />
+                                    <div className="flex items-center justify-between text-xs" data-testid="row-breakdown-expense-note">
+                                        <span className="text-gray-500">Pagamento de fatura</span>
+                                        <span className="text-gray-500">não entra aqui</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
