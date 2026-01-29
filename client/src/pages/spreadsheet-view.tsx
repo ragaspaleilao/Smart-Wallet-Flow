@@ -169,37 +169,47 @@ export default function SpreadsheetView() {
     
     const relevantCardIds = filteredCards.map(c => c.id);
 
-    creditPurchases.filter(p => relevantCardIds.includes(p.creditCardId) && p.status === 'active').forEach(purchase => {
-         const card = creditCards.find(c => c.id === purchase.creditCardId);
-         if (!card) return;
+    creditPurchases
+        .filter(p => relevantCardIds.includes(p.creditCardId) && p.status === 'active')
+        .forEach(purchase => {
+            const card = creditCards.find(c => c.id === purchase.creditCardId);
+            if (!card) return;
 
-         const pDate = new Date(purchase.purchaseDate);
-         
-         // Helper to get invoice month competency based on closing day.
-         // Rule: closing day = 3 means 04/M..03/M+1 belongs to month M.
-         // So: if purchase day <= closingDay => belongs to previous month; else belongs to same month.
-         const getInvoiceDate = (date: Date) => {
-             const d = new Date(date);
-             if (d.getDate() <= card.closingDay) {
-                 return subMonths(d, 1);
-             }
-             return d;
-         };
+            // Normalize YYYY-MM-DD to local midday to avoid timezone shifting the day/month.
+            const pDate = (() => {
+                const raw = String(purchase.purchaseDate || '');
+                if (raw.length === 10) return new Date(`${raw}T12:00:00`);
+                return new Date(raw);
+            })();
 
-         let currentInvoiceDate = getInvoiceDate(pDate);
+            // Helper to get invoice month competency based on closing day.
+            // Rule: closing day = 3 means 04/M..03/M+1 belongs to month M.
+            // So: if purchase day <= closingDay => belongs to previous month; else belongs to same month.
+            const getInvoiceDate = (date: Date) => {
+                const d = new Date(date);
+                if (d.getDate() <= card.closingDay) {
+                    return subMonths(d, 1);
+                }
+                return d;
+            };
 
-         for (let i = 1; i <= purchase.installments; i++) {
-             if (currentInvoiceDate.getFullYear() === year) {
-                 const m = currentInvoiceDate.getMonth();
-                 if (data[m]) {
-                     data[m].creditCardBill += purchase.installmentValue;
-                 }
-             }
-             currentInvoiceDate = addMonths(currentInvoiceDate, 1);
-         }
-    });
+            // Normalize to 1st of month to make month bucketing stable.
+            let currentInvoiceDate = startOfMonth(getInvoiceDate(pDate));
+
+            for (let i = 1; i <= purchase.installments; i++) {
+                if (currentInvoiceDate.getFullYear() === year) {
+                    const m = currentInvoiceDate.getMonth();
+                    if (data[m]) {
+                        data[m].creditCardBill += purchase.installmentValue;
+                    }
+                }
+                currentInvoiceDate = startOfMonth(addMonths(currentInvoiceDate, 1));
+            }
+        });
 
     // Add Annual Fees to projections
+    // If the annual fee is defined as a monthly value, it should be applied per month.
+    // If you later model it as a yearly charge, move it to a specific month.
     relevantCardIds.forEach(cardId => {
         const card = creditCards.find(c => c.id === cardId);
         if (card && card.hasAnnualFee && card.annualFeeValue && card.annualFeeValue > 0) {
@@ -209,6 +219,10 @@ export default function SpreadsheetView() {
             });
         }
     });
+
+    // In projections, we must include the CURRENT open invoice month (competency) even if
+    // some purchases have purchaseDate stored as YYYY-MM-DD (local). Normalizing to midday
+    // avoids timezone shifts that can drop items into the wrong month.
 
     // Calculate balances + running cash (previous balance + result)
     // Starting balance = current total balance minus all paid tx from selected year onwards (same approach used in Consolidated)
