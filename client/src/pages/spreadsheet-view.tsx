@@ -134,10 +134,12 @@ export default function SpreadsheetView() {
     const data = months.map(month => ({
       month,
       monthName: new Date(year, month, 1).toLocaleString('pt-BR', { month: 'short' }),
+      previousBalance: 0,
       income: 0,
       expense: 0,
       creditCardBill: 0,
-      balance: 0
+      balance: 0,
+      accumulatedBalance: 0
     }));
 
     // 1. Transactions Logic
@@ -201,9 +203,33 @@ export default function SpreadsheetView() {
         }
     });
 
-    // Calculate balances
-    data.forEach(d => d.balance = d.income - d.expense - d.creditCardBill);
-    
+    // Calculate balances + running cash (previous balance + result)
+    // Starting balance = current total balance minus all paid tx from selected year onwards (same approach used in Consolidated)
+    const filteredAccounts = accounts.filter(a => context === "personal" ? a.isPersonal : !a.isPersonal);
+    const currentTotalBalance = filteredAccounts.reduce((acc, curr) => acc + curr.balance, 0);
+
+    const subsequentPaid = transactions.filter(t => {
+      const tDate = new Date(t.date);
+      const isContextMatch = context === "personal" ? t.isPersonal : !t.isPersonal;
+      const isPaid = t.status === 'paid';
+      return isContextMatch && isPaid && tDate.getFullYear() >= year;
+    });
+
+    let initialBalance = currentTotalBalance;
+    subsequentPaid.forEach(t => {
+      if (t.type === 'income') initialBalance -= t.amount;
+      else initialBalance += t.amount;
+    });
+
+    let running = initialBalance;
+    data.forEach(d => {
+      const result = d.income - d.expense - d.creditCardBill;
+      d.previousBalance = running;
+      d.balance = result;
+      d.accumulatedBalance = running + result;
+      running = d.accumulatedBalance;
+    });
+
     return data;
   }, [transactions, projectionYear, context, creditCards, creditPurchases, accounts]);
 
@@ -761,6 +787,19 @@ export default function SpreadsheetView() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
+                            {/* Previous Balance Row */}
+                            <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-12 hover:bg-gray-50">
+                                <TableCell className="font-semibold text-xs sticky left-0 bg-white dark:bg-black z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-blue-600">
+                                    Saldo Anterior
+                                </TableCell>
+                                {projectionData.map(m => (
+                                    <TableCell key={m.month} className="text-center text-xs text-blue-600/80 font-medium">
+                                        {formatCurrency(m.previousBalance)}
+                                    </TableCell>
+                                ))}
+                                <TableCell className="text-right text-xs font-bold text-gray-400 bg-gray-50 dark:bg-zinc-900">-</TableCell>
+                            </TableRow>
+
                             {/* Income Row */}
                             <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-12 hover:bg-gray-50">
                                 <TableCell className="font-semibold text-xs sticky left-0 bg-white dark:bg-black z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-green-600">
@@ -806,7 +845,7 @@ export default function SpreadsheetView() {
                                 </TableCell>
                             </TableRow>
 
-                            {/* Balance Row */}
+                            {/* Result Row */}
                             <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-14 bg-gray-50/50 font-medium">
                                 <TableCell className="font-bold text-xs sticky left-0 bg-gray-50 dark:bg-zinc-900 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                                     RESULTADO
@@ -819,6 +858,19 @@ export default function SpreadsheetView() {
                                 <TableCell className={`text-right text-xs font-bold bg-gray-100 dark:bg-zinc-800 ${projectionData.reduce((acc,curr) => acc + curr.balance, 0) >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
                                     {formatCurrency(projectionData.reduce((acc, curr) => acc + curr.balance, 0))}
                                 </TableCell>
+                            </TableRow>
+
+                            {/* Accumulated Balance Row */}
+                            <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-14 bg-gray-50/50 font-medium">
+                                <TableCell className="font-bold text-xs sticky left-0 bg-gray-50 dark:bg-zinc-900 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-blue-700">
+                                    SALDO ACUMULADO
+                                </TableCell>
+                                {projectionData.map(m => (
+                                    <TableCell key={m.month} className={`text-center text-xs font-bold ${m.accumulatedBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                                        {formatCurrency(m.accumulatedBalance)}
+                                    </TableCell>
+                                ))}
+                                <TableCell className="text-right text-xs font-bold bg-gray-100 dark:bg-zinc-800 text-gray-400">-</TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
