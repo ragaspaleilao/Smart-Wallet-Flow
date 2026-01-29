@@ -27,7 +27,7 @@ import {
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import { useMemo, useState } from "react";
-import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay, addDays } from "date-fns";
+import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay, addDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -289,7 +289,7 @@ export default function CreditCards() {
     let items: { purchase: CreditPurchase, installment: number, value: number, date: string }[] = [];
 
     creditPurchases.filter(p => p.creditCardId === cardId && p.status === 'active').forEach(purchase => {
-        const pDate = new Date(purchase.purchaseDate);
+        const pDate = parseISO(purchase.purchaseDate);
         // First installment month
         let currentInstallmentMonth = getInvoiceMonthDate(pDate, card.closingDay);
         
@@ -454,7 +454,7 @@ export default function CreditCards() {
           amount: formatCurrencyInput(String(purchase.totalAmount * 100)),
           installments: String(purchase.installments),
           category: purchase.category as any,
-          date: purchase.purchaseDate
+          date: purchase.purchaseDate?.slice(0, 10) || new Date().toISOString().slice(0, 10)
       });
       setIsPurchaseOpen(true);
   };
@@ -1267,7 +1267,7 @@ export default function CreditCards() {
                                                 >
                                                     {item.purchase.description === 'Anuidade' ? 
                                                         'Cobrança Mensal' : 
-                                                        `${format(new Date(item.purchase.purchaseDate), 'dd/MM')} • Parcela ${item.installment}/${item.purchase.installments}`
+                                                        `${format(parseISO(item.purchase.purchaseDate), 'dd/MM')} • Parcela ${item.installment}/${item.purchase.installments}`
                                                     }
                                                 </p>
                                             </div>
