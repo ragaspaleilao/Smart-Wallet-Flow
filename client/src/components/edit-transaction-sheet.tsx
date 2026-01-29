@@ -23,7 +23,7 @@ interface EditTransactionSheetProps {
 }
 
 export function EditTransactionSheet({ transaction, children }: EditTransactionSheetProps) {
-  const { updateTransaction, removeTransaction, accounts } = useFinancialStore();
+  const { updateTransaction, removeTransaction, accounts, categories } = useFinancialStore();
   const [open, setOpen] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -175,20 +175,15 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
             <div className="space-y-2">
                 <Label>Categoria</Label>
                 <Select value={formData.category} onValueChange={(val: Category) => setFormData({...formData, category: val})}>
-                    <SelectTrigger>
+                    <SelectTrigger data-testid="select-edit-category">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="Alimentação">Alimentação</SelectItem>
-                        <SelectItem value="Transporte">Transporte</SelectItem>
-                        <SelectItem value="Moradia">Moradia</SelectItem>
-                        <SelectItem value="Lazer">Lazer</SelectItem>
-                        <SelectItem value="Saúde">Saúde</SelectItem>
-                        <SelectItem value="Educação">Educação</SelectItem>
-                        <SelectItem value="Salário">Salário</SelectItem>
-                        <SelectItem value="Vendas">Vendas</SelectItem>
-                        <SelectItem value="Serviços">Serviços</SelectItem>
-                        <SelectItem value="Outros">Outros</SelectItem>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat} value={cat} data-testid={`option-edit-category-${cat}`}>
+                            {cat}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </div>

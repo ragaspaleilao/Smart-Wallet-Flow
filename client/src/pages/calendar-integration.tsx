@@ -153,12 +153,13 @@ export default function CalendarIntegration() {
                                 <div className="space-y-2">
                                     <Label>Categorias para Sincronizar</Label>
                                     <div className="flex flex-wrap gap-2">
-                                        {['Alimentação', 'Moradia', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Outros'].map((cat) => (
+                                        {useFinancialStore.getState().categories.map((cat) => (
                                             <Badge 
                                                 key={cat}
                                                 variant={calendarSettings.syncCategories.includes(cat as Category) ? "default" : "outline"}
                                                 className={`cursor-pointer ${calendarSettings.syncCategories.includes(cat as Category) ? 'bg-blue-600 hover:bg-blue-700' : 'hover:bg-gray-100'}`}
                                                 onClick={() => toggleCategory(cat as Category)}
+                                                data-testid={`badge-sync-category-${cat}`}
                                             >
                                                 {cat}
                                             </Badge>

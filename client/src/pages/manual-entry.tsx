@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export default function ManualEntry() {
   const [_, setLocation] = useLocation();
-  const { addTransaction, addCreditPurchase, accounts, creditCards } = useFinancialStore();
+  const { addTransaction, addCreditPurchase, accounts, creditCards, categories } = useFinancialStore();
   
   const [type, setType] = useState<"expense" | "income">("expense");
   const [paymentMethod, setPaymentMethod] = useState<"debit" | "credit">("debit");
@@ -21,6 +21,12 @@ export default function ManualEntry() {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<Category>("Alimentação");
+
+  useEffect(() => {
+    if (categories?.length && !categories.includes(category)) {
+      setCategory(categories[0] as Category);
+    }
+  }, [categories]);
   
   // Account / Card Selection
   const [accountId, setAccountId] = useState<string>("");
@@ -378,7 +384,7 @@ export default function ManualEntry() {
           <div className="space-y-2">
             <Label>Categoria</Label>
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-              {["Alimentação", "Transporte", "Lazer", "Saúde", "Educação", "Salário", "Vendas", "Serviços", "Outros"].map((cat) => (
+              {categories.map((cat) => (
                 <button 
                   key={cat} 
                   className={`px-4 py-2 border rounded-full text-sm whitespace-nowrap transition-colors ${
@@ -387,6 +393,7 @@ export default function ManualEntry() {
                       : "bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 hover:border-primary hover:text-primary"
                   }`}
                   onClick={() => setCategory(cat as Category)}
+                  data-testid={`button-category-${cat}`}
                 >
                   {cat}
                 </button>

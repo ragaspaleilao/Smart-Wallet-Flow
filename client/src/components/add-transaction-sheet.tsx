@@ -21,7 +21,7 @@ interface AddTransactionSheetProps {
 }
 
 export function AddTransactionSheet({ children, defaultType = 'expense', context = 'personal' }: AddTransactionSheetProps) {
-  const { addTransaction, accounts } = useFinancialStore();
+  const { addTransaction, accounts, categories } = useFinancialStore();
   const [open, setOpen] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -150,20 +150,15 @@ export function AddTransactionSheet({ children, defaultType = 'expense', context
             <div className="space-y-2">
                 <Label>Categoria</Label>
                 <Select value={formData.category} onValueChange={(val: Category) => setFormData({...formData, category: val})}>
-                    <SelectTrigger>
+                    <SelectTrigger data-testid="select-add-category">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="Alimentação">Alimentação</SelectItem>
-                        <SelectItem value="Transporte">Transporte</SelectItem>
-                        <SelectItem value="Moradia">Moradia</SelectItem>
-                        <SelectItem value="Lazer">Lazer</SelectItem>
-                        <SelectItem value="Saúde">Saúde</SelectItem>
-                        <SelectItem value="Educação">Educação</SelectItem>
-                        <SelectItem value="Salário">Salário</SelectItem>
-                        <SelectItem value="Vendas">Vendas</SelectItem>
-                        <SelectItem value="Serviços">Serviços</SelectItem>
-                        <SelectItem value="Outros">Outros</SelectItem>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat} value={cat} data-testid={`option-add-category-${cat}`}>
+                            {cat}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </div>
