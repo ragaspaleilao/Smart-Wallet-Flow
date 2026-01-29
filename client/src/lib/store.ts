@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 
 export type TransactionType = 'income' | 'expense';
-export type Category = 'Alimentação' | 'Transporte' | 'Lazer' | 'Saúde' | 'Educação' | 'Moradia' | 'Outros' | 'Salário' | 'Vendas' | 'Serviços' | 'Investimento';
+export type Category = string;
 
 export type AccountType = 'bank' | 'wallet' | 'cash' | 'other';
 
@@ -163,7 +163,11 @@ interface FinancialStore {
   vehicles: Vehicle[];
   businessProducts: BusinessProduct[];
   businessSettings: BusinessSettings;
-  
+
+  categories: string[];
+  addCategory: (name: string) => void;
+  removeCategory: (name: string) => void;
+
   // Credit Card State
   creditCards: CreditCard[];
   creditPurchases: CreditPurchase[];
@@ -291,6 +295,7 @@ export const useFinancialStore = create<FinancialStore>()(
   persist(
     (set, get) => ({
       // --- Initial State (Clean for Manual Simulation) ---
+      categories: ['Alimentação', 'Transporte', 'Lazer', 'Saúde', 'Educação', 'Moradia', 'Outros', 'Salário', 'Vendas', 'Serviços', 'Investimento'],
       simulations: [],
       subscriptions: [],
 
@@ -351,6 +356,7 @@ export const useFinancialStore = create<FinancialStore>()(
         ];
 
         set(() => ({
+          categories: ['Alimentação', 'Transporte', 'Lazer', 'Saúde', 'Educação', 'Moradia', 'Outros', 'Salário', 'Vendas', 'Serviços', 'Investimento'],
           transactions: [],
           accounts,
           goals: [],
@@ -385,6 +391,20 @@ export const useFinancialStore = create<FinancialStore>()(
           // ignore
         }
       },
+
+      addCategory: (name) => set((state) => {
+        const cleaned = (name || '').trim();
+        if (!cleaned) return {};
+        const exists = state.categories.some(c => c.toLowerCase() === cleaned.toLowerCase());
+        if (exists) return {};
+        return { categories: [...state.categories, cleaned].sort((a, b) => a.localeCompare(b, 'pt-BR')) };
+      }),
+
+      removeCategory: (name) => set((state) => {
+        const cleaned = (name || '').trim();
+        if (!cleaned) return {};
+        return { categories: state.categories.filter(c => c !== cleaned) };
+      }),
 
       addSimulation: (simData) => set((state) => ({
         simulations: [...state.simulations, { ...simData, id: nanoid(), createdAt: new Date().toISOString() }]
