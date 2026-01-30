@@ -1,7 +1,7 @@
 import { MobileLayout } from "@/components/mobile-layout";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { PieChart, TrendingUp, Plus, Calendar as CalendarIcon, Calculator, Trash2, Save, Info } from "lucide-react";
+import { PieChart, TrendingUp, Plus, Calendar as CalendarIcon, Calculator, Trash2, Save, Info, Wand2 } from "lucide-react";
 import { useFinancialStore, Investment } from "@/lib/store";
 import {
   Dialog,
@@ -60,6 +60,23 @@ export default function Investments() {
   // Projection State
   const [projectionDate, setProjectionDate] = useState(format(addMonths(new Date(), 12), 'yyyy-MM-dd'));
 
+  const computeValueWithYieldToNow = (initialValue: number, monthlyRatePercent: number, startISO?: string) => {
+    const startDate = startISO ? new Date(startISO) : new Date();
+    const now = new Date();
+    const days = differenceInDays(now, startDate);
+    const months = differenceInMonths(now, startDate);
+
+    if (days <= 0 || !Number.isFinite(initialValue) || !Number.isFinite(monthlyRatePercent)) {
+      return { nextValue: initialValue, profit: 0, days: Math.max(0, days), months: Math.max(0, months) };
+    }
+
+    const monthlyRate = monthlyRatePercent / 100;
+    const nextValue = initialValue * Math.pow(1 + monthlyRate, months + (days % 30) / 30);
+    const profit = nextValue - initialValue;
+
+    return { nextValue, profit, days, months };
+  };
+
   // Calculate total: If linked, use Account Balance. Else use manual value.
   const totalInvested = investments.reduce((acc, curr) => {
       if (curr.accountId) {
@@ -99,7 +116,8 @@ export default function Investments() {
         startDate: formData.startDate,
         hasTax: formData.hasTax,
         isPersonal: true,
-        accountId: formData.accountId !== "none" ? formData.accountId : undefined
+        accountId: formData.accountId !== "none" ? formData.accountId : undefined,
+        lastYieldAppliedAt: new Date().toISOString()
     };
 
     if (editingId) {
@@ -296,6 +314,7 @@ export default function Investments() {
                                 placeholder="Ex: Tesouro Direto" 
                                 value={formData.name}
                                 onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                data-testid="input-investment-name"
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -436,11 +455,45 @@ export default function Investments() {
                                     handleClose();
                                     toast({ title: "Investimento removido" });
                                 }}
+                                data-testid="button-delete-investment"
                             >
                                 <Trash2 className="w-4 h-4 mr-2" /> Excluir
                             </Button>
                         )}
-                        <Button className="flex-[2] bg-purple-600 hover:bg-purple-700" onClick={handleSave}>
+
+                        {editingId && formData.accountId === "none" && (
+                          <Button
+                            variant="outline"
+                            className="flex-1 border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-900/40 dark:text-purple-300 dark:hover:bg-purple-900/20"
+                            onClick={() => {
+                              const inv = investments.find(i => i.id === editingId);
+                              if (!inv) return;
+
+                              const result = computeValueWithYieldToNow(inv.value, inv.yieldRate ?? 0, inv.lastYieldAppliedAt || inv.startDate);
+                              if (result.profit <= 0) {
+                                toast({ title: "Nada para aplicar ainda" });
+                                return;
+                              }
+
+                              updateInvestment(editingId, {
+                                value: result.nextValue,
+                                lastYieldAppliedAt: new Date().toISOString()
+                              });
+
+                              setFormData(prev => ({
+                                ...prev,
+                                value: result.nextValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                              }));
+
+                              toast({ title: "Rendimento aplicado" });
+                            }}
+                            data-testid="button-apply-yield"
+                          >
+                            <Wand2 className="w-4 h-4 mr-2" /> Aplicar rendimento
+                          </Button>
+                        )}
+
+                        <Button className="flex-[2] bg-purple-600 hover:bg-purple-700" onClick={handleSave} data-testid="button-save-investment">
                             <Save className="w-4 h-4 mr-2" /> Salvar
                         </Button>
                     </div>

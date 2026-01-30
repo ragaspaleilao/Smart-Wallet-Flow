@@ -55,6 +55,7 @@ export interface Investment {
   hasTax?: boolean; // Whether IR applies
   isPersonal: boolean;
   accountId?: string; // Link to a wallet/account
+  lastYieldAppliedAt?: string; // ISO datetime
 }
 
 export interface Vehicle {
