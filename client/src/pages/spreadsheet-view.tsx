@@ -160,15 +160,9 @@ export default function SpreadsheetView() {
     });
 
     // 2. Credit Card Logic
-    // IMPORTANT: credit card purchases are always part of the same context as their linked account.
-    // If a card isn't linked yet (mockup state), we include it in BOTH contexts so totals don't disappear.
-    const filteredCards = creditCards.filter(card => {
-        const linkedAccount = accounts.find(a => a.id === card.linkedAccountId);
-        if (!linkedAccount) return true;
-        return context === "personal" ? linkedAccount.isPersonal : !linkedAccount.isPersonal;
-    });
-    
-    const relevantCardIds = filteredCards.map(c => c.id);
+    // For this monthly "Faturas Cartão" row we want the SUM of all credit card invoices.
+    // So we do NOT restrict by personal/company context here.
+    const relevantCardIds = creditCards.map(c => c.id);
 
     creditPurchases
         .filter(p => relevantCardIds.includes(p.creditCardId) && p.status === 'active')
