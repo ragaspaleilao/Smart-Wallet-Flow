@@ -433,28 +433,15 @@ export default function CreditCards() {
   // This matches how banks reserve limit for installment purchases.
   const reservedLimit = useMemo(() => {
       if (!selectedCardId) return 0;
-      const today = new Date();
+
+      // IMPORTANT: Subscriptions/annuities should NOT reserve limit.
+      // Limit reservation is only for purchases effectively made on the card (including installments).
+      // In this mockup, annual fee shows in invoices but doesn't hold limit.
 
       return creditPurchases
         .filter(p => p.creditCardId === selectedCardId && p.status === 'active')
-        .reduce((sum, p) => {
-          const pDate = parseISO(p.purchaseDate.length === 10 ? `${p.purchaseDate}T12:00:00` : p.purchaseDate);
-
-          // Compute the FIRST competency month of the purchase, then advance month-by-month.
-          let monthCursor = getInvoiceMonthDate(pDate, selectedCard?.closingDay || 1);
-
-          let remaining = 0;
-          for (let i = 1; i <= p.installments; i++) {
-            // We count installments that are still to come (including current open cycle).
-            if (!isBefore(startOfMonth(monthCursor), startOfMonth(today))) {
-              remaining += p.installmentValue;
-            }
-            monthCursor = addMonths(monthCursor, 1);
-          }
-
-          return sum + remaining;
-        }, 0);
-  }, [selectedCardId, creditPurchases, selectedCard]);
+        .reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+  }, [selectedCardId, creditPurchases]);
 
   const usedLimit = reservedLimit;
   const availableLimit = totalLimit - usedLimit;
