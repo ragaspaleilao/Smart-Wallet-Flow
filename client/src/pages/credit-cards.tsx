@@ -403,19 +403,27 @@ export default function CreditCards() {
 
       for (let i = 0; i < 12; i++) {
           let monthTotal = 0;
+          const byCard: { cardId: string; name: string; total: number }[] = [];
 
           creditCards.forEach(card => {
               // getInvoiceItems espera o mês de COMPETÊNCIA (mesmo mês usado por getInvoiceMonthDate).
               // monthCursor já representa a competência do mês que está sendo exibido (ex: Janeiro 2026).
               // Portanto NÃO somamos +1 aqui.
               const items = getInvoiceItems(card.id, monthCursor);
-              monthTotal += items.reduce((a, b) => a + b.value, 0);
+              const cardTotal = items.reduce((a, b) => a + b.value, 0);
+
+              monthTotal += cardTotal;
+
+              if (cardTotal > 0) {
+                  byCard.push({ cardId: card.id, name: card.name, total: cardTotal });
+              }
           });
 
           projection.push({
               name: format(monthCursor, 'MMM', { locale: ptBR }),
               fullDate: format(monthCursor, 'MMMM yyyy', { locale: ptBR }),
               total: monthTotal,
+              byCard: byCard.sort((a, b) => b.total - a.total),
               month: monthCursor.getMonth()
           });
 
@@ -645,10 +653,54 @@ export default function CreditCards() {
                             </div>
                             <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
                                 {totalProjection.filter(p => p.total > 0).map((p, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm p-2 bg-gray-50 dark:bg-zinc-900 rounded-lg">
-                                        <span className="font-medium">{p.fullDate}</span>
-                                        <span className="font-bold text-gray-900 dark:text-white">{formatCurrency(p.total)}</span>
-                                    </div>
+                                    <details
+                                        key={idx}
+                                        className="group rounded-lg bg-gray-50 dark:bg-zinc-900"
+                                        data-testid={`accordion-projection-month-${idx}`}
+                                    >
+                                        <summary
+                                            className="flex justify-between items-center text-sm p-2 cursor-pointer list-none"
+                                            data-testid={`button-projection-month-${idx}`}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-medium" data-testid={`text-projection-month-${idx}`}>{p.fullDate}</span>
+                                                <span
+                                                    className="text-[11px] px-2 py-0.5 rounded-full bg-white/70 dark:bg-black/30 text-gray-500 dark:text-zinc-300 border border-gray-200/80 dark:border-zinc-800"
+                                                    data-testid={`badge-projection-cards-${idx}`}
+                                                >
+                                                    {p.byCard?.length || 0} cartão(ões)
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-gray-900 dark:text-white" data-testid={`text-projection-total-${idx}`}>{formatCurrency(p.total)}</span>
+                                                <span
+                                                    className="text-gray-400 transition-transform group-open:rotate-180"
+                                                    aria-hidden="true"
+                                                    data-testid={`icon-projection-chevron-${idx}`}
+                                                >
+                                                    ▾
+                                                </span>
+                                            </div>
+                                        </summary>
+
+                                        {p.byCard?.length > 0 && (
+                                            <div className="px-2 pb-2 pt-1 border-t border-gray-200/70 dark:border-zinc-800">
+                                                <div className="space-y-1">
+                                                    {p.byCard.map((c: any) => (
+                                                        <div
+                                                            key={c.cardId}
+                                                            className="flex items-center justify-between rounded-md px-2 py-1.5 bg-white/70 dark:bg-black/20"
+                                                            data-testid={`row-projection-card-${c.cardId}-${idx}`}
+                                                        >
+                                                            <span className="text-xs text-gray-600 dark:text-zinc-300" data-testid={`text-projection-card-name-${c.cardId}-${idx}`}>{c.name}</span>
+                                                            <span className="text-xs font-semibold text-gray-900 dark:text-white" data-testid={`text-projection-card-total-${c.cardId}-${idx}`}>{formatCurrency(c.total)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </details>
                                 ))}
                             </div>
                         </div>
