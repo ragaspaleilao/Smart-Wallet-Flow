@@ -315,16 +315,18 @@ export default function CreditCards() {
         }
     });
 
-    // Add Annual Fee if applicable
+    // Add Annual Fee if applicable (monthly charge, invoice-only)
     if (card.hasAnnualFee && card.annualFeeValue && card.annualFeeValue > 0) {
         const feeValue = card.annualFeeValue;
-        // Create a synthetic purchase object for the fee
+
+        // Invoice-only synthetic item: it must show on the invoice for THIS competence month,
+        // but it must NOT behave like a 12x installment purchase.
         const feePurchase: CreditPurchase = {
-            id: `fee-${card.id}-${targetMonth}-${targetYear}`, // Unique ID per month
+            id: `fee-${card.id}-${targetMonth}-${targetYear}`,
             creditCardId: card.id,
             description: 'Anuidade',
-            totalAmount: feeValue * 12,
-            installments: 12,
+            totalAmount: feeValue,
+            installments: 1,
             installmentValue: feeValue,
             category: 'Outros',
             purchaseDate: `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-01`,
@@ -333,11 +335,9 @@ export default function CreditCards() {
             updatedAt: new Date().toISOString()
         };
 
-        // We calculate a conceptual installment number based on month index for consistency, 
-        // or just rely on the UI to handle it.
         items.push({
             purchase: feePurchase,
-            installment: (targetMonth % 12) + 1, 
+            installment: 1,
             value: feeValue,
             date: feePurchase.purchaseDate
         });
