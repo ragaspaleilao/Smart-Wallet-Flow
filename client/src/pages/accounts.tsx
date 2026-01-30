@@ -116,8 +116,8 @@ export default function Accounts() {
     toast({ title: "Relatório exportado!" });
   };
 
-  const totalBalance = accounts.reduce((acc, curr) => acc + curr.balance, 0);
-  const totalInvested = investments.reduce((acc, curr) => acc + curr.value, 0);
+  const totalBalance = accounts.filter(a => a.type !== 'investment').reduce((acc, curr) => acc + curr.balance, 0);
+  const totalInvested = accounts.filter(a => a.type === 'investment').reduce((acc, curr) => acc + curr.balance, 0);
   const grandTotal = totalBalance + totalInvested;
 
   const data = [
