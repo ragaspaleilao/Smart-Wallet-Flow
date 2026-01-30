@@ -687,16 +687,31 @@ export default function CreditCards() {
                                         {p.byCard?.length > 0 && (
                                             <div className="px-2 pb-2 pt-1 border-t border-gray-200/70 dark:border-zinc-800">
                                                 <div className="space-y-1">
-                                                    {p.byCard.map((c: any) => (
-                                                        <div
-                                                            key={c.cardId}
-                                                            className="flex items-center justify-between rounded-md px-2 py-1.5 bg-white/70 dark:bg-black/20"
-                                                            data-testid={`row-projection-card-${c.cardId}-${idx}`}
-                                                        >
-                                                            <span className="text-xs text-gray-600 dark:text-zinc-300" data-testid={`text-projection-card-name-${c.cardId}-${idx}`}>{c.name}</span>
-                                                            <span className="text-xs font-semibold text-gray-900 dark:text-white" data-testid={`text-projection-card-total-${c.cardId}-${idx}`}>{formatCurrency(c.total)}</span>
-                                                        </div>
-                                                    ))}
+                                                    {p.byCard.map((c: any) => {
+                                                        const cardColor = creditCards.find(cc => cc.id === c.cardId)?.color;
+                                                        return (
+                                                            <div
+                                                                key={c.cardId}
+                                                                className="flex items-center justify-between rounded-md px-2 py-1.5 bg-white/70 dark:bg-black/20"
+                                                                data-testid={`row-projection-card-${c.cardId}-${idx}`}
+                                                            >
+                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                    <span
+                                                                        className={`h-2.5 w-2.5 rounded-full ${cardColor || 'bg-gray-300'} ring-2 ring-white/70 dark:ring-black/30`}
+                                                                        aria-hidden="true"
+                                                                        data-testid={`dot-projection-card-${c.cardId}-${idx}`}
+                                                                    />
+                                                                    <span
+                                                                        className="text-xs text-gray-600 dark:text-zinc-300 truncate"
+                                                                        data-testid={`text-projection-card-name-${c.cardId}-${idx}`}
+                                                                    >
+                                                                        {c.name}
+                                                                    </span>
+                                                                </div>
+                                                                <span className="text-xs font-semibold text-gray-900 dark:text-white" data-testid={`text-projection-card-total-${c.cardId}-${idx}`}>{formatCurrency(c.total)}</span>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         )}
