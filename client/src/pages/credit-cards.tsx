@@ -434,16 +434,12 @@ export default function CreditCards() {
   const reservedLimit = useMemo(() => {
       if (!selectedCardId || !selectedCard) return 0;
 
-      // Limit should only be reserved by real credit purchases (including installments).
-      // Recurring charges like subscriptions/annual fee should affect the invoice only on their months,
-      // but should NOT reserve future limit.
+      // Reserve limit ONLY for real credit purchases (including installments).
+      // Do NOT reserve for synthetic invoice-only charges like annual fee.
       return creditPurchases
         .filter(p => p.creditCardId === selectedCardId && p.status === 'active')
-        .reduce((sum, p) => {
-          // No installment-payment tracking in the mockup yet.
-          // We reserve the full remaining principal for all active installment purchases.
-          return sum + (p.totalAmount || (p.installmentValue * p.installments) || 0);
-        }, 0);
+        .filter(p => !String(p.id).startsWith('fee-'))
+        .reduce((sum, p) => sum + (p.totalAmount || (p.installmentValue * p.installments) || 0), 0);
   }, [selectedCardId, selectedCard, creditPurchases]);
 
   const usedLimit = reservedLimit;
