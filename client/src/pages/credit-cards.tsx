@@ -27,7 +27,7 @@ import {
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import { useMemo, useState } from "react";
-import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay, addDays, parseISO } from "date-fns";
+import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay, addDays, parseISO, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -428,14 +428,37 @@ export default function CreditCards() {
 
   // Calculate Limits
   const totalLimit = selectedCard?.creditLimit || 0;
-  // Used limit = sum of charges that are in the CURRENT open invoice (monthly subscriptions should not reserve 12 months)
-  const usedLimit = useMemo(() => {
-      if (!selectedCardId) return 0;
-      return getInvoiceItems(selectedCardId, currentInvoiceDate).reduce((acc, item) => acc + item.value, 0);
-  }, [selectedCardId, creditPurchases, currentInvoiceDate]);
 
+  // Used limit should reflect ALL future installments that will still hit the card (not only current invoice).
+  // This matches how banks reserve limit for installment purchases.
+  const reservedLimit = useMemo(() => {
+      if (!selectedCardId) return 0;
+      const today = new Date();
+
+      return creditPurchases
+        .filter(p => p.creditCardId === selectedCardId && p.status === 'active')
+        .reduce((sum, p) => {
+          const pDate = parseISO(p.purchaseDate.length === 10 ? `${p.purchaseDate}T12:00:00` : p.purchaseDate);
+
+          // Compute the FIRST competency month of the purchase, then advance month-by-month.
+          let monthCursor = getInvoiceMonthDate(pDate, selectedCard?.closingDay || 1);
+
+          let remaining = 0;
+          for (let i = 1; i <= p.installments; i++) {
+            // We count installments that are still to come (including current open cycle).
+            if (!isBefore(startOfMonth(monthCursor), startOfMonth(today))) {
+              remaining += p.installmentValue;
+            }
+            monthCursor = addMonths(monthCursor, 1);
+          }
+
+          return sum + remaining;
+        }, 0);
+  }, [selectedCardId, creditPurchases, selectedCard]);
+
+  const usedLimit = reservedLimit;
   const availableLimit = totalLimit - usedLimit;
-  const limitPercentage = (usedLimit / totalLimit) * 100;
+  const limitPercentage = totalLimit > 0 ? (usedLimit / totalLimit) * 100 : 0;
 
 
   // --- New Purchase Form ---
@@ -661,7 +684,7 @@ export default function CreditCards() {
                         <div className="flex justify-between items-end">
                             <div>
                                 <p className="text-xs opacity-80 mb-1">Limite Disponível</p>
-                                <p className="font-bold text-xl">{formatCurrency(card.creditLimit - (selectedCardId === card.id ? usedLimit : 0))}</p>
+                                <p className="font-bold text-xl">{formatCurrency(card.creditLimit - (selectedCardId === card.id ? reservedLimit : 0))}</p>
                             </div>
                             <div className="text-right">
                                 <p className="text-xs opacity-80">Fatura Atual</p>
