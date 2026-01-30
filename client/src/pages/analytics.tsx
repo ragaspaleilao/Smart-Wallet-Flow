@@ -185,15 +185,26 @@ export default function Analytics() {
           const income = monthTxs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
           
           // Separate Credit Card Expenses vs Other Expenses
-          const creditCardExpense = monthTxs
-            .filter(t => t.id.startsWith('virtual-') || t.accountId === 'virtual-card')
+          // We treat the projection month as the INVOICE COMPETENCY month.
+          // Our virtual installments are dated on the DUE DATE (next month), so
+          // to show the correct competency we need to pull CC virtuals from next month.
+          const nextMonthStart = startOfMonth(addMonths(monthDate, 1));
+          const nextMonthEnd = endOfMonth(addMonths(monthDate, 1));
+
+          const creditCardExpense = combinedTransactions
+            .filter(t => (t.id.startsWith('virtual-') || t.accountId === 'virtual-card'))
+            .filter(t => {
+              const d = new Date(t.date);
+              return isWithinInterval(d, { start: nextMonthStart, end: nextMonthEnd }) &&
+                (viewMode === 'personal' ? t.isPersonal : !t.isPersonal);
+            })
             .reduce((sum, t) => sum + t.amount, 0);
 
           const otherExpense = monthTxs
             .filter(t => t.type === 'expense' && !t.id.startsWith('virtual-') && t.accountId !== 'virtual-card')
             .reduce((sum, t) => sum + t.amount, 0);
           
-          const totalExpense = income - (creditCardExpense + otherExpense); // Wait, logic error in var name but lets fix calc
+          const totalExpense = creditCardExpense + otherExpense;
 
           return {
               date: monthDate,
