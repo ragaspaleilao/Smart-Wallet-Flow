@@ -405,11 +405,10 @@ export default function CreditCards() {
           let monthTotal = 0;
 
           creditCards.forEach(card => {
-              // getInvoiceItems espera o mês "competência" (mesmo mês usado por getInvoiceMonthDate).
-              // A projeção foi sendo exibida como se fosse o mês de vencimento;
-              // para corrigir, somamos 1 mês ao pedir os itens.
-              const invoiceMonthForItems = addMonths(monthCursor, 1);
-              const items = getInvoiceItems(card.id, invoiceMonthForItems);
+              // getInvoiceItems espera o mês de COMPETÊNCIA (mesmo mês usado por getInvoiceMonthDate).
+              // monthCursor já representa a competência do mês que está sendo exibido (ex: Janeiro 2026).
+              // Portanto NÃO somamos +1 aqui.
+              const items = getInvoiceItems(card.id, monthCursor);
               monthTotal += items.reduce((a, b) => a + b.value, 0);
           });
 
