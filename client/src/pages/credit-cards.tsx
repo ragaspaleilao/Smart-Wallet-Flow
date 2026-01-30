@@ -432,29 +432,19 @@ export default function CreditCards() {
   // Used limit should reflect ALL future installments that will still hit the card (not only current invoice).
   // This matches how banks reserve limit for installment purchases.
   const reservedLimit = useMemo(() => {
-      if (!selectedCardId) return 0;
-      const today = new Date();
+      if (!selectedCardId || !selectedCard) return 0;
 
+      // Limit should only be reserved by real credit purchases (including installments).
+      // Recurring charges like subscriptions/annual fee should affect the invoice only on their months,
+      // but should NOT reserve future limit.
       return creditPurchases
         .filter(p => p.creditCardId === selectedCardId && p.status === 'active')
         .reduce((sum, p) => {
-          const pDate = parseISO(p.purchaseDate.length === 10 ? `${p.purchaseDate}T12:00:00` : p.purchaseDate);
-
-          // Compute the FIRST competency month of the purchase, then advance month-by-month.
-          let monthCursor = getInvoiceMonthDate(pDate, selectedCard?.closingDay || 1);
-
-          let remaining = 0;
-          for (let i = 1; i <= p.installments; i++) {
-            // We count installments that are still to come (including current open cycle).
-            if (!isBefore(startOfMonth(monthCursor), startOfMonth(today))) {
-              remaining += p.installmentValue;
-            }
-            monthCursor = addMonths(monthCursor, 1);
-          }
-
-          return sum + remaining;
+          // No installment-payment tracking in the mockup yet.
+          // We reserve the full remaining principal for all active installment purchases.
+          return sum + (p.totalAmount || (p.installmentValue * p.installments) || 0);
         }, 0);
-  }, [selectedCardId, creditPurchases, selectedCard]);
+  }, [selectedCardId, selectedCard, creditPurchases]);
 
   const usedLimit = reservedLimit;
   const availableLimit = totalLimit - usedLimit;
