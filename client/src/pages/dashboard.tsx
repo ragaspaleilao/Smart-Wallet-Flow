@@ -80,6 +80,7 @@ export default function Dashboard() {
   const { accounts } = useFinancialStore();
   const personalBalance = accounts
     .filter(a => a.isPersonal)
+    .filter(a => a.type !== 'investment')
     .reduce((acc, curr) => acc + curr.balance, 0);
 
   // Overdue Logic

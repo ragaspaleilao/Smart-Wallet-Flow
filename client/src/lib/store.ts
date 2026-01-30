@@ -5,7 +5,7 @@ import { nanoid } from 'nanoid';
 export type TransactionType = 'income' | 'expense';
 export type Category = string;
 
-export type AccountType = 'bank' | 'wallet' | 'cash' | 'other';
+export type AccountType = 'bank' | 'wallet' | 'cash' | 'other' | 'investment';
 
 export interface Account {
   id: string;
