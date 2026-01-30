@@ -200,7 +200,7 @@ export default function Analytics() {
       const year = parseInt(selectedYear);
       const months = Array.from({ length: 12 }, (_, i) => new Date(year, i, 1));
       
-      return months.map(monthDate => {
+      const monthsWithTotals = months.map(monthDate => {
           const monthStart = startOfMonth(monthDate);
           const monthEnd = endOfMonth(monthDate);
           
@@ -231,8 +231,6 @@ export default function Analytics() {
           const otherExpense = monthTxs
             .filter(t => t.type === 'expense' && !t.id.startsWith('virtual-') && t.accountId !== 'virtual-card')
             .reduce((sum, t) => sum + t.amount, 0);
-          
-          const totalExpense = creditCardExpense + otherExpense;
 
           return {
               date: monthDate,
@@ -243,6 +241,17 @@ export default function Analytics() {
               otherExpense,
               balance: income - (creditCardExpense + otherExpense)
           };
+      });
+
+      let running = 0;
+      return monthsWithTotals.map((m) => {
+        const previousBalance = running;
+        running = running + m.balance;
+        return {
+          ...m,
+          previousBalance,
+          endingBalance: running,
+        };
       });
   }, [combinedTransactions, viewMode, selectedYear]);
 
@@ -256,7 +265,7 @@ export default function Analytics() {
       // But with a Year Filter, "Consolidation" usually means "Report for Year X".
       // Let's use Calendar Year logic for consistency with the filter.
       
-      return months.map(monthDate => {
+      const monthsWithTotals = months.map(monthDate => {
           const monthStart = startOfMonth(monthDate);
           const monthEnd = endOfMonth(monthDate);
           
@@ -289,7 +298,19 @@ export default function Analytics() {
               otherExpense,
               balance: income - (creditCardExpense + otherExpense)
           };
-      }).reverse(); // Show newest first usually, or calendar order? 
+      });
+
+      const ordered = monthsWithTotals.reverse();
+      let running = 0;
+      return ordered.map((m) => {
+        const previousBalance = running;
+        running = running + m.balance;
+        return {
+          ...m,
+          previousBalance,
+          endingBalance: running,
+        };
+      }); // Show newest first usually, or calendar order? 
       // If it's a "Year Report", usually Jan->Dec. If "History", usually Dec->Jan. 
       // Let's keep reverse (Dec -> Jan) as it's better for mobile scrolling "back in time".
   }, [transactions, viewMode, selectedYear]);
@@ -607,9 +628,13 @@ export default function Analytics() {
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-[10px] text-gray-500">Saldo Previsto</p>
-                                                <p className={`font-bold ${item.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {formatCurrency(item.balance)}
+                                                <p className="text-[10px] text-gray-500" data-testid={`text-projection-prev-balance-label-${idx}`}>Saldo anterior</p>
+                                                <p className={`font-bold ${item.previousBalance >= 0 ? 'text-green-600' : 'text-red-600'}`} data-testid={`text-projection-prev-balance-${idx}`}>
+                                                    {formatCurrency(item.previousBalance)}
+                                                </p>
+                                                <p className="text-[10px] text-gray-500 mt-2" data-testid={`text-projection-ending-balance-label-${idx}`}>Saldo previsto</p>
+                                                <p className={`font-bold ${item.endingBalance >= 0 ? 'text-green-600' : 'text-red-600'}`} data-testid={`text-projection-ending-balance-${idx}`}>
+                                                    {formatCurrency(item.endingBalance)}
                                                 </p>
                                             </div>
                                         </div>
@@ -694,9 +719,13 @@ export default function Analytics() {
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-[10px] text-gray-500">Resultado</p>
-                                                <p className={`font-bold ${item.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                    R$ {item.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                <p className="text-[10px] text-gray-500" data-testid={`text-consolidation-prev-balance-label-${idx}`}>Saldo anterior</p>
+                                                <p className={`font-bold ${item.previousBalance >= 0 ? 'text-green-600' : 'text-red-600'}`} data-testid={`text-consolidation-prev-balance-${idx}`}>
+                                                    {formatCurrency(item.previousBalance)}
+                                                </p>
+                                                <p className="text-[10px] text-gray-500 mt-2" data-testid={`text-consolidation-result-label-${idx}`}>Resultado</p>
+                                                <p className={`font-bold ${item.balance >= 0 ? 'text-green-600' : 'text-red-600'}`} data-testid={`text-consolidation-result-${idx}`}>
+                                                    {formatCurrency(item.balance)}
                                                 </p>
                                             </div>
                                         </div>
