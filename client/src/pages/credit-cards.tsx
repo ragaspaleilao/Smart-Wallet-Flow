@@ -442,6 +442,8 @@ export default function CreditCards() {
         .filter(p => p.creditCardId === selectedCardId && p.status === 'active')
         // exclude synthetic fee objects
         .filter(p => !String(p.id).startsWith('fee-'))
+        // Only real installments can create "future installments".
+        .filter(p => (p.installments || 1) > 1)
         .reduce((sum, purchase) => {
           const pDate = parseISO(purchase.purchaseDate.length === 10 ? `${purchase.purchaseDate}T12:00:00` : purchase.purchaseDate);
           let monthCursor = getInvoiceMonthDate(pDate, selectedCard.closingDay);
