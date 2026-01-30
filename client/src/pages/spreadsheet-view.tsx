@@ -160,11 +160,12 @@ export default function SpreadsheetView() {
     });
 
     // 2. Credit Card Logic
-    // Filter cards by context (linked account)
+    // IMPORTANT: credit card purchases are always part of the same context as their linked account.
+    // If a card isn't linked yet (mockup state), we include it in BOTH contexts so totals don't disappear.
     const filteredCards = creditCards.filter(card => {
         const linkedAccount = accounts.find(a => a.id === card.linkedAccountId);
-        const isPersonalCard = linkedAccount ? linkedAccount.isPersonal : true; // Default to personal if not linked
-        return context === "personal" ? isPersonalCard : !isPersonalCard;
+        if (!linkedAccount) return true;
+        return context === "personal" ? linkedAccount.isPersonal : !linkedAccount.isPersonal;
     });
     
     const relevantCardIds = filteredCards.map(c => c.id);
