@@ -441,7 +441,9 @@ export default function CreditCards() {
   // --- New Purchase Form ---
   const [newPurchase, setNewPurchase] = useState({
       description: "",
+      amountMode: "total" as 'total' | 'installment',
       amount: "",
+      installmentAmount: "",
       installments: "1",
       category: "Outros",
       date: new Date().toISOString().split('T')[0]
@@ -452,7 +454,9 @@ export default function CreditCards() {
   const resetPurchaseForm = () => {
       setNewPurchase({
           description: "",
+          amountMode: "total",
           amount: "",
+          installmentAmount: "",
           installments: "1",
           category: "Outros",
           date: new Date().toISOString().split('T')[0]
@@ -464,7 +468,9 @@ export default function CreditCards() {
       setEditingPurchaseId(purchase.id);
       setNewPurchase({
           description: purchase.description,
+          amountMode: "total",
           amount: formatCurrencyInput(String(purchase.totalAmount * 100)),
+          installmentAmount: formatCurrencyInput(String((purchase.installmentValue || 0) * 100)),
           installments: String(purchase.installments),
           category: purchase.category as any,
           date: purchase.purchaseDate?.slice(0, 10) || new Date().toISOString().slice(0, 10)
@@ -473,13 +479,15 @@ export default function CreditCards() {
   };
 
   const handleSavePurchase = () => {
-      if (!newPurchase.description || !newPurchase.amount || !selectedCardId) {
+      const inst = Number(newPurchase.installments || '1') || 1;
+      const totalFromTotal = Number((newPurchase.amount || '').replace(/\D/g, "")) / 100;
+      const totalFromInstallment = (Number((newPurchase.installmentAmount || '').replace(/\D/g, "")) / 100) * inst;
+      const total = newPurchase.amountMode === 'installment' ? totalFromInstallment : totalFromTotal;
+
+      if (!newPurchase.description || !total || !selectedCardId) {
           toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
           return;
       }
-
-      const total = Number(newPurchase.amount.replace(/\D/g, "")) / 100;
-      const inst = Number(newPurchase.installments);
 
       if (editingPurchaseId) {
           updateCreditPurchase(editingPurchaseId, {
@@ -949,14 +957,48 @@ export default function CreditCards() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label>Valor Total</Label>
-                                        <Input 
-                                            value={newPurchase.amount}
-                                            placeholder="R$ 0,00"
-                                            onChange={(e) => setNewPurchase({...newPurchase, amount: formatCurrencyInput(e.target.value)})}
-                                            className="text-lg font-bold"
-                                            data-testid="input-credit-purchase-amount"
-                                        />
+                                        <div className="flex items-center justify-between">
+                                            <Label>Valor</Label>
+                                            <div className="flex items-center gap-1 bg-gray-100 dark:bg-zinc-900 rounded-full p-1">
+                                                <button
+                                                    type="button"
+                                                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${newPurchase.amountMode === 'total' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-500'}`}
+                                                    onClick={() => setNewPurchase({ ...newPurchase, amountMode: 'total', installmentAmount: '' })}
+                                                    data-testid="button-credit-amountmode-total"
+                                                >
+                                                    Total
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${newPurchase.amountMode === 'installment' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-500'}`}
+                                                    onClick={() => setNewPurchase({ ...newPurchase, amountMode: 'installment', amount: '' })}
+                                                    data-testid="button-credit-amountmode-installment"
+                                                >
+                                                    Parcela
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {newPurchase.amountMode === 'total' ? (
+                                            <Input 
+                                                value={newPurchase.amount}
+                                                placeholder="R$ 0,00"
+                                                onChange={(e) => setNewPurchase({...newPurchase, amount: formatCurrencyInput(e.target.value)})}
+                                                className="text-lg font-bold"
+                                                data-testid="input-credit-purchase-amount"
+                                            />
+                                        ) : (
+                                            <Input 
+                                                value={newPurchase.installmentAmount}
+                                                placeholder="R$ 0,00"
+                                                onChange={(e) => setNewPurchase({...newPurchase, installmentAmount: formatCurrencyInput(e.target.value)})}
+                                                className="text-lg font-bold"
+                                                data-testid="input-credit-purchase-installment-amount"
+                                            />
+                                        )}
+                                        <p className="text-[10px] text-gray-400 mt-1" data-testid="text-credit-amount-hint">
+                                            {newPurchase.amountMode === 'total' ? 'Digite o valor total da compra.' : 'Digite o valor de cada parcela. O total será calculado automaticamente.'}
+                                        </p>
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Parcelas</Label>
@@ -969,11 +1011,31 @@ export default function CreditCards() {
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="1">À vista (1x)</SelectItem>
-                                                {[2,3,4,5,6,10,12,18,24].map(i => (
+                                                {Array.from({ length: 59 }, (_, idx) => idx + 2).map(i => (
                                                     <SelectItem key={i} value={String(i)}>{i}x</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
+
+                                        <div className="mt-2 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 p-3" data-testid="card-credit-installment-preview">
+                                            {(() => {
+                                                const inst = Number(newPurchase.installments || '1') || 1;
+                                                const total = (Number((newPurchase.amount || '').replace(/\D/g, '')) / 100) || 0;
+                                                const per = inst > 0 ? total / inst : 0;
+                                                return (
+                                                    <>
+                                                        <div className="flex items-center justify-between text-xs text-gray-500">
+                                                            <span>Total</span>
+                                                            <span className="font-medium" data-testid="text-credit-total-preview">{(total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between text-sm mt-1">
+                                                            <span className="font-semibold">{inst}x</span>
+                                                            <span className="font-bold" data-testid="text-credit-per-installment-preview">{(per || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                        </div>
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
