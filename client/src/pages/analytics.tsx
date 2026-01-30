@@ -103,7 +103,9 @@ export default function Analytics() {
       return startOfMonth(d);
     };
 
-    creditPurchases.forEach((purchase) => {
+    creditPurchases
+      .filter((p) => p.status === 'active')
+      .forEach((purchase) => {
       const card = creditCards.find((c) => c.id === purchase.creditCardId);
       if (!card) return;
 
@@ -192,7 +194,7 @@ export default function Analytics() {
           const nextMonthEnd = endOfMonth(addMonths(monthDate, 1));
 
           const creditCardExpense = combinedTransactions
-            .filter(t => (t.id.startsWith('virtual-') || t.accountId === 'virtual-card'))
+            .filter(t => t.id.startsWith('virtual-') || t.accountId === 'virtual-card')
             .filter(t => {
               const d = new Date(t.date);
               return isWithinInterval(d, { start: nextMonthStart, end: nextMonthEnd }) &&
