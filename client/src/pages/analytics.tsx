@@ -93,35 +93,51 @@ export default function Analytics() {
   // 2. Generate Virtual Transactions (Installments)
   const virtualTransactions = useMemo(() => {
     const virtual: Transaction[] = [];
-    creditPurchases.forEach(purchase => {
-        const card = creditCards.find(c => c.id === purchase.creditCardId);
-        if (!card) return;
 
-        const purchaseDate = new Date(purchase.purchaseDate);
-        const purchaseDay = purchaseDate.getDate();
-        
-        let currentInvoiceMonth = new Date(purchaseDate);
-        if (purchaseDay >= card.closingDay) {
-            currentInvoiceMonth = addMonths(currentInvoiceMonth, 1);
-        }
-        currentInvoiceMonth.setDate(card.dueDay);
+    // Invoice competency rule:
+    // If purchase day <= closingDay => belongs to previous month (competency).
+    // Else belongs to same month. We then spread installments month-by-month.
+    const getInvoiceCompetencyMonth = (purchaseDate: Date, closingDay: number) => {
+      const d = new Date(purchaseDate);
+      if (d.getDate() <= closingDay) return startOfMonth(subMonths(d, 1));
+      return startOfMonth(d);
+    };
 
-        for (let i = 1; i <= purchase.installments; i++) {
-            virtual.push({
-                id: `virtual-${purchase.id}-${i}`,
-                amount: purchase.installmentValue,
-                type: 'expense',
-                category: purchase.category,
-                description: `${purchase.description} (${i}/${purchase.installments})`,
-                date: currentInvoiceMonth.toISOString(),
-                source: 'manual',
-                isPersonal: true, 
-                accountId: card.linkedAccountId || 'virtual-card',
-                status: 'pending'
-            });
-            currentInvoiceMonth = addMonths(currentInvoiceMonth, 1);
-        }
+    creditPurchases.forEach((purchase) => {
+      const card = creditCards.find((c) => c.id === purchase.creditCardId);
+      if (!card) return;
+
+      // Normalize YYYY-MM-DD to local midday to avoid timezone shifting.
+      const purchaseDate = (() => {
+        const raw = String(purchase.purchaseDate || '');
+        if (raw.length === 10) return new Date(`${raw}T12:00:00`);
+        return new Date(raw);
+      })();
+
+      let competencyMonth = getInvoiceCompetencyMonth(purchaseDate, card.closingDay);
+
+      for (let i = 1; i <= purchase.installments; i++) {
+        // Due date = month after competency
+        const dueBase = addMonths(competencyMonth, 1);
+        const dueDate = new Date(dueBase.getFullYear(), dueBase.getMonth(), card.dueDay);
+
+        virtual.push({
+          id: `virtual-${purchase.id}-${i}`,
+          amount: purchase.installmentValue,
+          type: 'expense',
+          category: purchase.category,
+          description: `${purchase.description} (${i}/${purchase.installments})`,
+          date: dueDate.toISOString(),
+          source: 'manual',
+          isPersonal: true,
+          accountId: card.linkedAccountId || 'virtual-card',
+          status: 'pending',
+        });
+
+        competencyMonth = addMonths(competencyMonth, 1);
+      }
     });
+
     return virtual;
   }, [creditPurchases, creditCards]);
 
