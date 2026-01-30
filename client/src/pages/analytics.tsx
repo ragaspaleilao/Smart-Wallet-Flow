@@ -190,13 +190,17 @@ export default function Analytics() {
   }, [combinedTransactions, dateRange, selectedType, selectedAccount, viewMode]);
 
   // --- PROJECTION DATA (Future 12 Months) ---
+  const yearStartingBalance = useMemo(() => {
+    const year = parseInt(selectedYear);
+    if (!accounts?.length) return 0;
+
+    // For planning, we start from current balances as the baseline for the year.
+    // (Mockup limitation: without backend/history of balances, this is the best available signal.)
+    const scopeAccounts = accounts.filter((a) => (viewMode === 'personal' ? a.isPersonal : !a.isPersonal));
+    return scopeAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
+  }, [accounts, selectedYear, viewMode]);
+
   const projectionData = useMemo(() => {
-      // Use selected year if tab is active, otherwise default to current flow logic
-      // But user wants "Projection" which usually implies "Future from now". 
-      // If we add Year filter, maybe we just show "That Year's Projection"?
-      // Let's stick to "Next 12 months" if no year filter is explicitly asked for "Calendar Year View".
-      // But user asked for "filtros de data". A year picker makes sense for "Projection" to see next year vs this year.
-      
       const year = parseInt(selectedYear);
       const months = Array.from({ length: 12 }, (_, i) => new Date(year, i, 1));
       
@@ -243,7 +247,7 @@ export default function Analytics() {
           };
       });
 
-      let running = 0;
+      let running = yearStartingBalance;
       return monthsWithTotals.map((m) => {
         const previousBalance = running;
         running = running + m.balance;
@@ -253,7 +257,7 @@ export default function Analytics() {
           endingBalance: running,
         };
       });
-  }, [combinedTransactions, viewMode, selectedYear]);
+  }, [combinedTransactions, viewMode, selectedYear, yearStartingBalance]);
 
   // --- CONSOLIDATION DATA (Past 12 Months - Realized) ---
   const consolidationData = useMemo(() => {
@@ -301,7 +305,7 @@ export default function Analytics() {
       });
 
       const ordered = monthsWithTotals.reverse();
-      let running = 0;
+      let running = yearStartingBalance;
       return ordered.map((m) => {
         const previousBalance = running;
         running = running + m.balance;
