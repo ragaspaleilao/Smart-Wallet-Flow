@@ -6,14 +6,15 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, CreditCard as CreditCardIcon, Wallet } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useFinancialStore, Category } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import * as Popover from "@radix-ui/react-popover";
 
 export default function ManualEntry() {
   const [_, setLocation] = useLocation();
-  const { addTransaction, addCreditPurchase, accounts, creditCards, transactionCategories } = useFinancialStore();
+  const { addTransaction, addCreditPurchase, accounts, creditCards, transactionCategories, addTransactionCategory, removeTransactionCategory } = useFinancialStore();
   
   const [type, setType] = useState<"expense" | "income">("expense");
   const [paymentMethod, setPaymentMethod] = useState<"debit" | "credit">("debit");
@@ -22,11 +23,26 @@ export default function ManualEntry() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<Category>("Alimentação");
 
-  useEffect(() => {
-    if (transactionCategories?.length && !transactionCategories.includes(category)) {
-      setCategory(transactionCategories[0] as Category);
-    }
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+
+  const canDeleteCategory = (name: string) => {
+    const cleaned = (name || "").trim();
+    if (!cleaned) return false;
+    if (cleaned === category) return false;
+    return normalizedTransactionCategories.length > 1;
+  };
+
+  const normalizedTransactionCategories = useMemo(() => {
+    const uniq = Array.from(new Set((transactionCategories || []).map((c) => (c || "").trim()).filter(Boolean)));
+    return uniq.sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [transactionCategories]);
+
+  useEffect(() => {
+    if (normalizedTransactionCategories?.length && !normalizedTransactionCategories.includes(category)) {
+      setCategory(normalizedTransactionCategories[0] as Category);
+    }
+  }, [normalizedTransactionCategories]);
   
   // Account / Card Selection
   const [accountId, setAccountId] = useState<string>("");
@@ -382,18 +398,148 @@ export default function ManualEntry() {
           </div>
 
           <div className="space-y-2">
-            <Label>Categoria</Label>
+            <div className="flex items-center justify-between gap-3">
+              <Label>Categoria</Label>
+
+              <Popover.Root open={isCategoryManagerOpen} onOpenChange={setIsCategoryManagerOpen}>
+                <Popover.Trigger asChild>
+                  <button
+                    className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                    data-testid="button-category-manage"
+                    type="button"
+                  >
+                    Editar
+                  </button>
+                </Popover.Trigger>
+
+                <Popover.Portal>
+                  <Popover.Content
+                    side="bottom"
+                    align="end"
+                    sideOffset={10}
+                    className="z-50 w-[320px] rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-black shadow-2xl p-4"
+                    data-testid="popover-category-manager"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold" data-testid="text-category-manager-title">Categorias</p>
+                        <p className="text-xs text-gray-500" data-testid="text-category-manager-subtitle">
+                          Adicione ou remova categorias deste lançamento.
+                        </p>
+                      </div>
+                      <Popover.Close asChild>
+                        <button
+                          className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-900 transition-colors grid place-items-center"
+                          data-testid="button-category-manager-close"
+                          type="button"
+                        >
+                          <span className="text-lg leading-none">×</span>
+                        </button>
+                      </Popover.Close>
+                    </div>
+
+                    <div className="mt-4 flex items-center gap-2">
+                      <Input
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder="Nova categoria (ex: Pets)"
+                        className="h-10 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800"
+                        data-testid="input-category-new"
+                      />
+                      <Button
+                        type="button"
+                        variant="default"
+                        className="h-10 px-4"
+                        data-testid="button-category-add"
+                        onClick={() => {
+                          const name = (newCategoryName || '').trim();
+                          if (!name) return;
+
+                          addTransactionCategory(name);
+                          setCategory(name as Category);
+                          setNewCategoryName('');
+
+                          toast({
+                            title: 'Categoria adicionada',
+                            description: name,
+                          });
+                        }}
+                      >
+                        Adicionar
+                      </Button>
+                    </div>
+
+                    <div className="mt-4 max-h-[260px] overflow-auto pr-1">
+                      <div className="space-y-2">
+                        {normalizedTransactionCategories.map((cat) => {
+                          const isSelected = category === cat;
+                          return (
+                            <div
+                              key={cat}
+                              className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 ${
+                                isSelected
+                                  ? 'border-primary/30 bg-primary/5'
+                                  : 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-black'
+                              }`}
+                              data-testid={`row-category-${cat}`}
+                            >
+                              <button
+                                type="button"
+                                className="flex-1 text-left"
+                                onClick={() => setCategory(cat as Category)}
+                                data-testid={`button-category-select-${cat}`}
+                              >
+                                <p className="text-sm font-medium" data-testid={`text-category-name-${cat}`}>{cat}</p>
+                                {isSelected && (
+                                  <p className="text-[11px] text-primary" data-testid={`text-category-selected-${cat}`}>Selecionada</p>
+                                )}
+                              </button>
+
+                              <button
+                                type="button"
+                                className={`h-9 w-9 rounded-xl border transition-colors ${
+                                  canDeleteCategory(cat)
+                                    ? 'border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-900 text-red-600'
+                                    : 'border-gray-200 dark:border-zinc-800 text-gray-400 cursor-not-allowed'
+                                }`}
+                                disabled={!canDeleteCategory(cat)}
+                                onClick={() => {
+                                  if (!canDeleteCategory(cat)) return;
+                                  removeTransactionCategory(cat);
+
+                                  toast({
+                                    title: 'Categoria removida',
+                                    description: cat,
+                                  });
+                                }}
+                                data-testid={`button-category-delete-${cat}`}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <Popover.Arrow className="fill-white dark:fill-black" />
+                  </Popover.Content>
+                </Popover.Portal>
+              </Popover.Root>
+            </div>
+
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-              {transactionCategories.map((cat) => (
-                <button 
-                  key={cat} 
+              {normalizedTransactionCategories.map((cat) => (
+                <button
+                  key={cat}
                   className={`px-4 py-2 border rounded-full text-sm whitespace-nowrap transition-colors ${
-                    category === cat 
-                      ? "bg-primary text-white border-primary" 
+                    category === cat
+                      ? "bg-primary text-white border-primary"
                       : "bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 hover:border-primary hover:text-primary"
                   }`}
                   onClick={() => setCategory(cat as Category)}
                   data-testid={`button-category-${cat}`}
+                  type="button"
                 >
                   {cat}
                 </button>
