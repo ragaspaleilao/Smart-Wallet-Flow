@@ -103,45 +103,71 @@ export default function Analytics() {
       return startOfMonth(d);
     };
 
+    // 1) Purchases installments (status active)
     creditPurchases
       .filter((p) => p.status === 'active')
       .forEach((purchase) => {
-      const card = creditCards.find((c) => c.id === purchase.creditCardId);
-      if (!card) return;
+        const card = creditCards.find((c) => c.id === purchase.creditCardId);
+        if (!card) return;
 
-      // Normalize YYYY-MM-DD to local midday to avoid timezone shifting.
-      const purchaseDate = (() => {
-        const raw = String(purchase.purchaseDate || '');
-        if (raw.length === 10) return new Date(`${raw}T12:00:00`);
-        return new Date(raw);
-      })();
+        // Normalize YYYY-MM-DD to local midday to avoid timezone shifting.
+        const purchaseDate = (() => {
+          const raw = String(purchase.purchaseDate || '');
+          if (raw.length === 10) return new Date(`${raw}T12:00:00`);
+          return new Date(raw);
+        })();
 
-      let competencyMonth = getInvoiceCompetencyMonth(purchaseDate, card.closingDay);
+        let competencyMonth = getInvoiceCompetencyMonth(purchaseDate, card.closingDay);
 
-      for (let i = 1; i <= purchase.installments; i++) {
-        // Due date = month after competency
+        for (let i = 1; i <= purchase.installments; i++) {
+          // Due date = month after competency
+          const dueBase = addMonths(competencyMonth, 1);
+          const dueDate = new Date(dueBase.getFullYear(), dueBase.getMonth(), card.dueDay);
+
+          virtual.push({
+            id: `virtual-${purchase.id}-${i}`,
+            amount: purchase.installmentValue,
+            type: 'expense',
+            category: purchase.category,
+            description: `${purchase.description} (${i}/${purchase.installments})`,
+            date: dueDate.toISOString(),
+            source: 'manual',
+            isPersonal: true,
+            accountId: card.linkedAccountId || 'virtual-card',
+            status: 'pending',
+          });
+
+          competencyMonth = addMonths(competencyMonth, 1);
+        }
+      });
+
+    // 2) Annual fee (monthly) — must be included in Analytics projection as well
+    creditCards.forEach((card) => {
+      if (!card.hasAnnualFee || !card.annualFeeValue || card.annualFeeValue <= 0) return;
+
+      // We generate 12 months inside the selected year.
+      for (let m = 0; m < 12; m++) {
+        const competencyMonth = new Date(parseInt(selectedYear), m, 1);
         const dueBase = addMonths(competencyMonth, 1);
         const dueDate = new Date(dueBase.getFullYear(), dueBase.getMonth(), card.dueDay);
 
         virtual.push({
-          id: `virtual-${purchase.id}-${i}`,
-          amount: purchase.installmentValue,
+          id: `virtual-fee-${card.id}-${selectedYear}-${m}`,
+          amount: card.annualFeeValue,
           type: 'expense',
-          category: purchase.category,
-          description: `${purchase.description} (${i}/${purchase.installments})`,
+          category: 'Outros',
+          description: `Anuidade (${card.name})`,
           date: dueDate.toISOString(),
           source: 'manual',
           isPersonal: true,
           accountId: card.linkedAccountId || 'virtual-card',
           status: 'pending',
         });
-
-        competencyMonth = addMonths(competencyMonth, 1);
       }
     });
 
     return virtual;
-  }, [creditPurchases, creditCards]);
+  }, [creditPurchases, creditCards, selectedYear]);
 
   // 3. Combined Data (Real + Virtual)
   const combinedTransactions = useMemo(() => {
