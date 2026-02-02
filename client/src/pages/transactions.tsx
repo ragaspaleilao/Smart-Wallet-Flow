@@ -25,11 +25,13 @@ export default function Transactions() {
   const searchParams = new URLSearchParams(window.location.search);
   const initialType = searchParams.get('type') as 'all' | 'income' | 'expense' | null;
   const initialStatus = searchParams.get('status') as 'all' | 'pending' | 'paid' | 'overdue' | null;
+  const initialKey = `${initialType || 'all'}-${initialStatus || 'all'}`;
 
   // Filter State
   const [filterPeriod, setFilterPeriod] = useState<'all' | 'this-month' | 'next-month' | 'future' | 'custom'>(initialStatus === 'overdue' ? 'all' : 'this-month');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>(initialType || 'all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'paid' | 'overdue'>(initialStatus || 'all');
+  const [filtersNonce, setFiltersNonce] = useState(0);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterAccount, setFilterAccount] = useState<string>('all');
   const [customStart, setCustomStart] = useState(format(startOfDay(new Date()), 'yyyy-MM-dd'));
@@ -161,7 +163,7 @@ export default function Transactions() {
     
     // Sort logic
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [allTransactions, filterPeriod, customStart, customEnd, filterType, filterCategory, filterAccount, searchQuery, accounts]);
+  }, [allTransactions, filterPeriod, customStart, customEnd, filterType, filterCategory, filterAccount, searchQuery, accounts, filterStatus, filtersNonce]);
 
   // Grouping Logic for Installments
   const groupedTransactions = useMemo(() => {
@@ -213,7 +215,7 @@ export default function Transactions() {
               <div className="mb-4 grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2 p-3 bg-gray-50 dark:bg-zinc-900/50 rounded-xl border border-gray-100 dark:border-zinc-800">
                   <div className="space-y-1">
                       <span className="text-[10px] text-gray-500 font-medium ml-1">Status</span>
-                      <Select value={filterStatus} onValueChange={(v: any) => setFilterStatus(v)}>
+                      <Select value={filterStatus} onValueChange={(v: any) => { setFilterStatus(v); setFiltersNonce(n => n + 1); }}>
                           <SelectTrigger className="h-8 text-xs bg-white dark:bg-zinc-900">
                               <SelectValue placeholder="Status" />
                           </SelectTrigger>
