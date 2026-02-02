@@ -393,7 +393,7 @@ export default function Transactions() {
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide sticky top-0 bg-white dark:bg-black py-2">Recentes</h3>
               {groupedTransactions.map((item, idx) => {
                   if ('isGroup' in item) {
-                      return <GroupedTransactionItem key={`group-${item.key}-${idx}`} group={item as any} />;
+                      return <TransactionItem key={`tx-${item.items[0].id}-${idx}`} tx={item.items[0]} />;
                   } else {
                       return <TransactionItem key={item.id} tx={item} />;
                   }
