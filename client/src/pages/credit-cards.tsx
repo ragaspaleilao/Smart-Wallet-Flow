@@ -430,17 +430,26 @@ export default function CreditCards() {
   }, [selectedCard, currentInvoiceDate]);
 
 
+  const [projectionRange, setProjectionRange] = useState<'currentYear' | 'next12Months'>('currentYear');
+
   // --- Total Projection Calculation (All Cards) ---
   const totalProjection = useMemo(() => {
       const projection = [];
-      // Próximos 12 meses (competência da FATURA, não do vencimento).
 
-      // Começa no mês anterior ao atual (exibe o mês corrente do ciclo + 11 seguintes)
-      // Assim, se hoje é fevereiro, o gráfico inclui janeiro (importante para faturas ainda em aberto).
-      let monthCursor = addMonths(new Date(), -1);
-      monthCursor.setDate(1);
+      const now = new Date();
+      let monthCursor = new Date(now.getFullYear(), 0, 1);
+      let monthsToShow = 12;
 
-      for (let i = 0; i < 12; i++) {
+      if (projectionRange === 'next12Months') {
+        // Próximos 12 meses (competência da FATURA, não do vencimento).
+        // Começa no mês anterior ao atual (exibe o mês corrente do ciclo + 11 seguintes)
+        // Assim, se hoje é fevereiro, o gráfico inclui janeiro (importante para faturas ainda em aberto).
+        monthCursor = addMonths(new Date(), -1);
+        monthCursor.setDate(1);
+        monthsToShow = 12;
+      }
+
+      for (let i = 0; i < monthsToShow; i++) {
           let monthTotal = 0;
           const byCard: { cardId: string; name: string; total: number }[] = [];
 
@@ -474,14 +483,15 @@ export default function CreditCards() {
               fullDate: format(monthCursor, 'MMMM yyyy', { locale: ptBR }),
               total: monthTotal,
               byCard: byCard.sort((a, b) => b.total - a.total),
-              month: monthCursor.getMonth()
+              month: monthCursor.getMonth(),
+              year: monthCursor.getFullYear()
           });
 
           monthCursor = addMonths(monthCursor, 1);
       }
 
       return projection;
-  }, [creditCards, creditPurchases, creditPayments]);
+  }, [creditCards, creditPurchases, creditPayments, projectionRange]);
 
 
   // Calculate Limits
@@ -678,7 +688,28 @@ export default function CreditCards() {
                             <DialogTitle>Comprometimento Mensal</DialogTitle>
                         </DialogHeader>
                         <div className="py-4">
-                            <p className="text-sm text-gray-500 mb-4">Total de faturas (todos os cartões) para os próximos 12 meses.</p>
+                            <div className="flex items-center justify-between gap-3 mb-4">
+                                <p className="text-sm text-gray-500">Total de faturas (todos os cartões).</p>
+
+                                <div className="inline-flex rounded-lg bg-gray-100 dark:bg-zinc-900 p-1 border border-gray-200/70 dark:border-zinc-800" data-testid="segmented-projection-range">
+                                    <button
+                                        type="button"
+                                        onClick={() => setProjectionRange('currentYear')}
+                                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${projectionRange === 'currentYear' ? 'bg-white dark:bg-black text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white'}`}
+                                        data-testid="button-projection-range-current-year"
+                                    >
+                                        Ano atual
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setProjectionRange('next12Months')}
+                                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${projectionRange === 'next12Months' ? 'bg-white dark:bg-black text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white'}`}
+                                        data-testid="button-projection-range-next-12"
+                                    >
+                                        Próx. 12 meses
+                                    </button>
+                                </div>
+                            </div>
                             <div className="h-64 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={totalProjection}>
