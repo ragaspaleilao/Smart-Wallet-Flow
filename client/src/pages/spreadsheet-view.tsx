@@ -185,6 +185,13 @@ export default function SpreadsheetView() {
                 const nextMonth = addMonths(startOfMonth(invoiceMonth), 1);
                 const invoiceDueDate = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), card.dueDay);
 
+                // A payment can be done early/on-time/late.
+                // What matters is: if there is ANY "Pagamento Fatura" for this card
+                // happening between invoice competency month start and the end of the due month,
+                // we consider the invoice closed for projection.
+                const competencyStart = startOfMonth(invoiceMonth);
+                const dueMonthEnd = endOfMonth(invoiceDueDate);
+
                 const paymentTx = transactions
                   .filter(t => (context === "personal" ? t.isPersonal : !t.isPersonal))
                   .filter(t => t.status === 'paid')
@@ -192,7 +199,7 @@ export default function SpreadsheetView() {
                   .filter(t => t.description.toLowerCase().includes('pagamento fatura'))
                   .filter(t => {
                     const d = new Date(t.date);
-                    return d.getTime() >= startOfMonth(invoiceDueDate).getTime() && d.getTime() <= endOfMonth(invoiceDueDate).getTime();
+                    return d.getTime() >= competencyStart.getTime() && d.getTime() <= dueMonthEnd.getTime();
                   })
                   .find(Boolean);
 
