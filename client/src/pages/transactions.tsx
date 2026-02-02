@@ -593,7 +593,9 @@ function TransactionItem({ tx, isChild = false }: { tx: any, isChild?: boolean }
         <span className={`font-bold block ${tx.type === 'income' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
           {tx.type === 'income' ? '+' : '-'} R$ {tx.amount.toFixed(2)}
         </span>
-        {isPending ? (
+        {isOverdue ? (
+            <span className="text-[10px] text-red-600 font-medium">Atrasado</span>
+        ) : isPending ? (
             <span className="text-[10px] text-gray-400 font-medium">Previsto</span>
         ) : (
             <span className="text-[10px] text-green-600 font-medium flex items-center justify-end gap-0.5">
