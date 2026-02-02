@@ -614,7 +614,8 @@ export const useFinancialStore = create<FinancialStore>()(
             type: 'expense',
             category: 'Outros', // Or 'Pagamento Fatura'
             description: `Pagamento Fatura Cartão`,
-            date: paymentData.paymentDate,
+            // Consolidação sempre pela data real do pagamento.
+            date: String(paymentData.paymentDate || '').length === 10 ? `${paymentData.paymentDate}T12:00:00` : paymentData.paymentDate,
             source: 'manual',
             isPersonal: true,
             accountId: paymentData.accountId,
