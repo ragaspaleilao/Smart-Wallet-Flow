@@ -29,6 +29,7 @@ export interface Transaction {
   accountId?: string; // Optional for backward compatibility, but should be used going forward
   vehicleId?: string; // Optional link to a vehicle
   paymentMethod?: 'debit' | 'credit' | 'cash' | 'pix' | 'transfer';
+  creditCardId?: string;
   
   // New fields for Spreadsheet View
   status?: 'paid' | 'pending';

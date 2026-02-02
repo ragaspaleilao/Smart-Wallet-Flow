@@ -195,10 +195,13 @@ export default function SpreadsheetView() {
                 const paymentTx = transactions
                   .filter(t => (context === "personal" ? t.isPersonal : !t.isPersonal))
                   .filter(t => t.status === 'paid')
-                  .filter(t => (t.accountId === (card.linkedAccountId || 'virtual-card')))
+                  // Payment transaction stores the credit card id in tx.creditCardId.
+                  // This avoids ambiguity when multiple cards share the same linked account.
+                  .filter(t => t.creditCardId === card.id)
                   .filter(t => t.description.toLowerCase().includes('pagamento fatura'))
                   .filter(t => {
-                    const d = new Date(t.date);
+                    const raw = String(t.date || '');
+                    const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
                     return d.getTime() >= competencyStart.getTime() && d.getTime() <= dueMonthEnd.getTime();
                   })
                   .find(Boolean);
