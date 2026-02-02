@@ -209,7 +209,7 @@ export default function Transactions() {
                               <SelectItem value="all">Todos</SelectItem>
                               <SelectItem value="pending">Pendente</SelectItem>
                               <SelectItem value="paid">Pago</SelectItem>
-                              <SelectItem value="overdue">Atrasado</SelectItem>
+                              <SelectItem value="overdue">Atrasado (pendentes vencidos)</SelectItem>
                           </SelectContent>
                       </Select>
                   </div>
