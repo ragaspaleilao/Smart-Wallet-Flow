@@ -165,9 +165,11 @@ export default function SpreadsheetView() {
     });
 
     // 2. Credit Card Logic
-    // For this monthly "Faturas Cartão" row we want the SUM of all credit card invoices.
-    // So we do NOT restrict by personal/company context here.
+    // Projeção (planilha) deve mostrar apenas o que está EM ABERTO (pendente) e a partir do mês atual.
+    // A competência é o mês da fatura (ciclo/closing day). O vencimento acontece no mês seguinte.
     const relevantCardIds = creditCards.map(c => c.id);
+
+    const invoiceMonthStart = startOfMonth(today);
 
     creditPurchases
         .filter(p => relevantCardIds.includes(p.creditCardId) && p.status === 'active')
@@ -183,8 +185,7 @@ export default function SpreadsheetView() {
             })();
 
             // Helper to get invoice month competency based on closing day.
-            // Rule: closing day = 3 means 04/M..03/M+1 belongs to month M.
-            // So: if purchase day <= closingDay => belongs to previous month; else belongs to same month.
+            // Rule: if purchase day <= closingDay => belongs to previous month; else belongs to same month.
             const getInvoiceDate = (date: Date) => {
                 const d = new Date(date);
                 if (d.getDate() <= card.closingDay) {
@@ -193,31 +194,39 @@ export default function SpreadsheetView() {
                 return d;
             };
 
-            // Normalize to 1st of month to make month bucketing stable.
+            // Competency month for 1st installment.
             let currentInvoiceDate = startOfMonth(getInvoiceDate(pDate));
 
             for (let i = 1; i <= purchase.installments; i++) {
-                if (currentInvoiceDate.getFullYear() === year) {
+                const isInSelectedYear = currentInvoiceDate.getFullYear() === year;
+                const isCurrentOrFuture = !isBefore(currentInvoiceDate, invoiceMonthStart);
+
+                if (isInSelectedYear && isCurrentOrFuture) {
                     const m = currentInvoiceDate.getMonth();
                     if (data[m]) {
                         data[m].creditCardBill += purchase.installmentValue;
                     }
                 }
+
                 currentInvoiceDate = startOfMonth(addMonths(currentInvoiceDate, 1));
             }
         });
 
     // Add Annual Fees to projections
-    // If the annual fee is defined as a monthly value, it should be applied per month.
-    // If you later model it as a yearly charge, move it to a specific month.
+    // Anuidade mensal deve seguir a mesma regra: apenas a partir do mês atual (projeção) e no ano selecionado.
     relevantCardIds.forEach(cardId => {
         const card = creditCards.find(c => c.id === cardId);
-        if (card && card.hasAnnualFee && card.annualFeeValue && card.annualFeeValue > 0) {
-            const feeValue = card.annualFeeValue;
-            data.forEach(monthData => {
-                 monthData.creditCardBill += feeValue;
-            });
-        }
+        if (!card || !card.hasAnnualFee || !card.annualFeeValue || card.annualFeeValue <= 0) return;
+
+        const feeValue = card.annualFeeValue;
+
+        data.forEach((monthData) => {
+            const competencyMonth = new Date(year, monthData.month, 1);
+            const isCurrentOrFuture = !isBefore(competencyMonth, invoiceMonthStart);
+            if (isCurrentOrFuture) {
+                monthData.creditCardBill += feeValue;
+            }
+        });
     });
 
     // In projections, we must include the CURRENT open invoice month (competency) even if
