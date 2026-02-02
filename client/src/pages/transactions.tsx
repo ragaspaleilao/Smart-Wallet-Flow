@@ -68,8 +68,15 @@ export default function Transactions() {
       if (filterStatus === 'paid') {
         filtered = filtered.filter(t => normalizeStatus(t) === 'paid');
       } else if (filterStatus === 'pending') {
-        filtered = filtered.filter(t => normalizeStatus(t) === 'pending');
+        // Pending = not paid AND not overdue
+        filtered = filtered.filter(t => {
+          if (normalizeStatus(t) !== 'pending') return false;
+          const raw = String(t.date || '');
+          const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
+          return !isBefore(d, startOfDay(now));
+        });
       } else if (filterStatus === 'overdue') {
+        // Overdue = not paid AND date already passed
         filtered = filtered.filter(t => {
           if (normalizeStatus(t) !== 'pending') return false;
           const raw = String(t.date || '');
