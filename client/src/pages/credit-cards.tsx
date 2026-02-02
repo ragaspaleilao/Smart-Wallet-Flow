@@ -27,7 +27,7 @@ import {
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import { useMemo, useState } from "react";
-import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay, addDays, parseISO, startOfMonth } from "date-fns";
+import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay, addDays, parseISO, startOfMonth, isSameMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -463,6 +463,12 @@ export default function CreditCards() {
 
               const paidForMonth = (creditPayments || [])
                 .filter(p => p.creditCardId === card.id)
+                // Paga pela DATA, mas apenas da fatura desse mês de competência.
+                // Senão, pagamentos de outras competências “somem” do gráfico.
+                .filter(p => {
+                  const paymentCompetence = new Date(Number(p.year), Number(p.month), 1);
+                  return isSameMonth(paymentCompetence, monthCursor);
+                })
                 .filter(p => {
                   const payDate = parseISO(String(p.paymentDate || '').length === 10 ? `${p.paymentDate}T12:00:00` : p.paymentDate);
                   return payDate <= endOfDay(dueDate);
