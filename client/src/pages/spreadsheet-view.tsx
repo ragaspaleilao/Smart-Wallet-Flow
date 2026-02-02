@@ -403,9 +403,14 @@ export default function SpreadsheetView() {
 
   const confirmPayment = () => {
       pendingPaymentIds.forEach(id => {
+          // Keep YYYY-MM-DD as local midday to avoid timezone shifting to previous day.
+          const normalizedPaymentDate = String(paymentDate || '').length === 10
+            ? `${paymentDate}T12:00:00`
+            : new Date(paymentDate).toISOString();
+
           updateTransaction(id, { 
               status: 'paid',
-              date: new Date(paymentDate).toISOString() // Update date to payment date
+              date: normalizedPaymentDate
           });
       });
       toast({ title: "Pagamento registrado", description: `${pendingPaymentIds.length} transações atualizadas.` });
