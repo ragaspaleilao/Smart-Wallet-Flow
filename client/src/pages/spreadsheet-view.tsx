@@ -38,11 +38,11 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { format, isBefore, startOfDay, getMonth, getYear, parseISO, addMonths, startOfYear, endOfYear, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { format, isBefore, startOfDay, getMonth, getYear, parseISO, addMonths, startOfYear, endOfYear, subMonths, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
 import { AddTransactionSheet } from "@/components/add-transaction-sheet";
 
 export default function SpreadsheetView() {
-  const { transactions, accounts, investments, creditCards, creditPurchases, addTransaction, updateTransaction, removeTransaction, addAccount, updateAccountBalance, addInvestment } = useFinancialStore();
+  const { transactions, accounts, investments, creditCards, creditPurchases, creditPayments, addTransaction, updateTransaction, removeTransaction, addAccount, updateAccountBalance, addInvestment } = useFinancialStore();
   
   // View State
   const [activeTab, setActiveTab] = useState("transactions");
@@ -194,11 +194,22 @@ export default function SpreadsheetView() {
                 const competencyStart = startOfMonth(invoiceMonth);
                 const dueMonthEnd = endOfMonth(invoiceDueDate);
 
+                const hasPaymentRecordForInvoiceMonth = (creditPayments || [])
+                  .filter(p => p.creditCardId === card.id)
+                  .filter(p => {
+                    const paymentCompetence = new Date(Number(p.year), Number(p.month), 1);
+                    return isSameMonth(paymentCompetence, invoiceMonth);
+                  })
+                  .some(p => {
+                    const raw = String(p.paymentDate || '');
+                    const payDate = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
+                    return payDate.getTime() >= competencyStart.getTime() && payDate.getTime() <= dueMonthEnd.getTime();
+                  });
+
+                // Backward compatibility: if older data doesn't have creditPayments, fall back to transaction scan.
                 const paymentTx = transactions
                   .filter(t => (context === "personal" ? t.isPersonal : !t.isPersonal))
                   .filter(t => t.status === 'paid')
-                  // Payment transaction stores the credit card id in tx.creditCardId.
-                  // This avoids ambiguity when multiple cards share the same linked account.
                   .filter(t => t.creditCardId === card.id)
                   .filter(t => t.description.toLowerCase().includes('pagamento fatura'))
                   .filter(t => {
@@ -208,7 +219,7 @@ export default function SpreadsheetView() {
                   })
                   .find(Boolean);
 
-                return Boolean(paymentTx);
+                return hasPaymentRecordForInvoiceMonth || Boolean(paymentTx);
             };
 
             // Normalize YYYY-MM-DD to local midday to avoid timezone shifting the day/month.
