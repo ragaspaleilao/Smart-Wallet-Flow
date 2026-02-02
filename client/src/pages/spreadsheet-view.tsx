@@ -169,7 +169,10 @@ export default function SpreadsheetView() {
     // A competência é o mês da fatura (ciclo/closing day). O vencimento acontece no mês seguinte.
     const relevantCardIds = creditCards.map(c => c.id);
 
-    const invoiceMonthStart = startOfMonth(today);
+    // Include the invoice month that is currently open.
+    // We consider the last month as "current invoice" because its due date is typically in the current month.
+    // Example: invoice competency Jan -> due Feb.
+    const invoiceMonthStart = startOfMonth(subMonths(today, 1));
 
     creditPurchases
         .filter(p => relevantCardIds.includes(p.creditCardId) && p.status === 'active')
