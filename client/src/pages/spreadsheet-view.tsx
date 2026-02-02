@@ -143,14 +143,19 @@ export default function SpreadsheetView() {
     }));
 
     // 1. Transactions Logic
-    // IMPORTANT: In projections, we do NOT count credit card invoice payments as expenses,
-    // because the spend is already represented in "Faturas Cartão" (installments per month).
+    // Projeção = somente transações FUTURAS (pendentes), por data.
+    // Receitas/despesas já realizadas entram na aba "Consolidado".
+    // Também ignoramos pagamentos de fatura aqui porque o gasto já está em "Faturas Cartão".
+    const today = startOfDay(new Date());
+
     transactions.filter(t => {
         const tDate = new Date(t.date);
         const isContextMatch = context === "personal" ? t.isPersonal : !t.isPersonal;
         const isSameYear = tDate.getFullYear() === year;
+        const isPending = t.status === 'pending';
+        const isFutureOrToday = tDate >= today;
         const isInvoicePayment = t.description.toLowerCase().includes('pagamento fatura') || t.description.toLowerCase().includes('pagamento da fatura');
-        return isSameYear && isContextMatch && !isInvoicePayment;
+        return isSameYear && isContextMatch && isPending && isFutureOrToday && !isInvoicePayment;
     }).forEach(t => {
         const month = t.date.includes('T') ? new Date(t.date).getMonth() : new Date(t.date + 'T00:00:00').getMonth();
         if (data[month]) {
