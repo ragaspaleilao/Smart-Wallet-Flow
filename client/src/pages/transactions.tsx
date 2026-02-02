@@ -62,11 +62,15 @@ export default function Transactions() {
 
     // Status Filter (apply first so it never depends on Type)
     // Missing status means older data; treat as PAID (it already affected balances).
-    const normalizeStatus = (t: any) => (t?.status === 'pending' ? 'pending' : 'paid');
+    // IMPORTANT: some older entries might show "Pago" in UI while status is missing/incorrect.
+    // We keep the rule strict: Paid = status === 'paid'.
+    const normalizeStatus = (t: any) => (t?.status === 'pending' ? 'pending' : t?.status === 'paid' ? 'paid' : 'paid');
+    const isStrictPaid = (t: any) => t?.status === 'paid';
 
     if (filterStatus !== 'all') {
       if (filterStatus === 'paid') {
-        filtered = filtered.filter(t => normalizeStatus(t) === 'paid');
+        // Paid must be explicitly marked as paid
+        filtered = filtered.filter(t => isStrictPaid(t));
       } else if (filterStatus === 'pending') {
         // Pending = not paid AND not overdue
         filtered = filtered.filter(t => {
