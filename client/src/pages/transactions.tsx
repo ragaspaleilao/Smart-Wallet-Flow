@@ -60,28 +60,28 @@ export default function Transactions() {
     let filtered = allTransactions.filter(t => t.isPersonal);
     const now = new Date();
 
-    // Type Filter
-    if (filterType !== 'all') {
-        filtered = filtered.filter(t => t.type === filterType);
-    }
-
-    // Status Filter
+    // Status Filter (apply first so it never depends on Type)
     // Missing status means older data; treat as PAID (it already affected balances).
     const normalizeStatus = (t: any) => (t?.status === 'pending' ? 'pending' : 'paid');
 
     if (filterStatus !== 'all') {
-        if (filterStatus === 'paid') {
-            filtered = filtered.filter(t => normalizeStatus(t) === 'paid');
-        } else if (filterStatus === 'pending') {
-            filtered = filtered.filter(t => normalizeStatus(t) === 'pending');
-        } else if (filterStatus === 'overdue') {
-            filtered = filtered.filter(t => {
-                if (normalizeStatus(t) !== 'pending') return false;
-                const raw = String(t.date || '');
-                const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
-                return isBefore(d, startOfDay(now));
-            });
-        }
+      if (filterStatus === 'paid') {
+        filtered = filtered.filter(t => normalizeStatus(t) === 'paid');
+      } else if (filterStatus === 'pending') {
+        filtered = filtered.filter(t => normalizeStatus(t) === 'pending');
+      } else if (filterStatus === 'overdue') {
+        filtered = filtered.filter(t => {
+          if (normalizeStatus(t) !== 'pending') return false;
+          const raw = String(t.date || '');
+          const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
+          return isBefore(d, startOfDay(now));
+        });
+      }
+    }
+
+    // Type Filter
+    if (filterType !== 'all') {
+      filtered = filtered.filter(t => t.type === filterType);
     }
 
     // Category Filter
