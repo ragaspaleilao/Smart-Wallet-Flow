@@ -232,8 +232,12 @@ export default function Analytics() {
                      d >= today;
           });
 
-          const income = monthTxs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-          const expense = monthTxs.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+          // NOTE: In projection, "Outras Despesas" should reflect only what appears in the Extrato.
+          // So we exclude credit-card-originated items (virtual installments and annual fee virtuals).
+          const monthTxsNonCard = monthTxs.filter(t => !String(t.id || '').startsWith('virtual-') && t.accountId !== 'virtual-card');
+
+          const income = monthTxsNonCard.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+          const expense = monthTxsNonCard.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
 
           const competenceMonth = startOfMonth(monthDate);
           const isCurrentOrFutureCompetence = !isBefore(competenceMonth, invoiceMonthStart);
