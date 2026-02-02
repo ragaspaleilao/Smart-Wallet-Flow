@@ -542,7 +542,7 @@ function TransactionItem({ tx, isChild = false }: { tx: any, isChild?: boolean }
   const txDate = rawDate.length === 10 ? new Date(`${rawDate}T12:00:00`) : new Date(rawDate);
 
   const isOverdue = status === 'pending' && isBefore(txDate, startOfDay(new Date()));
-  const isPending = status === 'pending';
+  const isPending = status === 'pending' && !isOverdue;
 
   return (
     <EditTransactionSheet transaction={tx}>
