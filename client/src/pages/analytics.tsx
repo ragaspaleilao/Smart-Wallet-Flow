@@ -229,7 +229,9 @@ export default function Analytics() {
           const income = monthTxs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
 
           // Credit card installments are virtual expenses dated on DUE DATE (next month).
-          // To show by competency month, we pull virtuals from next month, but only for future months.
+          // To show by COMPETENCY month, we pull virtuals from next month.
+          // IMPORTANT: do NOT require d >= today here.
+          // Otherwise, an open invoice from the current month (due next month) becomes 0 after the due date passes.
           const nextMonthStart = startOfMonth(addMonths(monthDate, 1));
           const nextMonthEnd = endOfMonth(addMonths(monthDate, 1));
 
@@ -239,8 +241,7 @@ export default function Analytics() {
                 .filter(t => t.status === 'pending')
                 .filter(t => {
                   const d = new Date(t.date);
-                  return d >= today &&
-                    isWithinInterval(d, { start: nextMonthStart, end: nextMonthEnd }) &&
+                  return isWithinInterval(d, { start: nextMonthStart, end: nextMonthEnd }) &&
                     (viewMode === 'personal' ? t.isPersonal : !t.isPersonal);
                 })
                 .reduce((sum, t) => sum + t.amount, 0)
