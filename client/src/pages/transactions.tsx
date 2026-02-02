@@ -179,9 +179,14 @@ export default function Transactions() {
       const pendingExpense = transactions
         .filter(t => t.type === 'expense' && t.status === 'pending')
         .reduce((acc, curr) => acc + curr.amount, 0);
+
+      const personalAccounts = accounts.filter(a => a.isPersonal);
+      const currentBalance = personalAccounts.reduce((acc, a: any) => acc + (Number(a.balance) || 0), 0);
+
+      const projectedBalance = currentBalance + pendingIncome - pendingExpense;
         
-      return { pendingIncome, pendingExpense, net: pendingIncome - pendingExpense };
-  }, [transactions]);
+      return { pendingIncome, pendingExpense, currentBalance, projectedBalance };
+  }, [transactions, accounts]);
 
   const categories = useFinancialStore((state) => state.transactionCategories);
 
@@ -346,8 +351,8 @@ export default function Transactions() {
             </div>
             <div className="mt-3 pt-3 border-t border-white/10 flex justify-between items-center">
                  <span className="text-xs text-gray-400">Saldo Projetado</span>
-                 <span className={`font-bold ${projections.net >= 0 ? 'text-blue-300' : 'text-red-300'}`}>
-                    {formatCurrency(projections.net)}
+                 <span className={`font-bold ${projections.projectedBalance >= 0 ? 'text-blue-300' : 'text-red-300'}`}>
+                    {formatCurrency(projections.projectedBalance)}
                  </span>
             </div>
           </div>
