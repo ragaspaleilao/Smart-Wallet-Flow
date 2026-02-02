@@ -73,15 +73,16 @@ export default function Transactions() {
           if (normalizeStatus(t) !== 'pending') return false;
           const raw = String(t.date || '');
           const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
-          return !isBefore(d, startOfDay(now));
+          // Pending = due today or in the future
+          return d >= startOfDay(now);
         });
       } else if (filterStatus === 'overdue') {
-        // Overdue = not paid AND date already passed
+        // Overdue = not paid AND due date is before today (becomes overdue starting tomorrow)
         filtered = filtered.filter(t => {
           if (normalizeStatus(t) !== 'pending') return false;
           const raw = String(t.date || '');
           const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
-          return isBefore(d, startOfDay(now));
+          return d < startOfDay(now);
         });
       }
     }
