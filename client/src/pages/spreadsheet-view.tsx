@@ -38,7 +38,7 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { format, isBefore, startOfDay, getMonth, getYear, parseISO, addMonths, startOfYear, endOfYear, subMonths, startOfMonth } from "date-fns";
+import { format, isBefore, startOfDay, getMonth, getYear, parseISO, addMonths, startOfYear, endOfYear, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { AddTransactionSheet } from "@/components/add-transaction-sheet";
 
 export default function SpreadsheetView() {
@@ -180,6 +180,25 @@ export default function SpreadsheetView() {
             const card = creditCards.find(c => c.id === purchase.creditCardId);
             if (!card) return;
 
+            // If this invoice month was already paid for this card, it should NOT appear in projection.
+            const isInvoiceMonthPaid = (invoiceMonth: Date) => {
+                const nextMonth = addMonths(startOfMonth(invoiceMonth), 1);
+                const invoiceDueDate = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), card.dueDay);
+
+                const paymentTx = transactions
+                  .filter(t => (context === "personal" ? t.isPersonal : !t.isPersonal))
+                  .filter(t => t.status === 'paid')
+                  .filter(t => (t.accountId === (card.linkedAccountId || 'virtual-card')))
+                  .filter(t => t.description.toLowerCase().includes('pagamento fatura'))
+                  .filter(t => {
+                    const d = new Date(t.date);
+                    return d.getTime() >= startOfMonth(invoiceDueDate).getTime() && d.getTime() <= endOfMonth(invoiceDueDate).getTime();
+                  })
+                  .find(Boolean);
+
+                return Boolean(paymentTx);
+            };
+
             // Normalize YYYY-MM-DD to local midday to avoid timezone shifting the day/month.
             const pDate = (() => {
                 const raw = String(purchase.purchaseDate || '');
@@ -203,8 +222,9 @@ export default function SpreadsheetView() {
             for (let i = 1; i <= purchase.installments; i++) {
                 const isInSelectedYear = currentInvoiceDate.getFullYear() === year;
                 const isCurrentOrFuture = !isBefore(currentInvoiceDate, invoiceMonthStart);
+                const isPaidForThatInvoiceMonth = isInvoiceMonthPaid(currentInvoiceDate);
 
-                if (isInSelectedYear && isCurrentOrFuture) {
+                if (isInSelectedYear && isCurrentOrFuture && !isPaidForThatInvoiceMonth) {
                     const m = currentInvoiceDate.getMonth();
                     if (data[m]) {
                         data[m].creditCardBill += purchase.installmentValue;
