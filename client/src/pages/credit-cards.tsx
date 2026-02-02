@@ -662,13 +662,18 @@ export default function CreditCards() {
       
       const numericAmount = Number(paymentData.amount.replace(/\D/g, "")) / 100;
 
+      const payDate = parseISO(String(paymentData.date || '').length === 10 ? `${paymentData.date}T12:00:00` : paymentData.date);
+      const paymentCompetence = getInvoiceMonthDate(payDate, selectedCard?.closingDay || 1);
+
       addCreditPayment({
           creditCardId: selectedCardId,
           amount: numericAmount,
           accountId: paymentData.accountId,
           paymentDate: paymentData.date,
-          month: currentInvoiceDate.getMonth(),
-          year: currentInvoiceDate.getFullYear(),
+          // Competência do pagamento deve seguir o ciclo do cartão (fechamento),
+          // para cair no mês correto nos relatórios.
+          month: paymentCompetence.getMonth(),
+          year: paymentCompetence.getFullYear(),
           type: 'partial' // Simplified for now
       });
 
