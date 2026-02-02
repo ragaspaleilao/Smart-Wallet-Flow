@@ -57,7 +57,10 @@ export default function Transactions() {
   }, [location]);
 
   const transactions = useMemo(() => {
-    let filtered = allTransactions.filter(t => t.isPersonal);
+    let filtered = allTransactions
+      .filter(t => t.isPersonal)
+      // Keep "Pagamento Fatura" out of the Projeções view (it would double-count credit card bills)
+      .filter(t => !t.description?.toLowerCase().includes('pagamento fatura'));
     const now = new Date();
 
     // Type Filter
