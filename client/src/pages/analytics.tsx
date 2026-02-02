@@ -7,7 +7,7 @@ import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Filter, Calenda
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, ComposedChart, Legend, CartesianGrid } from 'recharts';
 import { useState, useMemo } from "react";
-import { format, subDays, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfYear, endOfYear, addMonths, startOfDay, endOfDay, isAfter, isBefore, subMonths, getYear, setYear } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfYear, endOfYear, addMonths, startOfDay, endOfDay, isAfter, isBefore, subMonths, getYear, setYear, isSameMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Sheet,
@@ -214,19 +214,16 @@ export default function Analytics() {
       const months = Array.from({ length: 12 }, (_, i) => new Date(year, i, 1));
       const today = startOfDay(new Date());
 
-      // Projection = planning: only FUTURE / pending items.
-      // For credit cards, we only consider the OPEN part of the invoice (virtual installments)
-      // for months that are still in the future.
+      // IMPORTANT: Projection must match Spreadsheet projection exactly.
+      // 1) Normal transactions: pending + date >= today
+      // 2) Credit card bills: open invoice by COMPETENCE month, from invoiceMonthStart (prev month) onwards,
+      //    excluding invoices paid via creditPayments.
+      const invoiceMonthStart = startOfMonth(subMonths(today, 1));
 
       const monthsWithTotals = months.map(monthDate => {
           const monthStart = startOfMonth(monthDate);
           const monthEnd = endOfMonth(monthDate);
 
-          // Only months from the CURRENT month onwards should show projected items.
-          // If the current month invoice is still open, it must appear as projection.
-          const isCurrentOrFutureMonth = !isBefore(startOfMonth(monthDate), startOfMonth(today));
-
-          // Only include pending real transactions in projection (ignore realized).
           const monthTxs = combinedTransactions.filter(t => {
               const d = new Date(t.date);
               return isWithinInterval(d, { start: monthStart, end: monthEnd }) &&
@@ -236,52 +233,60 @@ export default function Analytics() {
           });
 
           const income = monthTxs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+          const expense = monthTxs.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
 
-          // Credit card installments are virtual expenses dated on DUE DATE (next month).
-          // To show by COMPETENCY month, we pull virtuals from next month.
-          // IMPORTANT: do NOT require d >= today here.
-          // Otherwise, an open invoice from the current month (due next month) becomes 0 after the due date passes.
-          const nextMonthStart = startOfMonth(addMonths(monthDate, 1));
-          const nextMonthEnd = endOfMonth(addMonths(monthDate, 1));
+          const competenceMonth = startOfMonth(monthDate);
+          const isCurrentOrFutureCompetence = !isBefore(competenceMonth, invoiceMonthStart);
 
-          const creditCardExpense = isCurrentOrFutureMonth
-            ? creditCards
-                .filter((c) => (viewMode === 'personal' ? true : true))
-                .reduce((sumByCards, card) => {
-                  // monthDate is the invoice COMPETENCE month.
-                  // Purchases are virtualized on DUE DATE (next month), so we pull next month virtuals.
-                  const invoiceMonth = startOfMonth(monthDate);
+          let creditCardExpense = 0;
+          if (isCurrentOrFutureCompetence) {
+            creditPurchases
+              .filter(p => p.status === 'active')
+              .forEach(purchase => {
+                const card = creditCards.find(c => c.id === purchase.creditCardId);
+                if (!card) return;
 
-                  // If this invoice month was already paid (creditPayments source of truth), it must not appear in projection.
-                  if (isInvoiceMonthPaid(card.id, invoiceMonth)) return sumByCards;
+                if (isInvoiceMonthPaid(card.id, competenceMonth)) return;
 
-                  const openForInvoiceMonth = combinedTransactions
-                    .filter(t => (t.id.startsWith('virtual-') || t.accountId === 'virtual-card'))
-                    .filter(t => t.status === 'pending')
-                    .filter(t => {
-                      const d = new Date(t.date);
-                      return isWithinInterval(d, { start: nextMonthStart, end: nextMonthEnd }) &&
-                        (viewMode === 'personal' ? t.isPersonal : !t.isPersonal) &&
-                        (card.linkedAccountId ? t.accountId === card.linkedAccountId : true);
-                    })
-                    .reduce((s, t) => s + t.amount, 0);
+                const pDate = (() => {
+                  const raw = String(purchase.purchaseDate || '');
+                  if (raw.length === 10) return new Date(`${raw}T12:00:00`);
+                  return new Date(raw);
+                })();
 
-                  return sumByCards + openForInvoiceMonth;
-                }, 0)
-            : 0;
+                const getInvoiceDate = (date: Date) => {
+                  const d = new Date(date);
+                  if (d.getDate() <= card.closingDay) return subMonths(d, 1);
+                  return d;
+                };
 
-          const otherExpense = monthTxs
-            .filter(t => t.type === 'expense' && !t.id.startsWith('virtual-') && t.accountId !== 'virtual-card')
-            .reduce((sum, t) => sum + t.amount, 0);
+                let currentInvoiceDate = startOfMonth(getInvoiceDate(pDate));
+
+                for (let i = 1; i <= purchase.installments; i++) {
+                  const isInSelectedYear = currentInvoiceDate.getFullYear() === year;
+                  if (isInSelectedYear && isSameMonth(currentInvoiceDate, competenceMonth)) {
+                    creditCardExpense += purchase.installmentValue;
+                  }
+                  currentInvoiceDate = startOfMonth(addMonths(currentInvoiceDate, 1));
+                }
+              });
+
+            // Annual fee (monthly) follows same rule as Spreadsheet (only from invoiceMonthStart onward)
+            creditCards.forEach(card => {
+              if (!card.hasAnnualFee || !card.annualFeeValue || card.annualFeeValue <= 0) return;
+              if (isInvoiceMonthPaid(card.id, competenceMonth)) return;
+              creditCardExpense += card.annualFeeValue;
+            });
+          }
 
           return {
               date: monthDate,
               monthLabel: format(monthDate, 'MMMM yyyy', { locale: ptBR }),
               income,
-              expense: creditCardExpense + otherExpense,
+              expense: expense + creditCardExpense,
               creditCardExpense,
-              otherExpense,
-              balance: income - (creditCardExpense + otherExpense)
+              otherExpense: expense,
+              balance: income - (expense + creditCardExpense)
           };
       });
 
@@ -295,7 +300,7 @@ export default function Analytics() {
           endingBalance: running,
         };
       });
-  }, [combinedTransactions, viewMode, selectedYear, yearStartingBalance]);
+  }, [combinedTransactions, viewMode, selectedYear, yearStartingBalance, creditCards, creditPurchases, creditPayments]);
 
   // --- CONSOLIDATION DATA (Past 12 Months - Realized) ---
   const consolidationData = useMemo(() => {
