@@ -434,8 +434,6 @@ export default function CreditCards() {
   const totalProjection = useMemo(() => {
       const projection = [];
       // Próximos 12 meses (competência da FATURA, não do vencimento).
-      // A "competência" da fatura é o mês anterior ao fechamento.
-      // Ex: fatura de JANEIRO fecha em 03/02 -> aparece em JANEIRO na projeção.
 
       let monthCursor = new Date();
       monthCursor.setDate(1);
@@ -445,16 +443,27 @@ export default function CreditCards() {
           const byCard: { cardId: string; name: string; total: number }[] = [];
 
           creditCards.forEach(card => {
-              // getInvoiceItems espera o mês de COMPETÊNCIA (mesmo mês usado por getInvoiceMonthDate).
-              // monthCursor já representa a competência do mês que está sendo exibido (ex: Janeiro 2026).
-              // Portanto NÃO somamos +1 aqui.
               const items = getInvoiceItems(card.id, monthCursor);
-              const cardTotal = items.reduce((a, b) => a + b.value, 0);
+              const invoiceTotalForMonth = items.reduce((a, b) => a + b.value, 0);
 
-              monthTotal += cardTotal;
+              // Subtrai pagamentos feitos ATÉ o vencimento da fatura desse mês.
+              const dueBase = addMonths(monthCursor, 1);
+              const dueDate = new Date(dueBase.getFullYear(), dueBase.getMonth(), card.dueDay);
 
-              if (cardTotal > 0) {
-                  byCard.push({ cardId: card.id, name: card.name, total: cardTotal });
+              const paidForMonth = (creditPayments || [])
+                .filter(p => p.creditCardId === card.id)
+                .filter(p => {
+                  const payDate = parseISO(String(p.paymentDate || '').length === 10 ? `${p.paymentDate}T12:00:00` : p.paymentDate);
+                  return payDate <= endOfDay(dueDate);
+                })
+                .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+              const openForMonth = Math.max(0, invoiceTotalForMonth - paidForMonth);
+
+              monthTotal += openForMonth;
+
+              if (openForMonth > 0) {
+                  byCard.push({ cardId: card.id, name: card.name, total: openForMonth });
               }
           });
 
@@ -470,7 +479,7 @@ export default function CreditCards() {
       }
 
       return projection;
-  }, [creditCards, creditPurchases]);
+  }, [creditCards, creditPurchases, creditPayments]);
 
 
   // Calculate Limits
