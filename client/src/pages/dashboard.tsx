@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp, Zap, Flame, Car } from "lucide-react";
 import { useFinancialStore } from "@/lib/store";
-import { format, isBefore, startOfDay, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, parseISO, isWithinInterval } from "date-fns";
+import { format, isBefore, startOfDay, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, parseISO, isWithinInterval, addDays } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 import { useState, useMemo } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -353,13 +353,27 @@ export default function Dashboard() {
             </Link>
         )}
 
-        <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 rounded-2xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
-          <div>
-            <h4 className="font-semibold text-sm text-orange-700 dark:text-orange-400">Atenção: IPVA Vencendo</h4>
-            <p className="text-xs text-orange-600/80 dark:text-orange-400/80 mt-1">O IPVA do Honda Civic vence em 3 dias. Valor: {formatCurrency(1250)}</p>
-          </div>
-        </div>
+        {/* IPVA alert (only when there is an IPVA pending within 7 days) */}
+        {transactions.some(t => {
+          const desc = String(t.description || '').toLowerCase();
+          if (!desc.includes('ipva')) return false;
+          if (t.status === 'paid') return false;
+          const d = new Date(t.date);
+          const today = startOfDay(new Date());
+          const in7 = addDays(today, 7);
+          return d >= today && d <= in7;
+        }) && (
+          <Link href="/vehicles">
+            <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 rounded-2xl p-4 flex items-start gap-3 cursor-pointer hover:bg-orange-100/60 dark:hover:bg-orange-900/20 transition-colors">
+              <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-sm text-orange-700 dark:text-orange-400">Atenção: IPVA vencendo</h4>
+                <p className="text-xs text-orange-600/80 dark:text-orange-400/80 mt-1">Você tem um IPVA a vencer nos próximos 7 dias.</p>
+                <p className="text-[10px] font-medium text-orange-700/80 dark:text-orange-300/80 mt-2">Ver detalhes</p>
+              </div>
+            </div>
+          </Link>
+        )}
 
         {/* Recent Transactions */}
         <div className="space-y-4 pb-24">
