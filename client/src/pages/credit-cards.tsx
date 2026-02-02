@@ -854,30 +854,8 @@ export default function CreditCards() {
                                 <p className="font-bold text-xl">{formatCurrency(card.creditLimit - (selectedCardId === card.id ? (openInvoiceTotal + futureInstallmentsTotal) : 0))}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-xs opacity-80" data-testid={`text-card-invoice-label-${card.id}`}>Fatura Atual</p>
-                                <p className="font-bold" data-testid={`text-card-invoice-due-${card.id}`}>Vence dia {card.dueDay}</p>
-
-                                {selectedCardId === card.id && (
-                                  <div className="mt-1 flex justify-end">
-                                    {openInvoiceTotal === 0 && invoiceTotal > 0 ? (
-                                      <span
-                                        className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-50 ring-1 ring-emerald-200/40"
-                                        data-testid={`badge-invoice-paid-${card.id}`}
-                                      >
-                                        <Check className="h-3 w-3" />
-                                        Fatura paga
-                                      </span>
-                                    ) : invoicePaymentsTotal > 0 ? (
-                                      <span
-                                        className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white/90 ring-1 ring-white/25"
-                                        data-testid={`badge-invoice-partial-${card.id}`}
-                                      >
-                                        <Check className="h-3 w-3" />
-                                        Pago {formatCurrency(invoicePaymentsTotal)}
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                )}
+                                <p className="text-xs opacity-80">Fatura Atual</p>
+                                <p className="font-bold">Vence dia {card.dueDay}</p>
                             </div>
                         </div>
                     </div>
