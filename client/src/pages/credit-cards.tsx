@@ -346,29 +346,51 @@ export default function CreditCards() {
     return items;
   };
 
-  const currentInvoiceDate = useMemo(() => {
+  const creditPayments = useFinancialStore((state) => state.creditPayments);
+
+  const baseInvoiceDate = useMemo(() => {
     if (!selectedCard) return new Date();
     const now = new Date();
 
-    // "Fatura atual" = competência do ciclo que ainda não fechou.
-    // Porém: se a fatura atual já foi quitada (em aberto = 0), avançamos para o próximo mês.
-    // Isso faz sentido no uso real: o usuário quer ver o próximo ciclo logo após quitar.
-
-    // Se hoje está até o dia de fechamento (inclusive), a competência continua sendo do mês anterior.
     const baseCompetence = now.getDate() <= selectedCard.closingDay ? addMonths(now, -1) : now;
-
-    // Normalize para o primeiro dia do mês (evita inconsistências em comparações/formatos)
     return new Date(baseCompetence.getFullYear(), baseCompetence.getMonth(), 1);
   }, [selectedCard]);
 
+  const invoicePaymentsTotalForDate = useMemo(() => {
+    if (!selectedCard) return 0;
+
+    const invoiceDueBase = addMonths(baseInvoiceDate, 1);
+    const invoiceDueDate = new Date(invoiceDueBase.getFullYear(), invoiceDueBase.getMonth(), selectedCard.dueDay);
+
+    return (creditPayments || [])
+      .filter((p) => p.creditCardId === selectedCard.id)
+      .filter((p) => {
+        const payDate = parseISO(String(p.paymentDate || '').length === 10 ? `${p.paymentDate}T12:00:00` : p.paymentDate);
+        return payDate <= endOfDay(invoiceDueDate);
+      })
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+  }, [creditPayments, selectedCard, baseInvoiceDate]);
+
+  const invoiceItemsForBaseDate = useMemo(() => {
+    if (!selectedCardId) return [];
+    return getInvoiceItems(selectedCardId, baseInvoiceDate);
+  }, [selectedCardId, baseInvoiceDate]);
+
+  const invoiceTotalForBaseDate = invoiceItemsForBaseDate.reduce((acc, item) => acc + item.value, 0);
+  const openInvoiceTotalForBaseDate = Math.max(0, invoiceTotalForBaseDate - invoicePaymentsTotalForDate);
+
+  const currentInvoiceDate = useMemo(() => {
+    if (!selectedCard) return baseInvoiceDate;
+    if (openInvoiceTotalForBaseDate > 0) return baseInvoiceDate;
+    return addMonths(baseInvoiceDate, 1);
+  }, [selectedCard, baseInvoiceDate, openInvoiceTotalForBaseDate]);
+
   const invoiceItems = useMemo(() => {
-     if (!selectedCardId) return [];
-     return getInvoiceItems(selectedCardId, currentInvoiceDate);
+    if (!selectedCardId) return [];
+    return getInvoiceItems(selectedCardId, currentInvoiceDate);
   }, [selectedCardId, currentInvoiceDate]);
 
   const invoiceTotal = invoiceItems.reduce((acc, item) => acc + item.value, 0);
-
-  const creditPayments = useFinancialStore((state) => state.creditPayments);
 
   const invoicePaymentsTotal = useMemo(() => {
     if (!selectedCard) return 0;
