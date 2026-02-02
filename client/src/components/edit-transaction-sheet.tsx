@@ -70,13 +70,18 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
   const handleSave = () => {
     const numericAmount = Number(formData.amount.replace(/\D/g, "")) / 100;
 
+    // Keep YYYY-MM-DD as local midday to avoid timezone shifting to previous day.
+    const normalizedDate = String(formData.date || '').length === 10
+      ? `${formData.date}T12:00:00`
+      : new Date(formData.date).toISOString();
+
     updateTransaction(transaction.id, {
       description: formData.description,
       amount: numericAmount,
       category: formData.category,
       type: formData.type,
       accountId: formData.accountId,
-      date: new Date(formData.date).toISOString(),
+      date: normalizedDate,
       status: formData.status as 'paid' | 'pending'
     });
     setOpen(false);
