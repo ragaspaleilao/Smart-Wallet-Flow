@@ -118,7 +118,8 @@ export default function Transactions() {
         const start = startOfMonth(now);
         const end = endOfMonth(now);
         filtered = filtered.filter(t => {
-            const d = new Date(t.date);
+            const raw = String(t.date || '');
+            const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
             return d >= start && d <= end;
         });
     } else if (filterPeriod === 'next-month') {
@@ -126,16 +127,22 @@ export default function Transactions() {
         const start = startOfMonth(nextMonth);
         const end = endOfMonth(nextMonth);
         filtered = filtered.filter(t => {
-            const d = new Date(t.date);
+            const raw = String(t.date || '');
+            const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
             return d >= start && d <= end;
         });
     } else if (filterPeriod === 'future') {
-        filtered = filtered.filter(t => new Date(t.date) > now);
+        filtered = filtered.filter(t => {
+            const raw = String(t.date || '');
+            const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
+            return d > now;
+        });
     } else if (filterPeriod === 'custom') {
         const start = startOfDay(new Date(customStart));
         const end = endOfDay(new Date(customEnd));
         filtered = filtered.filter(t => {
-            const d = new Date(t.date);
+            const raw = String(t.date || '');
+            const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
             return d >= start && d <= end;
         });
     }
