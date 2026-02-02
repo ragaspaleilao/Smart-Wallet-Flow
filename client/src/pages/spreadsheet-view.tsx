@@ -195,8 +195,7 @@ export default function SpreadsheetView() {
                 const paymentTx = transactions
                   .filter(t => (context === "personal" ? t.isPersonal : !t.isPersonal))
                   .filter(t => t.status === 'paid')
-                  // Payment happens from a bank account; linkedAccountId points to the CC "virtual" account.
-                  // So we must NOT match by accountId here.
+                  .filter(t => (t.accountId === (card.linkedAccountId || 'virtual-card')))
                   .filter(t => t.description.toLowerCase().includes('pagamento fatura'))
                   .filter(t => {
                     const d = new Date(t.date);
