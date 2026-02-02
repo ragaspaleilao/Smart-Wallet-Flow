@@ -351,16 +351,14 @@ export default function CreditCards() {
     const now = new Date();
 
     // "Fatura atual" = competência do ciclo que ainda não fechou.
-    // Com fechamento dia 03:
-    // - Em 29/01, o ciclo que ainda não fechou é o que fecha em 03/02 -> competência de JANEIRO
-    // - Em 02/02, ainda é competência de JANEIRO
-    // - Em 04/02, já virou competência de FEVEREIRO
+    // Porém: se a fatura atual já foi quitada (em aberto = 0), avançamos para o próximo mês.
+    // Isso faz sentido no uso real: o usuário quer ver o próximo ciclo logo após quitar.
 
     // Se hoje está até o dia de fechamento (inclusive), a competência continua sendo do mês anterior.
-    const competence = now.getDate() <= selectedCard.closingDay ? addMonths(now, -1) : now;
+    const baseCompetence = now.getDate() <= selectedCard.closingDay ? addMonths(now, -1) : now;
 
     // Normalize para o primeiro dia do mês (evita inconsistências em comparações/formatos)
-    return new Date(competence.getFullYear(), competence.getMonth(), 1);
+    return new Date(baseCompetence.getFullYear(), baseCompetence.getMonth(), 1);
   }, [selectedCard]);
 
   const invoiceItems = useMemo(() => {
@@ -778,7 +776,7 @@ export default function CreditCards() {
                         <div className="flex justify-between items-end">
                             <div>
                                 <p className="text-xs opacity-80 mb-1">Limite Disponível</p>
-                                <p className="font-bold text-xl">{formatCurrency(card.creditLimit - (selectedCardId === card.id ? (invoiceTotal + futureInstallmentsTotal) : 0))}</p>
+                                <p className="font-bold text-xl">{formatCurrency(card.creditLimit - (selectedCardId === card.id ? (openInvoiceTotal + futureInstallmentsTotal) : 0))}</p>
                             </div>
                             <div className="text-right">
                                 <p className="text-xs opacity-80">Fatura Atual</p>
