@@ -435,7 +435,9 @@ export default function CreditCards() {
       const projection = [];
       // Próximos 12 meses (competência da FATURA, não do vencimento).
 
-      let monthCursor = new Date();
+      // Começa no mês anterior ao atual (exibe o mês corrente do ciclo + 11 seguintes)
+      // Assim, se hoje é fevereiro, o gráfico inclui janeiro (importante para faturas ainda em aberto).
+      let monthCursor = addMonths(new Date(), -1);
       monthCursor.setDate(1);
 
       for (let i = 0; i < 12; i++) {
