@@ -66,13 +66,16 @@ export default function Transactions() {
     }
 
     // Status Filter
+    // Normalize missing status: if undefined, treat as 'paid' (backward compatibility)
+    const getTxStatus = (t: any) => (t.status === 'pending' ? 'pending' : 'paid');
+
     if (filterStatus !== 'all') {
         if (filterStatus === 'paid') {
-            filtered = filtered.filter(t => t.status === 'paid');
+            filtered = filtered.filter(t => getTxStatus(t) === 'paid');
         } else if (filterStatus === 'pending') {
-            filtered = filtered.filter(t => t.status === 'pending');
+            filtered = filtered.filter(t => getTxStatus(t) === 'pending');
         } else if (filterStatus === 'overdue') {
-            filtered = filtered.filter(t => t.status === 'pending' && isBefore(new Date(t.date), startOfDay(now)));
+            filtered = filtered.filter(t => getTxStatus(t) === 'pending' && isBefore(new Date(t.date), startOfDay(now)));
         }
     }
 
