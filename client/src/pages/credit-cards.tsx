@@ -370,6 +370,25 @@ export default function CreditCards() {
 
   const invoiceTotal = invoiceItems.reduce((acc, item) => acc + item.value, 0);
 
+  const creditPayments = useFinancialStore((state) => state.creditPayments);
+
+  const invoicePaymentsTotal = useMemo(() => {
+    if (!selectedCard) return 0;
+
+    const invoiceDueBase = addMonths(currentInvoiceDate, 1);
+    const invoiceDueDate = new Date(invoiceDueBase.getFullYear(), invoiceDueBase.getMonth(), selectedCard.dueDay);
+
+    return (creditPayments || [])
+      .filter((p) => p.creditCardId === selectedCard.id)
+      .filter((p) => {
+        const payDate = parseISO(String(p.paymentDate || '').length === 10 ? `${p.paymentDate}T12:00:00` : p.paymentDate);
+        return payDate <= endOfDay(invoiceDueDate);
+      })
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+  }, [creditPayments, selectedCard, currentInvoiceDate]);
+
+  const openInvoiceTotal = Math.max(0, invoiceTotal - invoicePaymentsTotal);
+
   const futureInvoices = useMemo(() => {
       if (!selectedCard) return [];
       const invoices: { date: Date; total: number; items: any[] }[] = [];
@@ -472,7 +491,7 @@ export default function CreditCards() {
         }, 0);
   }, [selectedCardId, selectedCard, creditPurchases, currentInvoiceDate]);
 
-  const usedLimit = invoiceTotal + futureInstallmentsTotal;
+  const usedLimit = openInvoiceTotal + futureInstallmentsTotal;
   const availableLimit = totalLimit - usedLimit;
   const limitPercentage = totalLimit > 0 ? (usedLimit / totalLimit) * 100 : 0;
 
@@ -1221,8 +1240,13 @@ export default function CreditCards() {
                             </DialogHeader>
                             <div className="space-y-4 py-4">
                                 <div className="p-4 bg-gray-50 dark:bg-zinc-900 rounded-lg text-center">
-                                    <p className="text-sm text-gray-500">Valor da Fatura Atual</p>
-                                    <p className="text-2xl font-bold">{formatCurrency(invoiceTotal)}</p>
+                                    <p className="text-sm text-gray-500">Fatura Atual (em aberto)</p>
+                                    <p className="text-2xl font-bold" data-testid="text-invoice-open-total">{formatCurrency(openInvoiceTotal)}</p>
+                                    {invoicePaymentsTotal > 0 && (
+                                      <p className="text-xs text-gray-500 mt-1" data-testid="text-invoice-payments-total">
+                                        Pago: {formatCurrency(invoicePaymentsTotal)}
+                                      </p>
+                                    )}
                                 </div>
                                 
                                 <div className="space-y-2">
@@ -1333,8 +1357,13 @@ export default function CreditCards() {
                                                     </DialogHeader>
                                                     <div className="space-y-4 py-4">
                                                         <div className="p-4 bg-gray-50 dark:bg-zinc-900 rounded-lg text-center">
-                                                            <p className="text-sm text-gray-500">Valor da Fatura Atual</p>
-                                                            <p className="text-2xl font-bold">{formatCurrency(invoiceTotal)}</p>
+                                                            <p className="text-sm text-gray-500">Fatura Atual (em aberto)</p>
+                                                            <p className="text-2xl font-bold" data-testid="text-invoice-open-total-alert">{formatCurrency(openInvoiceTotal)}</p>
+                                                            {invoicePaymentsTotal > 0 && (
+                                                              <p className="text-xs text-gray-500 mt-1" data-testid="text-invoice-payments-total-alert">
+                                                                Pago: {formatCurrency(invoicePaymentsTotal)}
+                                                              </p>
+                                                            )}
                                                         </div>
 
                                                         <div className="space-y-2">
