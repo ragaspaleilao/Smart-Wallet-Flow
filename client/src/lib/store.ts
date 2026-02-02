@@ -869,7 +869,6 @@ export const useFinancialStore = create<FinancialStore>()(
         calendarEvents: [
             { id: '1', title: 'Aluguel', date: new Date(new Date().setDate(new Date().getDate() + 5)).toISOString(), amount: 1200, type: 'expense', synced: true },
             { id: '2', title: 'Netflix', date: new Date(new Date().setDate(new Date().getDate() + 10)).toISOString(), amount: 55.90, type: 'expense', synced: true },
-            { id: '3', title: 'Salário', date: new Date(new Date().setDate(new Date().getDate() + 2)).toISOString(), amount: 3500, type: 'income', synced: true },
         ]
       })),
       
