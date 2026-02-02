@@ -30,7 +30,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 const COLORS = ['#8b5cf6', '#f97316', '#10b981', '#ef4444', '#3b82f6', '#eab308', '#ec4899', '#6366f1', '#14b8a6', '#f43f5e'];
 
 export default function Analytics() {
-  const { transactions, accounts, creditCards, creditPurchases } = useFinancialStore();
+  const { transactions, accounts, creditCards, creditPurchases, creditPayments } = useFinancialStore();
   
   // View State
   const [activeTab, setActiveTab] = useState("overview");
@@ -171,10 +171,19 @@ export default function Analytics() {
 
   // 3. Combined Data (Real + Virtual)
   const combinedTransactions = useMemo(() => {
-    // Exclude manual credit card payments to avoid double counting if looking at expense categories
+    // Exclude the payment transaction itself; invoice status is decided by creditPayments.
     const realTransactions = transactions.filter(t => !t.description.includes("Pagamento Fatura"));
     return [...realTransactions, ...virtualTransactions];
   }, [transactions, virtualTransactions]);
+
+  // Invoice paid rule (source of truth): creditPayments carries competence month/year for the invoice.
+  const isInvoiceMonthPaid = (creditCardId: string, invoiceMonth: Date) => {
+    const m = invoiceMonth.getMonth();
+    const y = invoiceMonth.getFullYear();
+    return (creditPayments || [])
+      .filter(p => p.creditCardId === creditCardId)
+      .some(p => Number(p.month) === m && Number(p.year) === y);
+  };
 
   // 4. Filtered Data for Overview
   const filteredOverviewData = useMemo(() => {
@@ -236,15 +245,29 @@ export default function Analytics() {
           const nextMonthEnd = endOfMonth(addMonths(monthDate, 1));
 
           const creditCardExpense = isCurrentOrFutureMonth
-            ? combinedTransactions
-                .filter(t => (t.id.startsWith('virtual-') || t.accountId === 'virtual-card'))
-                .filter(t => t.status === 'pending')
-                .filter(t => {
-                  const d = new Date(t.date);
-                  return isWithinInterval(d, { start: nextMonthStart, end: nextMonthEnd }) &&
-                    (viewMode === 'personal' ? t.isPersonal : !t.isPersonal);
-                })
-                .reduce((sum, t) => sum + t.amount, 0)
+            ? creditCards
+                .filter((c) => (viewMode === 'personal' ? true : true))
+                .reduce((sumByCards, card) => {
+                  // monthDate is the invoice COMPETENCE month.
+                  // Purchases are virtualized on DUE DATE (next month), so we pull next month virtuals.
+                  const invoiceMonth = startOfMonth(monthDate);
+
+                  // If this invoice month was already paid (creditPayments source of truth), it must not appear in projection.
+                  if (isInvoiceMonthPaid(card.id, invoiceMonth)) return sumByCards;
+
+                  const openForInvoiceMonth = combinedTransactions
+                    .filter(t => (t.id.startsWith('virtual-') || t.accountId === 'virtual-card'))
+                    .filter(t => t.status === 'pending')
+                    .filter(t => {
+                      const d = new Date(t.date);
+                      return isWithinInterval(d, { start: nextMonthStart, end: nextMonthEnd }) &&
+                        (viewMode === 'personal' ? t.isPersonal : !t.isPersonal) &&
+                        (card.linkedAccountId ? t.accountId === card.linkedAccountId : true);
+                    })
+                    .reduce((s, t) => s + t.amount, 0);
+
+                  return sumByCards + openForInvoiceMonth;
+                }, 0)
             : 0;
 
           const otherExpense = monthTxs
