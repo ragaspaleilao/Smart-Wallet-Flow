@@ -146,54 +146,7 @@ export default function Transactions() {
 
   // Grouping Logic for Installments
   const groupedTransactions = useMemo(() => {
-      const groups: Record<string, typeof transactions> = {};
-      const standalone: typeof transactions = [];
-
-      // Identify installments pattern: "Description (X/Y)"
-      const installmentRegex = /^(.*) \((\d+)\/(\d+)\)$/;
-
-      // First pass: build groups + standalone
-      transactions.forEach(tx => {
-          const match = tx.description.match(installmentRegex);
-          if (match) {
-              const baseDesc = match[1].trim();
-              const totalInstallments = match[3]; // Y part
-              // Use a composite key including amount/category to avoid mixing similar named items
-              const key = `${baseDesc}|${totalInstallments}|${tx.category}|${tx.amount.toFixed(2)}`;
-
-              if (!groups[key]) groups[key] = [];
-              groups[key].push(tx);
-          } else {
-              standalone.push(tx);
-          }
-      });
-
-      type TransactionItem = typeof transactions[number];
-      const finallist: (TransactionItem | { isGroup: true, items: TransactionItem[], key: string })[] = [];
-
-      // Add groups first (so we can exclude their items from standalone)
-      const groupedIds = new Set<string>();
-
-      Object.entries(groups).forEach(([key, items]) => {
-          if (items.length > 1) {
-              items.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-              items.forEach(i => groupedIds.add(i.id));
-              finallist.push({ isGroup: true, items, key });
-          } else {
-              // Only 1 item visible in this filter? treat as standalone item
-              finallist.push(...items);
-          }
-      });
-
-      // Add standalone items that are NOT part of any group
-      finallist.push(...standalone.filter(tx => !groupedIds.has(tx.id)));
-
-      // Re-sort everything by date (using the date of the first item for groups)
-      return finallist.sort((a, b) => {
-          const dateA = new Date('isGroup' in a ? a.items[0].date : a.date).getTime();
-          const dateB = new Date('isGroup' in b ? b.items[0].date : b.date).getTime();
-          return dateB - dateA; // Newest first
-      });
+      return transactions;
   }, [transactions]);
 
   // Projections
@@ -398,13 +351,9 @@ export default function Transactions() {
           ) : (
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide sticky top-0 bg-white dark:bg-black py-2">Recentes</h3>
-              {groupedTransactions.map((item, idx) => {
-                  if ('isGroup' in item) {
-                      return <TransactionItem key={`tx-${item.items[0].id}-${idx}`} tx={item.items[0]} />;
-                  } else {
-                      return <TransactionItem key={item.id} tx={item} />;
-                  }
-              })}
+              {groupedTransactions.map((item, idx) => (
+                  <TransactionItem key={`${item.id}-${idx}`} tx={item} />
+              ))}
             </div>
           )}
         </div>
