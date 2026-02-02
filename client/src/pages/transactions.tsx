@@ -141,12 +141,11 @@ export default function Transactions() {
   const groupedTransactions = useMemo(() => {
       const groups: Record<string, typeof transactions> = {};
       const standalone: typeof transactions = [];
-      const processedIds = new Set<string>();
 
       // Identify installments pattern: "Description (X/Y)"
       const installmentRegex = /^(.*) \((\d+)\/(\d+)\)$/;
 
-      // First pass: Group potential installments
+      // First pass: build groups + standalone
       transactions.forEach(tx => {
           const match = tx.description.match(installmentRegex);
           if (match) {
@@ -154,7 +153,7 @@ export default function Transactions() {
               const totalInstallments = match[3]; // Y part
               // Use a composite key including amount/category to avoid mixing similar named items
               const key = `${baseDesc}|${totalInstallments}|${tx.category}|${tx.amount.toFixed(2)}`;
-              
+
               if (!groups[key]) groups[key] = [];
               groups[key].push(tx);
           } else {
@@ -162,25 +161,25 @@ export default function Transactions() {
           }
       });
 
-      // Second pass: Decide what to group vs keep standalone
       type TransactionItem = typeof transactions[number];
       const finallist: (TransactionItem | { isGroup: true, items: TransactionItem[], key: string })[] = [];
-      
-      // Add standalone items
-      finallist.push(...standalone);
 
-      // Process groups
+      // Add groups first (so we can exclude their items from standalone)
+      const groupedIds = new Set<string>();
+
       Object.entries(groups).forEach(([key, items]) => {
           if (items.length > 1) {
-              // If we have multiple items for this "purchase" in the current view, group them
-              // Sort items by installment number usually, or date
               items.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+              items.forEach(i => groupedIds.add(i.id));
               finallist.push({ isGroup: true, items, key });
           } else {
-              // Only 1 item visible in this filter? Show as normal item
+              // Only 1 item visible in this filter? treat as standalone item
               finallist.push(...items);
           }
       });
+
+      // Add standalone items that are NOT part of any group
+      finallist.push(...standalone.filter(tx => !groupedIds.has(tx.id)));
 
       // Re-sort everything by date (using the date of the first item for groups)
       return finallist.sort((a, b) => {
