@@ -203,34 +203,47 @@ export default function Analytics() {
   const projectionData = useMemo(() => {
       const year = parseInt(selectedYear);
       const months = Array.from({ length: 12 }, (_, i) => new Date(year, i, 1));
-      
+      const today = startOfDay(new Date());
+
+      // Projection = planning: only FUTURE / pending items.
+      // For credit cards, we only consider the OPEN part of the invoice (virtual installments)
+      // for months that are still in the future.
+
       const monthsWithTotals = months.map(monthDate => {
           const monthStart = startOfMonth(monthDate);
           const monthEnd = endOfMonth(monthDate);
-          
+
+          // Only future months should show projected items.
+          const isFutureMonth = isAfter(startOfMonth(monthDate), startOfMonth(today));
+
+          // Only include pending real transactions in projection (ignore realized).
           const monthTxs = combinedTransactions.filter(t => {
               const d = new Date(t.date);
-              return isWithinInterval(d, { start: monthStart, end: monthEnd }) && 
-                     (viewMode === 'personal' ? t.isPersonal : !t.isPersonal);
+              return isWithinInterval(d, { start: monthStart, end: monthEnd }) &&
+                     (viewMode === 'personal' ? t.isPersonal : !t.isPersonal) &&
+                     t.status === 'pending' &&
+                     d >= today;
           });
 
           const income = monthTxs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-          
-          // Separate Credit Card Expenses vs Other Expenses
-          // We treat the projection month as the INVOICE COMPETENCY month.
-          // Our virtual installments are dated on the DUE DATE (next month), so
-          // to show the correct competency we need to pull CC virtuals from next month.
+
+          // Credit card installments are virtual expenses dated on DUE DATE (next month).
+          // To show by competency month, we pull virtuals from next month, but only for future months.
           const nextMonthStart = startOfMonth(addMonths(monthDate, 1));
           const nextMonthEnd = endOfMonth(addMonths(monthDate, 1));
 
-          const creditCardExpense = combinedTransactions
-            .filter(t => t.id.startsWith('virtual-') || t.accountId === 'virtual-card')
-            .filter(t => {
-              const d = new Date(t.date);
-              return isWithinInterval(d, { start: nextMonthStart, end: nextMonthEnd }) &&
-                (viewMode === 'personal' ? t.isPersonal : !t.isPersonal);
-            })
-            .reduce((sum, t) => sum + t.amount, 0);
+          const creditCardExpense = isFutureMonth
+            ? combinedTransactions
+                .filter(t => (t.id.startsWith('virtual-') || t.accountId === 'virtual-card'))
+                .filter(t => t.status === 'pending')
+                .filter(t => {
+                  const d = new Date(t.date);
+                  return d >= today &&
+                    isWithinInterval(d, { start: nextMonthStart, end: nextMonthEnd }) &&
+                    (viewMode === 'personal' ? t.isPersonal : !t.isPersonal);
+                })
+                .reduce((sum, t) => sum + t.amount, 0)
+            : 0;
 
           const otherExpense = monthTxs
             .filter(t => t.type === 'expense' && !t.id.startsWith('virtual-') && t.accountId !== 'virtual-card')
