@@ -66,16 +66,21 @@ export default function Transactions() {
     }
 
     // Status Filter
-    // Normalize missing status: if undefined, treat as 'paid' (backward compatibility)
-    const getTxStatus = (t: any) => (t.status === 'pending' ? 'pending' : 'paid');
+    // Missing status means older data; treat as PAID (it already affected balances).
+    const normalizeStatus = (t: any) => (t?.status === 'pending' ? 'pending' : 'paid');
 
     if (filterStatus !== 'all') {
         if (filterStatus === 'paid') {
-            filtered = filtered.filter(t => getTxStatus(t) === 'paid');
+            filtered = filtered.filter(t => normalizeStatus(t) === 'paid');
         } else if (filterStatus === 'pending') {
-            filtered = filtered.filter(t => getTxStatus(t) === 'pending');
+            filtered = filtered.filter(t => normalizeStatus(t) === 'pending');
         } else if (filterStatus === 'overdue') {
-            filtered = filtered.filter(t => getTxStatus(t) === 'pending' && isBefore(new Date(t.date), startOfDay(now)));
+            filtered = filtered.filter(t => {
+                if (normalizeStatus(t) !== 'pending') return false;
+                const raw = String(t.date || '');
+                const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
+                return isBefore(d, startOfDay(now));
+            });
         }
     }
 
@@ -95,7 +100,9 @@ export default function Transactions() {
         filtered = filtered.filter(t => {
             const account = accounts.find(a => a.id === t.accountId);
             const accountName = account ? account.name.toLowerCase() : '';
-            const dateStr = format(new Date(t.date), 'dd/MM/yyyy').toLowerCase();
+            const raw = String(t.date || '');
+            const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
+            const dateStr = format(d, 'dd/MM/yyyy').toLowerCase();
             
             return (
                 t.description.toLowerCase().includes(query) ||
@@ -574,8 +581,12 @@ function TransactionItem({ tx, isChild = false }: { tx: any, isChild?: boolean }
   const accounts = useFinancialStore(state => state.accounts);
   const account = accounts.find(a => a.id === tx.accountId);
   
-  const isOverdue = tx.status === 'pending' && isBefore(new Date(tx.date), startOfDay(new Date()));
-  const isPending = tx.status === 'pending';
+  const status = tx?.status === 'pending' ? 'pending' : 'paid';
+  const rawDate = String(tx?.date || '');
+  const txDate = rawDate.length === 10 ? new Date(`${rawDate}T12:00:00`) : new Date(rawDate);
+
+  const isOverdue = status === 'pending' && isBefore(txDate, startOfDay(new Date()));
+  const isPending = status === 'pending';
 
   return (
     <EditTransactionSheet transaction={tx}>
