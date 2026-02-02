@@ -143,21 +143,23 @@ export default function SpreadsheetView() {
     }));
 
     // 1. Transactions Logic
-    // Projeção = somente transações FUTURAS (pendentes), por data.
-    // Receitas/despesas já realizadas entram na aba "Consolidado".
-    // Também ignoramos pagamentos de fatura aqui porque o gasto já está em "Faturas Cartão".
+    // Projeção = somente transações PENDENTES (por data).
+    // Consolidado = somente transações PAGAS.
+    // Observação: pagamentos de fatura NÃO são ignorados aqui.
+    // Se existir um "Pagamento Fatura" pendente, ele deve entrar como despesa prevista.
     const today = startOfDay(new Date());
 
     transactions.filter(t => {
-        const tDate = new Date(t.date);
+        const raw = String(t.date || '');
+        const tDate = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
         const isContextMatch = context === "personal" ? t.isPersonal : !t.isPersonal;
         const isSameYear = tDate.getFullYear() === year;
         const isPending = t.status === 'pending';
         const isFutureOrToday = tDate >= today;
-        const isInvoicePayment = t.description.toLowerCase().includes('pagamento fatura') || t.description.toLowerCase().includes('pagamento da fatura');
-        return isSameYear && isContextMatch && isPending && isFutureOrToday && !isInvoicePayment;
+        return isSameYear && isContextMatch && isPending && isFutureOrToday;
     }).forEach(t => {
-        const month = t.date.includes('T') ? new Date(t.date).getMonth() : new Date(t.date + 'T00:00:00').getMonth();
+        const raw = String(t.date || '');
+        const month = raw.length === 10 ? new Date(`${raw}T12:00:00`).getMonth() : new Date(raw).getMonth();
         if (data[month]) {
             if (t.type === 'income') data[month].income += t.amount;
             else data[month].expense += t.amount;
