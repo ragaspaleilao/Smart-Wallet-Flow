@@ -213,8 +213,9 @@ export default function Analytics() {
           const monthStart = startOfMonth(monthDate);
           const monthEnd = endOfMonth(monthDate);
 
-          // Only future months should show projected items.
-          const isFutureMonth = isAfter(startOfMonth(monthDate), startOfMonth(today));
+          // Only months from the CURRENT month onwards should show projected items.
+          // If the current month invoice is still open, it must appear as projection.
+          const isCurrentOrFutureMonth = !isBefore(startOfMonth(monthDate), startOfMonth(today));
 
           // Only include pending real transactions in projection (ignore realized).
           const monthTxs = combinedTransactions.filter(t => {
@@ -232,7 +233,7 @@ export default function Analytics() {
           const nextMonthStart = startOfMonth(addMonths(monthDate, 1));
           const nextMonthEnd = endOfMonth(addMonths(monthDate, 1));
 
-          const creditCardExpense = isFutureMonth
+          const creditCardExpense = isCurrentOrFutureMonth
             ? combinedTransactions
                 .filter(t => (t.id.startsWith('virtual-') || t.accountId === 'virtual-card'))
                 .filter(t => t.status === 'pending')
