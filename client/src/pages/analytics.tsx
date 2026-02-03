@@ -388,8 +388,14 @@ export default function Analytics() {
           };
       });
 
-      const ordered = monthsWithTotals.reverse();
+      // User requested Jan->Dec order (Chronological)
+      const ordered = monthsWithTotals;
+      
+      // Calculate running balances
+      // Note: In a real app, we would calculate the actual starting balance of the year based on history.
+      // Here we use the estimated yearStartingBalance.
       let running = yearStartingBalance;
+      
       return ordered.map((m) => {
         const previousBalance = running;
         running = running + m.balance;
@@ -398,10 +404,8 @@ export default function Analytics() {
           previousBalance,
           endingBalance: running,
         };
-      }); // Show newest first usually, or calendar order? 
-      // If it's a "Year Report", usually Jan->Dec. If "History", usually Dec->Jan. 
-      // Let's keep reverse (Dec -> Jan) as it's better for mobile scrolling "back in time".
-  }, [transactions, viewMode, selectedYear]);
+      });
+  }, [transactions, viewMode, selectedYear, yearStartingBalance]);
 
 
   // --- CHARTS DATA ---
