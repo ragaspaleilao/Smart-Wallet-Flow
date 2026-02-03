@@ -28,7 +28,6 @@ import {
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import { useMemo, useState, useEffect, useRef } from "react";
-import { apiClient } from "@/lib/api";
 import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay, addDays, parseISO, startOfMonth, isSameMonth } from "date-fns";
 import { useCreditCards, useCreditPurchases, useCreditPayments, useCreateCreditCard, useCreateCreditPurchase, useCreateCreditPayment, useDeleteCreditCard, useDeleteCreditPurchase, useAccounts, useUpdateCreditCard } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
@@ -147,7 +146,12 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
   const processImage = async (base64: string, mimeType: string) => {
     setIsProcessing(true);
     try {
-      const response = await apiClient.post("/api/ocr", { imageData: base64, mimeType });
+      const response = await fetch("/api/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageData: base64, mimeType }),
+        credentials: "include"
+      });
       if (response.ok) {
         const data = await response.json();
         setResult(data);
@@ -343,7 +347,12 @@ function CreditCardVoiceRecorder({ cardId, onPurchaseCreated, createPurchase }: 
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64 = (reader.result as string).split(",")[1];
-        const response = await apiClient.post("/api/voice", { audioData: base64, mimeType: audioBlob.type });
+        const response = await fetch("/api/voice", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ audioData: base64, mimeType: audioBlob.type }),
+          credentials: "include"
+        });
         if (response.ok) {
           const data = await response.json();
           setResult(data);
