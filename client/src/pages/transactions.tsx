@@ -1,6 +1,6 @@
 import { getCategoryIcon, formatCurrency } from "@/lib/utils";
 import { MobileLayout } from "@/components/mobile-layout";
-import { ArrowLeft, Search, Filter, ArrowUpRight, ArrowDownLeft, Table as TableIcon, AlertCircle, Clock, CheckCircle2, X, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Search, Filter, ArrowUpRight, ArrowDownLeft, Table as TableIcon, AlertCircle, Clock, CheckCircle2, X, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,11 +15,47 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Label } from "@/components/ui/label";
 import { MoreVertical, Trash2, Edit, Save } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useAccounts, useTransactions as useApiTransactions } from "@/hooks/use-api";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function Transactions() {
   const [location, setLocation] = useLocation();
-  const allTransactions = useFinancialStore((state) => state.transactions);
-  const accounts = useFinancialStore((state) => state.accounts);
+  const { isAuthenticated } = useAuth();
+  
+  const { data: apiTransactions = [], isLoading: transactionsLoading } = useApiTransactions();
+  const { data: apiAccounts = [] } = useAccounts();
+  
+  const storeData = useFinancialStore();
+  
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setLocation("/");
+    }
+  }, [isAuthenticated, setLocation]);
+  
+  const allTransactions = useMemo(() => {
+    if (apiTransactions.length > 0) {
+      return apiTransactions.map(t => ({
+        ...t,
+        amount: parseFloat(t.amount),
+        status: t.status as 'paid' | 'pending',
+        type: t.type as 'income' | 'expense',
+        category: t.category as Category,
+      }));
+    }
+    return storeData.transactions;
+  }, [apiTransactions, storeData.transactions]);
+  
+  const accounts = useMemo(() => {
+    if (apiAccounts.length > 0) {
+      return apiAccounts.map(a => ({
+        ...a,
+        balance: parseFloat(a.balance),
+        initialBalance: parseFloat(a.initialBalance),
+      }));
+    }
+    return storeData.accounts;
+  }, [apiAccounts, storeData.accounts]);
   
   // Parse query params for initial filters
   const searchParams = new URLSearchParams(window.location.search);

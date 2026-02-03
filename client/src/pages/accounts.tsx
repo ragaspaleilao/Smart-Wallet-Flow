@@ -1,6 +1,6 @@
 import { MobileLayout } from "@/components/mobile-layout";
 import { formatCurrency } from "@/lib/utils";
-import { useFinancialStore, Account, AccountType } from "@/lib/store";
+import { useFinancialStore, AccountType } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,15 +23,58 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, Landmark, Wallet, Banknote, HelpCircle, Edit2, Check, TrendingUp, ChevronRight, Download, PieChart as PieChartIcon, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Landmark, Wallet, Banknote, HelpCircle, Edit2, Check, TrendingUp, ChevronRight, Download, PieChart as PieChartIcon, Trash2, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { useAccounts, useCreateAccount, useUpdateAccount, useDeleteAccount, useTransactions } from "@/hooks/use-api";
+import { useAuth } from "@/contexts/auth-context";
+
+type Account = {
+  id: string;
+  name: string;
+  type: string;
+  balance: number;
+  initialBalance: number;
+  color?: string | null;
+  isPersonal: boolean;
+};
 
 export default function Accounts() {
   const [_, setLocation] = useLocation();
-  const { accounts, addAccount, updateAccountBalance, removeAccount, investments, transactions } = useFinancialStore();
+  const { isAuthenticated } = useAuth();
+  
+  const { data: apiAccounts = [], isLoading: accountsLoading } = useAccounts();
+  const { data: apiTransactions = [] } = useTransactions();
+  const createAccountMutation = useCreateAccount();
+  const updateAccountMutation = useUpdateAccount();
+  const deleteAccountMutation = useDeleteAccount();
+  
+  const storeData = useFinancialStore();
+  
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setLocation("/");
+    }
+  }, [isAuthenticated, setLocation]);
+  
+  const accounts: Account[] = apiAccounts.length > 0 
+    ? apiAccounts.map(a => ({
+        ...a,
+        balance: parseFloat(a.balance),
+        initialBalance: parseFloat(a.initialBalance),
+      }))
+    : storeData.accounts;
+
+  const transactions = apiTransactions.length > 0
+    ? apiTransactions.map(t => ({
+        ...t,
+        amount: parseFloat(t.amount),
+      }))
+    : storeData.transactions;
+    
+  const investments = storeData.investments;
   
   const [open, setOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -50,39 +93,51 @@ export default function Accounts() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     if (accountToDelete) {
-        removeAccount(accountToDelete);
+      try {
+        await deleteAccountMutation.mutateAsync(accountToDelete);
         setDeleteDialogOpen(false);
         setAccountToDelete(null);
         toast({ title: "Conta removida com sucesso!" });
+      } catch (error) {
+        toast({ title: "Erro ao remover conta", variant: "destructive" });
+      }
     }
   };
 
-  const handleAddAccount = () => {
+  const handleAddAccount = async () => {
     if (!newAccount.name) {
       toast({ title: "Nome obrigatório", variant: "destructive" });
       return;
     }
 
-    addAccount({
-      name: newAccount.name,
-      type: newAccount.type,
-      balance: Number(newAccount.balance) || 0,
-      initialBalance: Number(newAccount.balance) || 0,
-      color: newAccount.type === 'investment' ? 'bg-orange-600' : newAccount.type === 'bank' ? 'bg-purple-600' : newAccount.type === 'cash' ? 'bg-green-600' : 'bg-blue-600',
-      isPersonal: true
-    });
+    try {
+      await createAccountMutation.mutateAsync({
+        name: newAccount.name,
+        type: newAccount.type,
+        balance: String(Number(newAccount.balance) || 0),
+        initialBalance: String(Number(newAccount.balance) || 0),
+        color: newAccount.type === 'investment' ? 'bg-orange-600' : newAccount.type === 'bank' ? 'bg-purple-600' : newAccount.type === 'cash' ? 'bg-green-600' : 'bg-blue-600',
+        isPersonal: true
+      });
 
-    setNewAccount({ name: "", type: "bank", balance: "" });
-    setOpen(false);
-    toast({ title: "Conta adicionada com sucesso!" });
+      setNewAccount({ name: "", type: "bank", balance: "" });
+      setOpen(false);
+      toast({ title: "Conta adicionada com sucesso!" });
+    } catch (error) {
+      toast({ title: "Erro ao adicionar conta", variant: "destructive" });
+    }
   };
 
-  const handleUpdateBalance = (id: string) => {
-    updateAccountBalance(id, Number(editBalance));
-    setEditingId(null);
-    toast({ title: "Saldo atualizado!" });
+  const handleUpdateBalance = async (id: string) => {
+    try {
+      await updateAccountMutation.mutateAsync({ id, data: { balance: editBalance } });
+      setEditingId(null);
+      toast({ title: "Saldo atualizado!" });
+    } catch (error) {
+      toast({ title: "Erro ao atualizar saldo", variant: "destructive" });
+    }
   };
 
   const startEditing = (acc: Account) => {
@@ -90,7 +145,7 @@ export default function Accounts() {
     setEditBalance(acc.balance.toString());
   };
 
-  const getIcon = (type: AccountType) => {
+  const getIcon = (type: string) => {
     switch(type) {
       case 'bank': return <Landmark className="w-5 h-5" />;
       case 'wallet': return <Wallet className="w-5 h-5" />;

@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,12 +22,15 @@ import {
   Bell,
   MoreVertical,
   Edit,
-  Trash2
+  Trash2,
+  Loader2
 } from "lucide-react";
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay, addDays, parseISO, startOfMonth, isSameMonth } from "date-fns";
+import { useCreditCards, useCreditPurchases, useCreditPayments, useCreateCreditCard, useCreateCreditPurchase, useCreateCreditPayment, useDeleteCreditCard, useDeleteCreditPurchase, useAccounts, useUpdateCreditCard } from "@/hooks/use-api";
+import { useAuth } from "@/contexts/auth-context";
 import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -126,19 +129,88 @@ function ManageInlineCategories({
 }
 
 export default function CreditCards() {
-  const creditCards = useFinancialStore((state) => state.creditCards);
-  const creditPurchases = useFinancialStore((state) => state.creditPurchases);
-  const addCreditPurchase = useFinancialStore((state) => state.addCreditPurchase);
-  const updateCreditPurchase = useFinancialStore((state) => state.updateCreditPurchase);
-  const removeCreditPurchase = useFinancialStore((state) => state.removeCreditPurchase);
-  const addCreditPayment = useFinancialStore((state) => state.addCreditPayment);
-  const accounts = useFinancialStore((state) => state.accounts);
-  const creditCategories = useFinancialStore((state) => state.creditCategories);
-  const addCreditCategory = useFinancialStore((state) => state.addCreditCategory);
-  const removeCreditCategory = useFinancialStore((state) => state.removeCreditCategory);
+  const [_, setLocation] = useLocation();
+  const { isAuthenticated } = useAuth();
   
-  const addCreditCard = useFinancialStore((state) => state.addCreditCard);
-  const updateCreditCard = useFinancialStore((state) => state.updateCreditCard);
+  const { data: apiCreditCards = [], isLoading: cardsLoading } = useCreditCards();
+  const { data: apiCreditPurchases = [] } = useCreditPurchases();
+  const { data: apiCreditPayments = [] } = useCreditPayments();
+  const { data: apiAccounts = [] } = useAccounts();
+  
+  const createCreditCardMutation = useCreateCreditCard();
+  const updateCreditCardMutation = useUpdateCreditCard();
+  const deleteCreditCardMutation = useDeleteCreditCard();
+  const createCreditPurchaseMutation = useCreateCreditPurchase();
+  const deleteCreditPurchaseMutation = useDeleteCreditPurchase();
+  const createCreditPaymentMutation = useCreateCreditPayment();
+  
+  const storeData = useFinancialStore();
+  const addCreditPurchase = storeData.addCreditPurchase;
+  const updateCreditPurchase = storeData.updateCreditPurchase;
+  const removeCreditPurchase = storeData.removeCreditPurchase;
+  const addCreditPayment = storeData.addCreditPayment;
+  const creditCategories = storeData.creditCategories;
+  const addCreditCategory = storeData.addCreditCategory;
+  const removeCreditCategory = storeData.removeCreditCategory;
+  const addCreditCard = storeData.addCreditCard;
+  const updateCreditCard = storeData.updateCreditCard;
+  
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setLocation("/");
+    }
+  }, [isAuthenticated, setLocation]);
+  
+  const creditCards: CreditCard[] = useMemo(() => {
+    if (apiCreditCards.length > 0) {
+      return apiCreditCards.map(c => ({
+        id: c.id,
+        name: c.name,
+        brand: c.brand as "mastercard" | "visa" | "amex" | "elo" | "hipercard" | "other",
+        creditLimit: parseFloat(c.creditLimit),
+        closingDay: c.closingDay,
+        dueDay: c.dueDay,
+        color: c.color,
+        linkedAccountId: c.linkedAccountId ?? undefined,
+        hasAnnualFee: c.hasAnnualFee ?? false,
+        annualFeeValue: c.annualFeeValue ? parseFloat(c.annualFeeValue) : undefined,
+        status: (c.status === 'active' ? 'active' : 'inactive') as 'active' | 'inactive',
+      }));
+    }
+    return storeData.creditCards;
+  }, [apiCreditCards, storeData.creditCards]);
+  
+  const creditPurchases: CreditPurchase[] = useMemo(() => {
+    if (apiCreditPurchases.length > 0) {
+      return apiCreditPurchases.map(p => ({
+        id: p.id,
+        creditCardId: p.creditCardId,
+        description: p.description,
+        totalAmount: parseFloat(p.totalAmount),
+        purchaseDate: p.purchaseDate,
+        installments: p.installments,
+        installmentValue: parseFloat(p.installmentValue),
+        category: (p.category ?? 'outros') as any,
+        status: (p.status === 'active' || p.status === 'partial_refund' || p.status === 'refunded') 
+          ? p.status as "active" | "partial_refund" | "refunded"
+          : 'active',
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      }));
+    }
+    return storeData.creditPurchases;
+  }, [apiCreditPurchases, storeData.creditPurchases]);
+  
+  const accounts = useMemo(() => {
+    if (apiAccounts.length > 0) {
+      return apiAccounts.map(a => ({
+        ...a,
+        balance: parseFloat(a.balance),
+        initialBalance: parseFloat(a.initialBalance),
+      }));
+    }
+    return storeData.accounts;
+  }, [apiAccounts, storeData.accounts]);
 
   const [selectedCardId, setSelectedCardId] = useState<string>(creditCards[0]?.id || "");
   const [activeTab, setActiveTab] = useState("current");
