@@ -121,7 +121,7 @@ Mentor:`;
 
   try {
     const result = await client.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       contents: [{ 
         role: "user", 
         parts: [{ text: fullPrompt }] 
