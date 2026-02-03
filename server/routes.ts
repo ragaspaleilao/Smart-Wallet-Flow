@@ -160,7 +160,8 @@ export async function registerRoutes(
       const card = await storage.createCreditCard(req.userId!, data);
       res.status(201).json(card);
     } catch (error) {
-      res.status(400).json({ error: 'Invalid credit card data' });
+      console.error('Error creating credit card:', error);
+      res.status(400).json({ error: 'Invalid credit card data', details: String(error) });
     }
   });
 
