@@ -36,7 +36,7 @@ export function PhotoScanner({ open, onOpenChange, onTransactionExtracted }: Pho
   const processImage = async (base64: string, mimeType: string) => {
     setIsProcessing(true);
     try {
-      const response = await apiClient<OCRResult>('/api/ocr', {
+      const response = await apiClient<OCRResult>('/ocr', {
         method: 'POST',
         body: JSON.stringify({ image: base64, mimeType }),
       });

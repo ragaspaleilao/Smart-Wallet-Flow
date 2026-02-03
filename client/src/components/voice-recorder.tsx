@@ -89,7 +89,7 @@ export function VoiceRecorder({ open, onOpenChange, onTransactionExtracted }: Vo
       reader.onload = async () => {
         const base64 = (reader.result as string).split(',')[1];
         
-        const response = await apiClient<VoiceResult>('/api/voice', {
+        const response = await apiClient<VoiceResult>('/voice', {
           method: 'POST',
           body: JSON.stringify({ audio: base64, mimeType: 'audio/webm' }),
         });
