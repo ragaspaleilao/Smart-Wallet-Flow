@@ -1,9 +1,13 @@
-import { useState, useRef } from "react";
-import { Mic, Square, Loader2, Check, X } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Mic, Square, Loader2, Check, X, Calendar, Wallet, CreditCard, Banknote, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiClient } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
 interface VoiceResult {
   text: string;
@@ -15,26 +19,82 @@ interface VoiceResult {
   };
 }
 
+interface Account {
+  id: string;
+  name: string;
+  type: string;
+}
+
 interface VoiceRecorderProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  accounts: Account[];
   onTransactionExtracted: (data: {
     amount: number;
     description: string;
     category: string;
     type: "income" | "expense";
+    date: string;
+    accountId: string;
+    paymentMethod: string;
   }) => void;
 }
 
-export function VoiceRecorder({ open, onOpenChange, onTransactionExtracted }: VoiceRecorderProps) {
+const CATEGORIES = [
+  "Alimentação",
+  "Transporte",
+  "Moradia",
+  "Saúde",
+  "Educação",
+  "Lazer",
+  "Compras",
+  "Serviços",
+  "Salário",
+  "Freelance",
+  "Investimentos",
+  "Outros"
+];
+
+const PAYMENT_METHODS = [
+  { value: "pix", label: "PIX", icon: ArrowRightLeft },
+  { value: "debit", label: "Débito", icon: CreditCard },
+  { value: "credit", label: "Crédito", icon: CreditCard },
+  { value: "cash", label: "Dinheiro", icon: Banknote },
+  { value: "transfer", label: "Transferência", icon: ArrowRightLeft },
+];
+
+export function VoiceRecorder({ open, onOpenChange, accounts, onTransactionExtracted }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<VoiceResult | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   
+  const [editAmount, setEditAmount] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editType, setEditType] = useState<"income" | "expense">("expense");
+  const [editDate, setEditDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [editAccountId, setEditAccountId] = useState("");
+  const [editPaymentMethod, setEditPaymentMethod] = useState("pix");
+  
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (accounts.length > 0 && !editAccountId) {
+      setEditAccountId(accounts[0].id);
+    }
+  }, [accounts, editAccountId]);
+
+  useEffect(() => {
+    if (result?.transaction) {
+      setEditAmount(result.transaction.amount?.toString() || "");
+      setEditDescription(result.transaction.description || "");
+      setEditCategory(result.transaction.category || "Outros");
+      setEditType(result.transaction.type || "expense");
+    }
+  }, [result]);
 
   const startRecording = async () => {
     try {
@@ -105,25 +165,38 @@ export function VoiceRecorder({ open, onOpenChange, onTransactionExtracted }: Vo
             variant: "destructive" 
           });
         }
+        setIsProcessing(false);
       };
       reader.readAsDataURL(blob);
     } catch (error) {
-      toast({ title: "Erro ao processar áudio", variant: "destructive" });
-    } finally {
+      toast({ 
+        title: "Erro ao processar áudio", 
+        description: "Tente novamente",
+        variant: "destructive" 
+      });
       setIsProcessing(false);
     }
   };
 
   const confirmTransaction = () => {
-    if (!result?.transaction) return;
-    
-    const { amount, description, category, type } = result.transaction;
+    const amount = parseFloat(editAmount);
+    if (!amount || amount <= 0) {
+      toast({ title: "Valor inválido", variant: "destructive" });
+      return;
+    }
+    if (!editAccountId) {
+      toast({ title: "Selecione uma conta", variant: "destructive" });
+      return;
+    }
     
     onTransactionExtracted({
-      amount: amount || 0,
-      description: description || "Transação por voz",
-      category: category || "Outros",
-      type: type || "expense",
+      amount,
+      description: editDescription || "Transação por voz",
+      category: editCategory || "Outros",
+      type: editType,
+      date: editDate,
+      accountId: editAccountId,
+      paymentMethod: editPaymentMethod,
     });
     
     resetState();
@@ -133,6 +206,12 @@ export function VoiceRecorder({ open, onOpenChange, onTransactionExtracted }: Vo
   const resetState = () => {
     setResult(null);
     setRecordingTime(0);
+    setEditAmount("");
+    setEditDescription("");
+    setEditCategory("");
+    setEditType("expense");
+    setEditDate(format(new Date(), "yyyy-MM-dd"));
+    setEditPaymentMethod("pix");
   };
 
   const formatTime = (seconds: number) => {
@@ -143,7 +222,7 @@ export function VoiceRecorder({ open, onOpenChange, onTransactionExtracted }: Vo
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetState(); onOpenChange(o); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mic className="w-5 h-5" />
@@ -152,91 +231,167 @@ export function VoiceRecorder({ open, onOpenChange, onTransactionExtracted }: Vo
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-            Diga algo como: "Gastei 50 reais no supermercado" ou "Recebi 1500 de salário"
-          </div>
-
           {!result ? (
-            <div className="flex flex-col items-center gap-4 py-6">
-              {isProcessing ? (
-                <div className="text-center">
-                  <Loader2 className="w-16 h-16 text-primary animate-spin mx-auto mb-4" />
-                  <p className="text-gray-500">Processando áudio com IA...</p>
-                </div>
-              ) : isRecording ? (
-                <>
-                  <div className="relative">
-                    <div className="w-24 h-24 rounded-full bg-red-500 flex items-center justify-center animate-pulse">
-                      <Mic className="w-10 h-10 text-white" />
-                    </div>
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-red-600 text-white text-xs px-2 py-1 rounded-full">
-                      {formatTime(recordingTime)}
-                    </div>
+            <>
+              <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+                Diga algo como: "Gastei 50 reais no supermercado" ou "Recebi 1500 de salário"
+              </div>
+
+              <div className="flex flex-col items-center gap-4 py-6">
+                {isProcessing ? (
+                  <div className="text-center">
+                    <Loader2 className="w-16 h-16 text-primary animate-spin mx-auto mb-4" />
+                    <p className="text-gray-500">Processando áudio com IA...</p>
                   </div>
-                  <Button
-                    size="lg"
-                    variant="destructive"
-                    onClick={stopRecording}
-                    className="mt-4"
-                    data-testid="button-stop-recording"
-                  >
-                    <Square className="w-5 h-5 mr-2" />
-                    Parar Gravação
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    size="lg"
-                    className="w-24 h-24 rounded-full"
-                    onClick={startRecording}
-                    data-testid="button-start-recording"
-                  >
-                    <Mic className="w-10 h-10" />
-                  </Button>
-                  <p className="text-gray-500 text-sm">Toque para gravar</p>
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="bg-gray-50 dark:bg-zinc-900 rounded-lg p-4 space-y-3">
-                <div>
-                  <span className="text-gray-500 text-xs">Você disse:</span>
-                  <p className="font-medium italic">"{result.text}"</p>
-                </div>
-                
-                {result.transaction.amount && (
+                ) : isRecording ? (
                   <>
-                    <hr className="border-gray-200 dark:border-zinc-700" />
-                    <h4 className="font-semibold text-sm">Transação Identificada:</h4>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-gray-500">Tipo:</span>
-                        <p className={result.transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}>
-                          {result.transaction.type === 'income' ? '📈 Receita' : '📉 Despesa'}
-                        </p>
+                    <div className="relative">
+                      <div className="w-24 h-24 rounded-full bg-red-500 flex items-center justify-center animate-pulse">
+                        <Mic className="w-10 h-10 text-white" />
                       </div>
-                      <div>
-                        <span className="text-gray-500">Valor:</span>
-                        <p className="font-bold text-lg">
-                          R$ {result.transaction.amount?.toFixed(2)}
-                        </p>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="text-gray-500">Descrição:</span>
-                        <p>{result.transaction.description || '-'}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="text-gray-500">Categoria:</span>
-                        <p>{result.transaction.category || '-'}</p>
+                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-red-600 text-white text-xs px-2 py-1 rounded-full">
+                        {formatTime(recordingTime)}
                       </div>
                     </div>
+                    <Button
+                      size="lg"
+                      variant="destructive"
+                      onClick={stopRecording}
+                      className="mt-4"
+                      data-testid="button-stop-recording"
+                    >
+                      <Square className="w-5 h-5 mr-2" />
+                      Parar Gravação
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      size="lg"
+                      className="w-24 h-24 rounded-full"
+                      onClick={startRecording}
+                      data-testid="button-start-recording"
+                    >
+                      <Mic className="w-10 h-10" />
+                    </Button>
+                    <p className="text-gray-500 text-sm">Toque para gravar</p>
                   </>
                 )}
               </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-gray-50 dark:bg-zinc-900 rounded-lg p-3">
+                <span className="text-gray-500 text-xs">Você disse:</span>
+                <p className="font-medium italic text-sm">"{result.text}"</p>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Tipo</Label>
+                    <Select value={editType} onValueChange={(v) => setEditType(v as "income" | "expense")}>
+                      <SelectTrigger data-testid="select-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="expense">📉 Despesa</SelectItem>
+                        <SelectItem value="income">📈 Receita</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-xs">Valor (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={editAmount}
+                      onChange={(e) => setEditAmount(e.target.value)}
+                      placeholder="0,00"
+                      data-testid="input-amount"
+                    />
+                  </div>
+                </div>
 
-              <div className="flex gap-2">
+                <div>
+                  <Label className="text-xs">Descrição</Label>
+                  <Input
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="Descrição da transação"
+                    data-testid="input-description"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Categoria</Label>
+                    <Select value={editCategory} onValueChange={setEditCategory}>
+                      <SelectTrigger data-testid="select-category">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIES.map(cat => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-xs">Data</Label>
+                    <Input
+                      type="date"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      data-testid="input-date"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Conta</Label>
+                    <Select value={editAccountId} onValueChange={setEditAccountId}>
+                      <SelectTrigger data-testid="select-account">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map(acc => (
+                          <SelectItem key={acc.id} value={acc.id}>
+                            <div className="flex items-center gap-2">
+                              <Wallet className="w-3 h-3" />
+                              {acc.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-xs">Forma de Pagamento</Label>
+                    <Select value={editPaymentMethod} onValueChange={setEditPaymentMethod}>
+                      <SelectTrigger data-testid="select-payment-method">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_METHODS.map(method => (
+                          <SelectItem key={method.value} value={method.value}>
+                            <div className="flex items-center gap-2">
+                              <method.icon className="w-3 h-3" />
+                              {method.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"
                   className="flex-1"
@@ -244,18 +399,16 @@ export function VoiceRecorder({ open, onOpenChange, onTransactionExtracted }: Vo
                   data-testid="button-retry-voice"
                 >
                   <X className="w-4 h-4 mr-1" />
-                  Tentar Novamente
+                  Gravar Novamente
                 </Button>
-                {result.transaction.amount && (
-                  <Button
-                    className="flex-1"
-                    onClick={confirmTransaction}
-                    data-testid="button-confirm-voice"
-                  >
-                    <Check className="w-4 h-4 mr-1" />
-                    Confirmar
-                  </Button>
-                )}
+                <Button
+                  className="flex-1"
+                  onClick={confirmTransaction}
+                  data-testid="button-confirm-voice"
+                >
+                  <Check className="w-4 h-4 mr-1" />
+                  Salvar
+                </Button>
               </div>
             </div>
           )}

@@ -462,34 +462,25 @@ export default function Dashboard() {
       <PhotoScanner
         open={photoScannerOpen}
         onOpenChange={setPhotoScannerOpen}
+        accounts={accounts}
         onTransactionExtracted={async (data) => {
-          const defaultAccountId = accounts[0]?.id;
-          if (!defaultAccountId) {
-            toast({
-              title: "Conta não encontrada",
-              description: "Crie uma conta primeiro para registrar transações.",
-              variant: "destructive",
-            });
-            return;
-          }
           try {
             await createTransactionMutation.mutateAsync({
-              accountId: defaultAccountId,
+              accountId: data.accountId,
               amount: String(data.amount),
               type: 'expense',
               category: data.category || 'Outros',
-              description: data.merchant || data.description || 'Compra via foto',
-              date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
+              description: data.description || 'Compra via foto',
+              date: new Date(data.date).toISOString(),
               source: 'photo',
               isPersonal: true,
               status: 'paid',
-              paymentMethod: 'debit',
+              paymentMethod: data.paymentMethod,
             });
             toast({
               title: "Transação criada",
               description: `${formatCurrency(data.amount)} registrado com sucesso.`,
             });
-            setPhotoScannerOpen(false);
           } catch (error) {
             toast({
               title: "Erro ao salvar",
@@ -503,34 +494,25 @@ export default function Dashboard() {
       <VoiceRecorder
         open={voiceRecorderOpen}
         onOpenChange={setVoiceRecorderOpen}
+        accounts={accounts}
         onTransactionExtracted={async (data) => {
-          const defaultAccountId = accounts[0]?.id;
-          if (!defaultAccountId) {
-            toast({
-              title: "Conta não encontrada",
-              description: "Crie uma conta primeiro para registrar transações.",
-              variant: "destructive",
-            });
-            return;
-          }
           try {
             await createTransactionMutation.mutateAsync({
-              accountId: defaultAccountId,
+              accountId: data.accountId,
               amount: String(data.amount),
-              type: data.type || 'expense',
+              type: data.type,
               category: data.category || 'Outros',
               description: data.description || 'Lançamento via voz',
-              date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
+              date: new Date(data.date).toISOString(),
               source: 'voice',
               isPersonal: true,
               status: 'paid',
-              paymentMethod: data.type === 'income' ? 'transfer' : 'debit',
+              paymentMethod: data.paymentMethod,
             });
             toast({
               title: "Transação criada",
               description: `${formatCurrency(data.amount)} registrado com sucesso.`,
             });
-            setVoiceRecorderOpen(false);
           } catch (error) {
             toast({
               title: "Erro ao salvar",

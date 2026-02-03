@@ -1,9 +1,13 @@
-import { useState, useRef } from "react";
-import { Camera, X, Loader2, Check, ImageIcon } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Camera, X, Loader2, Check, ImageIcon, Wallet, CreditCard, Banknote, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiClient } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
 interface OCRResult {
   amount: number | null;
@@ -15,23 +19,83 @@ interface OCRResult {
   rawText: string;
 }
 
+interface Account {
+  id: string;
+  name: string;
+  type: string;
+}
+
 interface PhotoScannerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  accounts: Account[];
   onTransactionExtracted: (data: {
     amount: number;
     description: string;
     category: string;
     date: string;
+    accountId: string;
+    paymentMethod: string;
   }) => void;
 }
 
-export function PhotoScanner({ open, onOpenChange, onTransactionExtracted }: PhotoScannerProps) {
+const CATEGORIES = [
+  "Alimentação",
+  "Transporte",
+  "Moradia",
+  "Saúde",
+  "Educação",
+  "Lazer",
+  "Compras",
+  "Serviços",
+  "Outros"
+];
+
+const PAYMENT_METHODS = [
+  { value: "pix", label: "PIX", icon: ArrowRightLeft },
+  { value: "debit", label: "Débito", icon: CreditCard },
+  { value: "credit", label: "Crédito", icon: CreditCard },
+  { value: "cash", label: "Dinheiro", icon: Banknote },
+  { value: "transfer", label: "Transferência", icon: ArrowRightLeft },
+];
+
+export function PhotoScanner({ open, onOpenChange, accounts, onTransactionExtracted }: PhotoScannerProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [result, setResult] = useState<OCRResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const [editAmount, setEditAmount] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editDate, setEditDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [editAccountId, setEditAccountId] = useState("");
+  const [editPaymentMethod, setEditPaymentMethod] = useState("pix");
+
+  useEffect(() => {
+    if (accounts.length > 0 && !editAccountId) {
+      setEditAccountId(accounts[0].id);
+    }
+  }, [accounts, editAccountId]);
+
+  useEffect(() => {
+    if (result) {
+      setEditAmount(result.amount?.toString() || "");
+      setEditDescription(result.merchant || result.description || "");
+      setEditCategory(result.category || "Outros");
+      if (result.date) {
+        try {
+          const parsedDate = new Date(result.date);
+          if (!isNaN(parsedDate.getTime())) {
+            setEditDate(format(parsedDate, "yyyy-MM-dd"));
+          }
+        } catch {
+          setEditDate(format(new Date(), "yyyy-MM-dd"));
+        }
+      }
+    }
+  }, [result]);
 
   const processImage = async (base64: string, mimeType: string) => {
     setIsProcessing(true);
@@ -75,13 +139,23 @@ export function PhotoScanner({ open, onOpenChange, onTransactionExtracted }: Pho
   };
 
   const confirmTransaction = () => {
-    if (!result) return;
+    const amount = parseFloat(editAmount);
+    if (!amount || amount <= 0) {
+      toast({ title: "Valor inválido", variant: "destructive" });
+      return;
+    }
+    if (!editAccountId) {
+      toast({ title: "Selecione uma conta", variant: "destructive" });
+      return;
+    }
     
     onTransactionExtracted({
-      amount: result.amount || 0,
-      description: result.merchant || result.description || "Compra",
-      category: result.category || "Outros",
-      date: result.date || new Date().toISOString().split('T')[0],
+      amount,
+      description: editDescription || "Compra via foto",
+      category: editCategory || "Outros",
+      date: editDate,
+      accountId: editAccountId,
+      paymentMethod: editPaymentMethod,
     });
     
     resetState();
@@ -91,128 +165,200 @@ export function PhotoScanner({ open, onOpenChange, onTransactionExtracted }: Pho
   const resetState = () => {
     setPreview(null);
     setResult(null);
+    setEditAmount("");
+    setEditDescription("");
+    setEditCategory("");
+    setEditDate(format(new Date(), "yyyy-MM-dd"));
+    setEditPaymentMethod("pix");
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetState(); onOpenChange(o); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Camera className="w-5 h-5" />
-            Escanear Cupom/Nota
+            Escanear Cupom
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {!preview ? (
-            <div className="space-y-3">
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleFileSelect}
-                data-testid="input-camera-capture"
-              />
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileSelect}
-                data-testid="input-file-select"
-              />
-              
-              <Button
-                className="w-full h-24 flex flex-col gap-2"
-                variant="outline"
-                onClick={() => cameraInputRef.current?.click()}
-                data-testid="button-open-camera"
-              >
-                <Camera className="w-8 h-8" />
-                <span>Tirar Foto</span>
-              </Button>
-              
-              <Button
-                className="w-full h-16 flex items-center gap-2"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                data-testid="button-select-gallery"
-              >
-                <ImageIcon className="w-5 h-5" />
-                <span>Escolher da Galeria</span>
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="relative rounded-lg overflow-hidden bg-gray-100 dark:bg-zinc-800">
-                <img 
-                  src={preview} 
-                  alt="Preview" 
-                  className="w-full max-h-48 object-contain"
-                />
-                {isProcessing && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <div className="text-center text-white">
-                      <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
-                      <p className="text-sm">Analisando com IA...</p>
+          {!result ? (
+            <>
+              {preview && (
+                <div className="relative">
+                  <img src={preview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
+                  {isProcessing && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                      <div className="text-center text-white">
+                        <Loader2 className="w-10 h-10 animate-spin mx-auto mb-2" />
+                        <p className="text-sm">Processando com IA...</p>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {result && !isProcessing && (
-                <div className="bg-gray-50 dark:bg-zinc-900 rounded-lg p-4 space-y-2">
-                  <h4 className="font-semibold text-sm">Dados Extraídos:</h4>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-gray-500">Valor:</span>
-                      <p className="font-bold text-lg">
-                        {result.amount ? `R$ ${result.amount.toFixed(2)}` : '-'}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Data:</span>
-                      <p>{result.date || '-'}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-gray-500">Local:</span>
-                      <p>{result.merchant || '-'}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-gray-500">Categoria:</span>
-                      <p>{result.category || '-'}</p>
-                    </div>
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    Confiança: {Math.round(result.confidence * 100)}%
-                  </div>
+                  )}
                 </div>
               )}
 
-              <div className="flex gap-2">
+              {!preview && !isProcessing && (
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                  
+                  <Button
+                    variant="outline"
+                    className="h-32 flex flex-col gap-2"
+                    onClick={() => cameraInputRef.current?.click()}
+                    data-testid="button-camera-capture"
+                  >
+                    <Camera className="w-8 h-8 text-primary" />
+                    <span>Tirar Foto</span>
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    className="h-32 flex flex-col gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                    data-testid="button-gallery-upload"
+                  >
+                    <ImageIcon className="w-8 h-8 text-primary" />
+                    <span>Galeria</span>
+                  </Button>
+                </div>
+              )}
+
+              <p className="text-center text-sm text-gray-500">
+                Tire uma foto do cupom fiscal ou nota para extrair os dados automaticamente
+              </p>
+            </>
+          ) : (
+            <div className="space-y-4">
+              {preview && (
+                <img src={preview} alt="Cupom" className="w-full h-32 object-cover rounded-lg" />
+              )}
+              
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Valor (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={editAmount}
+                      onChange={(e) => setEditAmount(e.target.value)}
+                      placeholder="0,00"
+                      data-testid="input-amount"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label className="text-xs">Data</Label>
+                    <Input
+                      type="date"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      data-testid="input-date"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs">Descrição / Estabelecimento</Label>
+                  <Input
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="Descrição da compra"
+                    data-testid="input-description"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Categoria</Label>
+                    <Select value={editCategory} onValueChange={setEditCategory}>
+                      <SelectTrigger data-testid="select-category">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIES.map(cat => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-xs">Conta</Label>
+                    <Select value={editAccountId} onValueChange={setEditAccountId}>
+                      <SelectTrigger data-testid="select-account">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map(acc => (
+                          <SelectItem key={acc.id} value={acc.id}>
+                            <div className="flex items-center gap-2">
+                              <Wallet className="w-3 h-3" />
+                              {acc.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs">Forma de Pagamento</Label>
+                  <Select value={editPaymentMethod} onValueChange={setEditPaymentMethod}>
+                    <SelectTrigger data-testid="select-payment-method">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map(method => (
+                        <SelectItem key={method.value} value={method.value}>
+                          <div className="flex items-center gap-2">
+                            <method.icon className="w-3 h-3" />
+                            {method.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"
                   className="flex-1"
                   onClick={resetState}
-                  data-testid="button-retake-photo"
+                  data-testid="button-retry-photo"
                 >
                   <X className="w-4 h-4 mr-1" />
                   Nova Foto
                 </Button>
-                {result && result.amount && (
-                  <Button
-                    className="flex-1"
-                    onClick={confirmTransaction}
-                    data-testid="button-confirm-ocr"
-                  >
-                    <Check className="w-4 h-4 mr-1" />
-                    Confirmar
-                  </Button>
-                )}
+                <Button
+                  className="flex-1"
+                  onClick={confirmTransaction}
+                  data-testid="button-confirm-photo"
+                >
+                  <Check className="w-4 h-4 mr-1" />
+                  Salvar
+                </Button>
               </div>
             </div>
           )}
