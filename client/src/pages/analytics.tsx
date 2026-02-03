@@ -57,6 +57,7 @@ export default function Analytics() {
 
   // Local filters for Categories
   const [categorySource, setCategorySource] = useState<'all' | 'card' | 'other'>('all');
+  const [categoryGroupBy, setCategoryGroupBy] = useState<'category' | 'card'>('category');
   const [categoryLimit, setCategoryLimit] = useState<string>('5');
 
   // Overview Data View Mode (Consolidated/Realized vs Competency/Projected)
@@ -149,6 +150,7 @@ export default function Analytics() {
             source: 'manual',
             isPersonal: true,
             accountId: card.linkedAccountId || 'virtual-card',
+            creditCardId: card.id,
             status: 'pending',
           });
 
@@ -176,6 +178,7 @@ export default function Analytics() {
           source: 'manual',
           isPersonal: true,
           accountId: card.linkedAccountId || 'virtual-card',
+          creditCardId: card.id,
           status: 'pending',
         });
       }
@@ -472,18 +475,32 @@ export default function Analytics() {
     }
 
     const grouped = sourceTxs.reduce((acc, t) => {
-      if (!acc[t.category]) acc[t.category] = 0;
-      acc[t.category] += t.amount;
+      let key = t.category;
+      let color: string | undefined = undefined;
+
+      if (categorySource === 'card' && categoryGroupBy === 'card') {
+          // Group by Card
+          const card = creditCards.find(c => c.id === t.creditCardId);
+          if (card) {
+              key = card.name;
+              color = card.color;
+          } else {
+              key = 'Outros Cartões';
+          }
+      }
+
+      if (!acc[key]) acc[key] = { value: 0, color };
+      acc[key].value += t.amount;
       return acc;
-    }, {} as Record<string, number>);
+    }, {} as Record<string, { value: number, color?: string }>);
     
     const sorted = Object.entries(grouped)
-        .map(([name, value]) => ({ name, value }))
+        .map(([name, data]) => ({ name, value: data.value, color: data.color }))
         .sort((a, b) => b.value - a.value);
 
     if (categoryLimit === 'all') return sorted;
     return sorted.slice(0, parseInt(categoryLimit));
-  }, [filteredOverviewData, categorySource, categoryLimit]);
+  }, [filteredOverviewData, categorySource, categoryLimit, categoryGroupBy, creditCards]);
 
   // Overview Totals
   const totalIncome = filteredOverviewData.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
@@ -753,7 +770,10 @@ export default function Analytics() {
                                 Gastos por Categoria
                             </h3>
                             <div className="flex gap-2">
-                                <Select value={categorySource} onValueChange={(v: any) => setCategorySource(v)}>
+                                <Select value={categorySource} onValueChange={(v: any) => {
+                                    setCategorySource(v);
+                                    if (v !== 'card') setCategoryGroupBy('category');
+                                }}>
                                     <SelectTrigger className="h-7 text-[10px] w-[90px]">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -763,6 +783,23 @@ export default function Analytics() {
                                         <SelectItem value="other">Outros</SelectItem>
                                     </SelectContent>
                                 </Select>
+
+                                {categorySource === 'card' && (
+                                    <div className="flex bg-gray-100 dark:bg-zinc-800 p-0.5 rounded-lg h-7">
+                                        <button 
+                                            onClick={() => setCategoryGroupBy('category')}
+                                            className={`px-2 text-[10px] font-medium rounded-md transition-all ${categoryGroupBy === 'category' ? 'bg-white dark:bg-zinc-700 shadow-sm text-black dark:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            Categoria
+                                        </button>
+                                        <button 
+                                            onClick={() => setCategoryGroupBy('card')}
+                                            className={`px-2 text-[10px] font-medium rounded-md transition-all ${categoryGroupBy === 'card' ? 'bg-white dark:bg-zinc-700 shadow-sm text-black dark:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            Cartão
+                                        </button>
+                                    </div>
+                                )}
                                 <Select value={categoryLimit} onValueChange={(v: any) => setCategoryLimit(v)}>
                                     <SelectTrigger className="h-7 text-[10px] w-[80px]">
                                         <SelectValue />
@@ -780,7 +817,7 @@ export default function Analytics() {
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie data={categoryChartData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                                            {categoryChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                            {categoryChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />)}
                                         </Pie>
                                         <Tooltip />
                                     </PieChart>
@@ -789,7 +826,7 @@ export default function Analytics() {
                             <div className="grid grid-cols-2 gap-2 mt-4">
                                 {categoryChartData.slice(0, 6).map((cat, idx) => (
                                     <div key={idx} className="flex items-center gap-2 text-xs">
-                                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color || COLORS[idx % COLORS.length] }} />
                                         <span className="text-gray-600 dark:text-gray-400 truncate">{cat.name}</span>
                                         <span className="font-bold ml-auto">{totalExpense > 0 ? ((cat.value / totalExpense) * 100).toFixed(0) : 0}%</span>
                                     </div>
