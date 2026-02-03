@@ -1,7 +1,11 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { storage } from "./storage";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
+const model = genAI.getGenerativeModel({
+  model: "gemini-1.5-flash",
+});
 
 interface FinancialContext {
   accounts: Array<{ name: string; type: string; balance: string }>;
@@ -74,39 +78,6 @@ async function getFinancialContext(userId: string): Promise<FinancialContext> {
   };
 }
 
-async function callGeminiWithRetry(
-  contents: any[],
-  maxRetries: number = 3
-): Promise<string> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash-latest",
-        contents,
-      });
-      return response.text || "Desculpe, não consegui processar sua mensagem.";
-    } catch (error: any) {
-      console.error(`AI attempt ${attempt} failed:`, error);
-      
-      if (error.status === 429) {
-        const retryMatch = error.message?.match(/retry in (\d+)/i);
-        const waitTime = retryMatch ? parseInt(retryMatch[1]) * 1000 : 5000 * attempt;
-        
-        if (attempt < maxRetries) {
-          console.log(`Rate limited, waiting ${waitTime/1000}s before retry...`);
-          await new Promise(resolve => setTimeout(resolve, Math.min(waitTime, 30000)));
-          continue;
-        }
-        
-        throw new Error("RATE_LIMITED");
-      }
-      
-      throw error;
-    }
-  }
-  throw new Error("Max retries exceeded");
-}
-
 export async function processAiChat(
   userId: string,
   message: string,
@@ -141,25 +112,34 @@ REGRAS:
 4. Dê conselhos específicos baseados nos dados reais
 5. Sempre sugira ações práticas`;
 
-  const formattedHistory = conversationHistory.map(msg => ({
-    role: msg.role === 'user' ? 'user' : 'model' as const,
-    parts: [{ text: msg.content }],
-  }));
-
   try {
-    const contents = [
-      { role: 'user' as const, parts: [{ text: systemPrompt }] },
-      { role: 'model' as const, parts: [{ text: 'Entendido! Estou pronto para ajudar.' }] },
-      ...formattedHistory,
-      { role: 'user' as const, parts: [{ text: message }] },
-    ];
+    const chat = model.startChat({
+      history: [
+        {
+          role: "user",
+          parts: [{ text: systemPrompt }],
+        },
+        {
+          role: "model", 
+          parts: [{ text: "Entendido! Estou pronto para ajudar como seu Mentor Financeiro. 💰" }],
+        },
+        ...conversationHistory.map(msg => ({
+          role: msg.role === 'user' ? 'user' as const : 'model' as const,
+          parts: [{ text: msg.content }],
+        })),
+      ],
+    });
 
-    return await callGeminiWithRetry(contents);
+    const result = await chat.sendMessage(message);
+    const response = await result.response;
+    const texto = response.text();
+
+    return texto || "Desculpe, não consegui processar sua mensagem.";
   } catch (error: any) {
     console.error("AI Chat error:", error);
     
-    if (error.message === "RATE_LIMITED") {
-      return "⚠️ O serviço está temporariamente sobrecarregado. Por favor, aguarde 1 minuto e tente novamente. Isso acontece quando há muitas requisições em pouco tempo.";
+    if (error.status === 429 || error.message?.includes('429') || error.message?.includes('quota')) {
+      return "⚠️ O serviço está temporariamente sobrecarregado. Por favor, aguarde 1 minuto e tente novamente.";
     }
     
     throw new Error("Erro ao processar mensagem com IA");
