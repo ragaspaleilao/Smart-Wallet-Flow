@@ -218,6 +218,9 @@ export default function Analytics() {
       // In Cash Flow (Realized) mode, strictly filter by PAID status
       if (overviewViewMode === 'cash_flow' && t.status !== 'paid') return false;
 
+      // In Open/Pending (Competency) mode, strictly filter by PENDING status
+      if (overviewViewMode === 'competency' && t.status === 'paid') return false;
+
       return true;
     });
   }, [combinedTransactions, transactions, dateRange, selectedType, selectedAccount, viewMode, overviewViewMode]);
@@ -602,7 +605,7 @@ export default function Analytics() {
                                 onClick={() => setOverviewViewMode('competency')}
                                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${overviewViewMode === 'competency' ? 'bg-white dark:bg-zinc-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}
                             >
-                                Competência (Tudo)
+                                Em Aberto
                             </button>
                             <button
                                 onClick={() => setOverviewViewMode('cash_flow')}
