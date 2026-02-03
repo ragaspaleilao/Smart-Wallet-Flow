@@ -222,6 +222,7 @@ export default function Analytics() {
     });
   }, [combinedTransactions, transactions, dateRange, selectedType, selectedAccount, viewMode, overviewViewMode]);
 
+
   const handleOpenDetails = (type: 'income' | 'expense') => {
     setDetailsType(type);
     setDetailsSheetOpen(true);
@@ -232,8 +233,6 @@ export default function Analytics() {
       .filter(t => t.type === detailsType)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [filteredOverviewData, detailsType]);
-
-  // --- PROJECTION DATA (Future 12 Months) ---
   const yearStartingBalance = useMemo(() => {
     const year = parseInt(selectedYear);
     if (!accounts?.length) return 0;
@@ -468,16 +467,6 @@ export default function Analytics() {
   const balance = totalIncome - totalExpense;
   const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
 
-  const handleOpenDetails = (type: 'income' | 'expense') => {
-    setDetailsType(type);
-    setDetailsSheetOpen(true);
-  };
-
-  const detailsTransactions = useMemo(() => {
-    return filteredOverviewData
-      .filter(t => t.type === detailsType)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [filteredOverviewData, detailsType]);
 
   const handleExport = (format: string) => {
     toast({ title: "Exportando Relatório", description: `Gerando arquivo ${format}...` });
