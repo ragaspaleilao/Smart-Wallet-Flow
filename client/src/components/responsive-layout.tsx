@@ -77,12 +77,13 @@ function DesktopSidebar() {
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto" role="navigation" aria-label="Menu principal">
         {sidebarItems.map((item) => {
           const isActive = location === item.path;
+          const Icon = item.icon;
           return (
             <Link 
               key={item.path} 
               href={item.path}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2",
+                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 no-underline",
                 isActive
                   ? "bg-gradient-to-r from-purple-500/10 to-green-500/10 text-purple-600 dark:text-purple-400 font-medium"
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
@@ -90,7 +91,7 @@ function DesktopSidebar() {
               aria-current={isActive ? "page" : undefined}
               data-testid={`nav-${item.path.replace("/", "")}`}
             >
-              <item.icon className={cn("w-5 h-5", isActive && "text-purple-600")} />
+              <Icon className={cn("w-5 h-5", isActive && "text-purple-600")} />
               <span>{item.label}</span>
             </Link>
           );
@@ -100,7 +101,7 @@ function DesktopSidebar() {
       <div className="p-4 border-t border-gray-200 dark:border-zinc-800 space-y-1">
         <Link 
           href="/settings"
-          className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+          className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 no-underline"
         >
           <Settings className="w-5 h-5" />
           <span>Configurações</span>
