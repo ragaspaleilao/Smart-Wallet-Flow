@@ -55,7 +55,7 @@ async function getFinancialContext(userId: string): Promise<FinancialContext> {
       type: a.type,
       balance: a.balance,
     })),
-    recentTransactions: transactions.slice(0, 20).map(t => ({
+    recentTransactions: transactions.slice(0, 15).map(t => ({
       description: t.description,
       amount: t.amount,
       type: t.type,
@@ -72,6 +72,39 @@ async function getFinancialContext(userId: string): Promise<FinancialContext> {
     monthlyIncome,
     monthlyExpenses,
   };
+}
+
+async function callGeminiWithRetry(
+  contents: any[],
+  maxRetries: number = 3
+): Promise<string> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents,
+      });
+      return response.text || "Desculpe, não consegui processar sua mensagem.";
+    } catch (error: any) {
+      console.error(`AI attempt ${attempt} failed:`, error);
+      
+      if (error.status === 429) {
+        const retryMatch = error.message?.match(/retry in (\d+)/i);
+        const waitTime = retryMatch ? parseInt(retryMatch[1]) * 1000 : 5000 * attempt;
+        
+        if (attempt < maxRetries) {
+          console.log(`Rate limited, waiting ${waitTime/1000}s before retry...`);
+          await new Promise(resolve => setTimeout(resolve, Math.min(waitTime, 30000)));
+          continue;
+        }
+        
+        throw new Error("RATE_LIMITED");
+      }
+      
+      throw error;
+    }
+  }
+  throw new Error("Max retries exceeded");
 }
 
 export async function processAiChat(
@@ -102,14 +135,11 @@ TRANSAÇÕES RECENTES:
 ${context.recentTransactions.map(t => `- ${t.date}: ${t.description} - R$ ${t.amount} (${t.type === 'income' ? 'Receita' : 'Despesa'} - ${t.category})`).join('\n')}
 
 REGRAS:
-1. Seja direto e prático, sem enrolação
-2. Use linguagem informal brasileira (você, grana, etc)
-3. Use emojis moderadamente para deixar a conversa leve
+1. Seja direto e prático
+2. Use linguagem informal brasileira
+3. Use emojis moderadamente
 4. Dê conselhos específicos baseados nos dados reais
-5. Se perguntado sobre algo fora de finanças, redirecione educadamente
-6. Sempre sugira ações práticas que o usuário pode tomar
-7. Alerte sobre problemas (saldo negativo, gastos excessivos) de forma construtiva
-8. Celebre conquistas (economias, metas atingidas)`;
+5. Sempre sugira ações práticas`;
 
   const formattedHistory = conversationHistory.map(msg => ({
     role: msg.role === 'user' ? 'user' : 'model' as const,
@@ -117,19 +147,21 @@ REGRAS:
   }));
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: [
-        { role: 'user', parts: [{ text: systemPrompt }] },
-        { role: 'model', parts: [{ text: 'Entendido! Estou pronto para ajudar como Mentor Financeiro.' }] },
-        ...formattedHistory,
-        { role: 'user', parts: [{ text: message }] },
-      ],
-    });
+    const contents = [
+      { role: 'user' as const, parts: [{ text: systemPrompt }] },
+      { role: 'model' as const, parts: [{ text: 'Entendido! Estou pronto para ajudar.' }] },
+      ...formattedHistory,
+      { role: 'user' as const, parts: [{ text: message }] },
+    ];
 
-    return response.text || "Desculpe, não consegui processar sua mensagem. Tente novamente.";
-  } catch (error) {
+    return await callGeminiWithRetry(contents);
+  } catch (error: any) {
     console.error("AI Chat error:", error);
+    
+    if (error.message === "RATE_LIMITED") {
+      return "⚠️ O serviço está temporariamente sobrecarregado. Por favor, aguarde 1 minuto e tente novamente. Isso acontece quando há muitas requisições em pouco tempo.";
+    }
+    
     throw new Error("Erro ao processar mensagem com IA");
   }
 }
