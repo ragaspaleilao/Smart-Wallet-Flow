@@ -59,10 +59,6 @@ export default function Analytics() {
   const [categorySource, setCategorySource] = useState<'all' | 'card' | 'other'>('all');
   const [categoryLimit, setCategoryLimit] = useState<string>('5');
 
-  // Details Sheet State
-  const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
-  const [detailsType, setDetailsType] = useState<'income' | 'expense'>('expense');
-
   // Overview Data View Mode (Consolidated/Realized vs Competency/Projected)
   const [overviewViewMode, setOverviewViewMode] = useState<'competency' | 'cash_flow'>('competency');
 
