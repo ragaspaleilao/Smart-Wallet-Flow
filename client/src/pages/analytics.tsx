@@ -252,21 +252,38 @@ export default function Analytics() {
       const today = startOfDay(new Date());
 
       // IMPORTANT: Projection must match Spreadsheet projection exactly.
-      // 1) Normal transactions: pending + date >= today
-      // 2) Credit card bills: open invoice by COMPETENCE month, from invoiceMonthStart (prev month) onwards,
-      //    excluding invoices paid via creditPayments.
+      // 1) Normal transactions: pending.
+      //    - If date < today (overdue), add to the first month (Current Month).
+      //    - If date >= today, add to the respective month.
+      // 2) Credit card bills: ...
+
       const invoiceMonthStart = startOfMonth(subMonths(today, 1));
 
-      const monthsWithTotals = months.map(monthDate => {
+      const monthsWithTotals = months.map((monthDate, index) => {
           const monthStart = startOfMonth(monthDate);
           const monthEnd = endOfMonth(monthDate);
+          const isFirstMonth = index === 0;
 
           const monthTxs = combinedTransactions.filter(t => {
               const d = new Date(t.date);
-              return isWithinInterval(d, { start: monthStart, end: monthEnd }) &&
-                     (viewMode === 'personal' ? t.isPersonal : !t.isPersonal) &&
-                     t.status === 'pending' &&
-                     d >= today;
+              
+              // Base filters
+              const matchContext = (viewMode === 'personal' ? t.isPersonal : !t.isPersonal);
+              const isPending = t.status === 'pending';
+              if (!matchContext || !isPending) return false;
+
+              // Date Logic
+              if (isFirstMonth) {
+                  // First month (Current) includes:
+                  // 1. Transactions strictly within this month
+                  // 2. OVERDUE transactions from previous months (backlog)
+                  const isInMonth = isWithinInterval(d, { start: monthStart, end: monthEnd });
+                  const isOverdue = d < monthStart; 
+                  return isInMonth || isOverdue;
+              } else {
+                  // Future months: strict date match
+                  return isWithinInterval(d, { start: monthStart, end: monthEnd });
+              }
           });
 
           // NOTE: In projection, "Outras Despesas" should reflect only what appears in the Extrato.
