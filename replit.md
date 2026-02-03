@@ -81,9 +81,13 @@ shared/
 - **Lucide React**: Icon library
 - **date-fns**: Date manipulation and formatting
 
-### AI Integration (Planned/Partial)
-- **Google Generative AI** (`@google/genai`): Used for OCR, voice processing, and financial insights
-- The app includes AI helper files (`financial-ai.ts`, `business-ai.ts`) for generating insights
+### AI Integration (Implemented)
+- **Google Generative AI** (`@google/genai`): Powers OCR and voice processing features
+- **Photo OCR**: Extracts transaction data from receipt photos using Gemini vision
+- **Voice Commands**: Processes spoken expense/income commands via Gemini
+- Components: `client/src/components/photo-scanner.tsx`, `client/src/components/voice-recorder.tsx`
+- Server endpoints: `server/ocr.ts` for image processing
+- AI helper files: `financial-ai.ts`, `business-ai.ts` for generating insights
 
 ### Development Tools
 - **Vite**: Development server with HMR and production builds
@@ -121,3 +125,5 @@ shared/
 - GET/POST /api/credit-purchases - Credit card purchase tracking
 - GET/POST /api/credit-payments - Invoice payment tracking
 - POST /api/login - User authentication
+- POST /api/ocr - Process receipt photos with Gemini AI (extracts amount, merchant, date, category)
+- POST /api/voice - Process voice commands with Gemini AI (transcribes and extracts transaction data)

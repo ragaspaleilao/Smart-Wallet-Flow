@@ -604,3 +604,5 @@ export const businessSettingsApi = {
     body: JSON.stringify(data),
   }),
 };
+
+export const apiClient = apiRequest;

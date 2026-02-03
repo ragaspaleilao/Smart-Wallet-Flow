@@ -12,7 +12,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 import { ShareButton } from "@/components/share-button";
 import { useAuth } from "@/contexts/auth-context";
-import { useAccounts, useTransactions } from "@/hooks/use-api";
+import { useAccounts, useTransactions, useCreateTransaction } from "@/hooks/use-api";
+import { PhotoScanner } from "@/components/photo-scanner";
+import { VoiceRecorder } from "@/components/voice-recorder";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const [_, setLocation] = useLocation();
@@ -53,6 +56,12 @@ export default function Dashboard() {
   const [period, setPeriod] = useState<'this_month' | 'last_month' | 'year' | 'custom'>('this_month');
   const [customStart, setCustomStart] = useState<string>(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [customEnd, setCustomEnd] = useState<string>(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  
+  const [photoScannerOpen, setPhotoScannerOpen] = useState(false);
+  const [voiceRecorderOpen, setVoiceRecorderOpen] = useState(false);
+  
+  const createTransactionMutation = useCreateTransaction();
+  const { toast } = useToast();
 
   const dateRange = useMemo(() => {
     const today = new Date();
@@ -283,23 +292,29 @@ export default function Dashboard() {
 
         {/* Quick Actions - Floating-ish feel */}
         <div className="grid grid-cols-4 gap-3">
-          <Link href="/photo-entry">
-            <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1">
-              <div className="p-2.5 bg-purple-100 dark:bg-purple-900/30 rounded-full group-hover:scale-110 transition-transform">
-                <Camera className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Foto</span>
-            </Button>
-          </Link>
+          <Button 
+            variant="outline" 
+            className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1"
+            onClick={() => setPhotoScannerOpen(true)}
+            data-testid="button-photo-scanner"
+          >
+            <div className="p-2.5 bg-purple-100 dark:bg-purple-900/30 rounded-full group-hover:scale-110 transition-transform">
+              <Camera className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            </div>
+            <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Foto</span>
+          </Button>
           
-          <Link href="/voice-entry">
-            <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1">
-              <div className="p-2.5 bg-orange-100 dark:bg-orange-900/30 rounded-full group-hover:scale-110 transition-transform">
-                <Mic className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-              </div>
-              <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Voz</span>
-            </Button>
-          </Link>
+          <Button 
+            variant="outline" 
+            className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1"
+            onClick={() => setVoiceRecorderOpen(true)}
+            data-testid="button-voice-recorder"
+          >
+            <div className="p-2.5 bg-orange-100 dark:bg-orange-900/30 rounded-full group-hover:scale-110 transition-transform">
+              <Mic className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+            </div>
+            <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Voz</span>
+          </Button>
 
           <Link href="/accounts">
             <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1">
@@ -443,6 +458,88 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      
+      <PhotoScanner
+        open={photoScannerOpen}
+        onOpenChange={setPhotoScannerOpen}
+        onTransactionExtracted={async (data) => {
+          const defaultAccountId = accounts[0]?.id;
+          if (!defaultAccountId) {
+            toast({
+              title: "Conta não encontrada",
+              description: "Crie uma conta primeiro para registrar transações.",
+              variant: "destructive",
+            });
+            return;
+          }
+          try {
+            await createTransactionMutation.mutateAsync({
+              accountId: defaultAccountId,
+              amount: String(data.amount),
+              type: 'expense',
+              category: data.category || 'Outros',
+              description: data.merchant || data.description || 'Compra via foto',
+              date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
+              source: 'photo',
+              isPersonal: true,
+              status: 'paid',
+              paymentMethod: 'debit',
+            });
+            toast({
+              title: "Transação criada",
+              description: `${formatCurrency(data.amount)} registrado com sucesso.`,
+            });
+            setPhotoScannerOpen(false);
+          } catch (error) {
+            toast({
+              title: "Erro ao salvar",
+              description: "Não foi possível salvar a transação. Tente novamente.",
+              variant: "destructive",
+            });
+          }
+        }}
+      />
+      
+      <VoiceRecorder
+        open={voiceRecorderOpen}
+        onOpenChange={setVoiceRecorderOpen}
+        onTransactionExtracted={async (data) => {
+          const defaultAccountId = accounts[0]?.id;
+          if (!defaultAccountId) {
+            toast({
+              title: "Conta não encontrada",
+              description: "Crie uma conta primeiro para registrar transações.",
+              variant: "destructive",
+            });
+            return;
+          }
+          try {
+            await createTransactionMutation.mutateAsync({
+              accountId: defaultAccountId,
+              amount: String(data.amount),
+              type: data.type || 'expense',
+              category: data.category || 'Outros',
+              description: data.description || 'Lançamento via voz',
+              date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
+              source: 'voice',
+              isPersonal: true,
+              status: 'paid',
+              paymentMethod: data.type === 'income' ? 'transfer' : 'debit',
+            });
+            toast({
+              title: "Transação criada",
+              description: `${formatCurrency(data.amount)} registrado com sucesso.`,
+            });
+            setVoiceRecorderOpen(false);
+          } catch (error) {
+            toast({
+              title: "Erro ao salvar",
+              description: "Não foi possível salvar a transação. Tente novamente.",
+              variant: "destructive",
+            });
+          }
+        }}
+      />
     </MobileLayout>
   );
 }

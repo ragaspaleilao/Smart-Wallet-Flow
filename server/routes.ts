@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { extractTransactionFromImage, transcribeVoiceCommand } from "./ocr";
 import {
   insertAccountSchema,
   insertTransactionSchema,
@@ -608,6 +609,40 @@ export async function registerRoutes(
       res.json(budget);
     } catch (error) {
       res.status(400).json({ error: 'Invalid budget data' });
+    }
+  });
+
+  // ===== AI ROUTES (OCR & VOICE) =====
+  
+  app.post('/api/ocr', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { image, mimeType } = req.body;
+      
+      if (!image) {
+        return res.status(400).json({ error: 'Image data is required' });
+      }
+      
+      const result = await extractTransactionFromImage(image, mimeType || 'image/jpeg');
+      res.json(result);
+    } catch (error) {
+      console.error('OCR error:', error);
+      res.status(500).json({ error: 'Failed to process image' });
+    }
+  });
+  
+  app.post('/api/voice', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { audio, mimeType } = req.body;
+      
+      if (!audio) {
+        return res.status(400).json({ error: 'Audio data is required' });
+      }
+      
+      const result = await transcribeVoiceCommand(audio, mimeType || 'audio/webm');
+      res.json(result);
+    } catch (error) {
+      console.error('Voice transcription error:', error);
+      res.status(500).json({ error: 'Failed to process audio' });
     }
   });
 
