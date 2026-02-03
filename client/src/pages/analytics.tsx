@@ -613,24 +613,6 @@ export default function Analytics() {
                         </div>
                     </div>
 
-  // Details Sheet State
-  const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
-  const [detailsType, setDetailsType] = useState<'income' | 'expense'>('expense');
-
-  // ... existing code ...
-
-  const handleOpenDetails = (type: 'income' | 'expense') => {
-    setDetailsType(type);
-    setDetailsSheetOpen(true);
-  };
-
-  const detailsTransactions = useMemo(() => {
-    return filteredOverviewData
-      .filter(t => t.type === detailsType)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [filteredOverviewData, detailsType]);
-
-  // ... inside return ...
 
                     <div className="grid grid-cols-2 gap-3">
                         <Card 
