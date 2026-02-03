@@ -7,7 +7,7 @@ import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Filter, Calenda
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, ComposedChart, Legend, CartesianGrid } from 'recharts';
 import { useState, useMemo } from "react";
-import { format, subDays, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfYear, endOfYear, addMonths, startOfDay, endOfDay, isAfter, isBefore, subMonths, getYear, setYear, isSameMonth } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfYear, endOfYear, addMonths, startOfDay, endOfDay, isAfter, isBefore, subMonths, getYear, setYear, isSameMonth, startOfWeek, endOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Sheet,
@@ -46,6 +46,14 @@ export default function Analytics() {
 
   // Year Filter for Projection/Consolidation
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+
+  // Local filters for Cash Flow
+  const [cashFlowView, setCashFlowView] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [cashFlowType, setCashFlowType] = useState<'all' | 'income' | 'expense'>('all');
+
+  // Local filters for Categories
+  const [categorySource, setCategorySource] = useState<'all' | 'card' | 'other'>('all');
+  const [categoryLimit, setCategoryLimit] = useState<string>('5');
 
   const toggleMonth = (monthLabel: string) => {
       setExpandedMonths(prev => 
@@ -369,30 +377,63 @@ export default function Analytics() {
 
   // --- CHARTS DATA ---
   const incomeExpenseChartData = useMemo(() => {
-    // If range > 90 days, group by Month. Else by Day.
-    const daysDiff = (dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 3600 * 24);
-    const groupByMonth = daysDiff > 90;
+    let relevantTxs = filteredOverviewData;
+    if (cashFlowType === 'income') relevantTxs = relevantTxs.filter(t => t.type === 'income');
+    if (cashFlowType === 'expense') relevantTxs = relevantTxs.filter(t => t.type === 'expense');
 
-    const grouped = filteredOverviewData.reduce((acc, t) => {
-      const date = new Date(t.date);
-      const key = groupByMonth ? format(date, 'MM/yyyy') : format(date, 'dd/MM');
-      if (!acc[key]) acc[key] = { date: key, income: 0, expense: 0, sortDate: date.getTime() };
+    const grouped = relevantTxs.reduce((acc, t) => {
+      const d = new Date(t.date);
+      let key = '';
+      let sortDate = 0;
+      let label = '';
+
+      if (cashFlowView === 'daily') {
+        key = format(d, 'yyyy-MM-dd');
+        sortDate = d.getTime();
+        label = format(d, 'dd/MM');
+      } else if (cashFlowView === 'weekly') {
+        const weekStart = startOfWeek(d, { locale: ptBR });
+        key = format(weekStart, 'yyyy-ww');
+        sortDate = weekStart.getTime();
+        label = `Sem ${format(d, 'w')}`;
+      } else { // monthly
+        key = format(d, 'yyyy-MM');
+        sortDate = startOfMonth(d).getTime();
+        label = format(d, 'MMM');
+      }
+
+      if (!acc[key]) acc[key] = { date: label, income: 0, expense: 0, sortDate };
+
       if (t.type === 'income') acc[key].income += t.amount;
       else acc[key].expense += t.amount;
       return acc;
     }, {} as Record<string, any>);
 
     return Object.values(grouped).sort((a, b) => a.sortDate - b.sortDate);
-  }, [filteredOverviewData, dateRange]);
+  }, [filteredOverviewData, cashFlowView, cashFlowType]);
 
   const categoryChartData = useMemo(() => {
-    const grouped = filteredOverviewData.filter(t => t.type === 'expense').reduce((acc, t) => {
+    let sourceTxs = filteredOverviewData.filter(t => t.type === 'expense');
+
+    if (categorySource === 'card') {
+       sourceTxs = sourceTxs.filter(t => String(t.id || '').startsWith('virtual-') || t.accountId === 'virtual-card');
+    } else if (categorySource === 'other') {
+       sourceTxs = sourceTxs.filter(t => !String(t.id || '').startsWith('virtual-') && t.accountId !== 'virtual-card');
+    }
+
+    const grouped = sourceTxs.reduce((acc, t) => {
       if (!acc[t.category]) acc[t.category] = 0;
       acc[t.category] += t.amount;
       return acc;
     }, {} as Record<string, number>);
-    return Object.entries(grouped).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [filteredOverviewData]);
+    
+    const sorted = Object.entries(grouped)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+    if (categoryLimit === 'all') return sorted;
+    return sorted.slice(0, parseInt(categoryLimit));
+  }, [filteredOverviewData, categorySource, categoryLimit]);
 
   // Overview Totals
   const totalIncome = filteredOverviewData.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
@@ -541,28 +582,76 @@ export default function Analytics() {
                     </div>
 
                     <div className="space-y-3">
-                        <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <BarChart3 className="w-5 h-5 text-gray-500" />
-                            Fluxo de Caixa
-                        </h3>
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <BarChart3 className="w-5 h-5 text-gray-500" />
+                                Fluxo de Caixa
+                            </h3>
+                            <div className="flex gap-2">
+                                <Select value={cashFlowType} onValueChange={(v: any) => setCashFlowType(v)}>
+                                    <SelectTrigger className="h-7 text-[10px] w-[80px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Tudo</SelectItem>
+                                        <SelectItem value="income">Entradas</SelectItem>
+                                        <SelectItem value="expense">Saídas</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select value={cashFlowView} onValueChange={(v: any) => setCashFlowView(v)}>
+                                    <SelectTrigger className="h-7 text-[10px] w-[80px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="daily">Diário</SelectItem>
+                                        <SelectItem value="weekly">Semanal</SelectItem>
+                                        <SelectItem value="monthly">Mensal</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
                         <Card className="p-4 bg-white dark:bg-zinc-900 border-none shadow-sm h-64">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={incomeExpenseChartData}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                                     <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
                                     <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} cursor={{ fill: 'transparent' }} />
-                                    <Bar dataKey="income" name="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="expense" name="Saídas" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="income" name="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} hide={cashFlowType === 'expense'} />
+                                    <Bar dataKey="expense" name="Saídas" fill="#ef4444" radius={[4, 4, 0, 0]} hide={cashFlowType === 'income'} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </Card>
                     </div>
 
                     <div className="space-y-3">
-                        <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <PieChartIcon className="w-5 h-5 text-gray-500" />
-                            Gastos por Categoria
-                        </h3>
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <PieChartIcon className="w-5 h-5 text-gray-500" />
+                                Gastos por Categoria
+                            </h3>
+                            <div className="flex gap-2">
+                                <Select value={categorySource} onValueChange={(v: any) => setCategorySource(v)}>
+                                    <SelectTrigger className="h-7 text-[10px] w-[90px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Tudo</SelectItem>
+                                        <SelectItem value="card">Cartão</SelectItem>
+                                        <SelectItem value="other">Outros</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select value={categoryLimit} onValueChange={(v: any) => setCategoryLimit(v)}>
+                                    <SelectTrigger className="h-7 text-[10px] w-[80px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="5">Top 5</SelectItem>
+                                        <SelectItem value="10">Top 10</SelectItem>
+                                        <SelectItem value="all">Todos</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
                         <Card className="p-4 bg-white dark:bg-zinc-900 border-none shadow-sm">
                             <div className="h-56">
                                 <ResponsiveContainer width="100%" height="100%">
