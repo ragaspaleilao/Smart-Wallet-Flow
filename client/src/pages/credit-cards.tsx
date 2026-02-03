@@ -906,14 +906,27 @@ export default function CreditCards() {
                         } ${card.color} text-white relative overflow-hidden group`}
                     >
                         {selectedCardId === card.id && (
-                            <div 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    openEditCard();
-                                }}
-                                className="absolute top-2 right-2 p-1.5 bg-black/20 hover:bg-black/40 rounded-full transition-colors z-10"
-                            >
-                                <Settings className="w-4 h-4 text-white" />
+                            <div className="absolute top-2 right-2 flex gap-1 z-10">
+                                <div 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        openEditCard();
+                                    }}
+                                    className="p-1.5 bg-black/20 hover:bg-black/40 rounded-full transition-colors"
+                                >
+                                    <Settings className="w-4 h-4 text-white" />
+                                </div>
+                                <div 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (confirm('Tem certeza que deseja excluir este cartão? Todas as compras e pagamentos associados serão removidos.')) {
+                                            deleteCreditCardMutation.mutate(card.id);
+                                        }
+                                    }}
+                                    className="p-1.5 bg-red-500/60 hover:bg-red-500/80 rounded-full transition-colors"
+                                >
+                                    <Trash2 className="w-4 h-4 text-white" />
+                                </div>
                             </div>
                         )}
                         <div className="flex justify-between items-start mb-8">
