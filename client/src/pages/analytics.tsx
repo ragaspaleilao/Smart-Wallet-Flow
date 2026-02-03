@@ -29,6 +29,19 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 const COLORS = ['#8b5cf6', '#f97316', '#10b981', '#ef4444', '#3b82f6', '#eab308', '#ec4899', '#6366f1', '#14b8a6', '#f43f5e'];
 
+const TAILWIND_COLOR_MAP: Record<string, string> = {
+    'bg-black': '#000000',
+    'bg-purple-600': '#9333ea',
+    'bg-blue-600': '#2563eb',
+    'bg-red-600': '#dc2626',
+    'bg-green-600': '#16a34a',
+    'bg-orange-500': '#f97316',
+    'bg-yellow-500': '#eab308',
+    'bg-pink-600': '#db2777',
+    'bg-indigo-600': '#4f46e5',
+    'bg-gray-600': '#4b5563'
+};
+
 export default function Analytics() {
   const { transactions, accounts, creditCards, creditPurchases, creditPayments } = useFinancialStore();
   
@@ -483,7 +496,8 @@ export default function Analytics() {
           const card = creditCards.find(c => c.id === t.creditCardId);
           if (card) {
               key = card.name;
-              color = card.color;
+              // Map Tailwind class to Hex for Recharts
+              color = TAILWIND_COLOR_MAP[card.color] || card.color;
           } else {
               key = 'Outros Cartões';
           }
