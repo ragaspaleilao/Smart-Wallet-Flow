@@ -296,7 +296,7 @@ export default function CreditCards() {
     });
   };
 
-  const handleAddCard = () => {
+  const handleAddCard = async () => {
     if (!newCardData.name || !newCardData.creditLimit || !newCardData.closingDay || !newCardData.dueDay) {
         toast({ title: "Preencha todos os campos", variant: "destructive" });
         return;
@@ -305,18 +305,20 @@ export default function CreditCards() {
     const numericLimit = Number(newCardData.creditLimit.replace(/\D/g, "")) / 100;
     const numericFee = newCardData.hasAnnualFee ? (Number(newCardData.annualFeeValue.replace(/\D/g, "")) / 100) : 0;
 
-    addCreditCard({
+    try {
+      await createCreditCardMutation.mutateAsync({
         name: newCardData.name,
-        brand: newCardData.brand as any,
-        creditLimit: numericLimit,
+        brand: newCardData.brand,
+        creditLimit: String(numericLimit),
         closingDay: Number(newCardData.closingDay),
         dueDay: Number(newCardData.dueDay),
         color: newCardData.color,
         hasAnnualFee: newCardData.hasAnnualFee,
-        annualFeeValue: numericFee
-    });
+        annualFeeValue: numericFee > 0 ? String(numericFee) : undefined,
+        linkedAccountId: accounts[0]?.id,
+      });
 
-    setNewCardData({
+      setNewCardData({
         name: "",
         brand: "mastercard",
         creditLimit: "",
@@ -325,9 +327,12 @@ export default function CreditCards() {
         color: "bg-black",
         hasAnnualFee: false,
         annualFeeValue: ""
-    });
-    setIsAddCardOpen(false);
-    toast({ title: "Cartão adicionado com sucesso!" });
+      });
+      setIsAddCardOpen(false);
+      toast({ title: "Cartão adicionado com sucesso!" });
+    } catch (error) {
+      toast({ title: "Erro ao salvar cartão", variant: "destructive" });
+    }
   };
 
   // --- Helper Functions ---
