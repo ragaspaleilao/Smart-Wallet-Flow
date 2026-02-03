@@ -27,7 +27,8 @@ import {
 } from "lucide-react";
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { apiClient } from "@/lib/api";
 import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay, addDays, parseISO, startOfMonth, isSameMonth } from "date-fns";
 import { useCreditCards, useCreditPurchases, useCreditPayments, useCreateCreditCard, useCreateCreditPurchase, useCreateCreditPayment, useDeleteCreditCard, useDeleteCreditPurchase, useAccounts, useUpdateCreditCard } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
@@ -124,6 +125,345 @@ function ManageInlineCategories({
       <p className="text-xs text-gray-500" data-testid={`text-${scope}-category-tip`}>
         Dica: categorias aqui s\u00f3 afetam compras no cart\u00e3o.
       </p>
+    </div>
+  );
+}
+
+function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: { 
+  cardId: string; 
+  onPurchaseCreated: () => void;
+  createPurchase: any;
+}) {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [result, setResult] = useState<{ amount: number | null; description: string | null; category: string | null; date: string | null; merchant: string | null } | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editCategory, setEditCategory] = useState("Outros");
+  const [editDate, setEditDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [editInstallments, setEditInstallments] = useState("1");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const processImage = async (base64: string, mimeType: string) => {
+    setIsProcessing(true);
+    try {
+      const response = await apiClient.post("/api/ocr", { imageData: base64, mimeType });
+      if (response.ok) {
+        const data = await response.json();
+        setResult(data);
+        setEditAmount(data.amount?.toString() || "");
+        setEditDescription(data.merchant || data.description || "");
+        setEditCategory(data.category || "Outros");
+        if (data.date) {
+          try {
+            const parsedDate = new Date(data.date);
+            if (!isNaN(parsedDate.getTime())) {
+              setEditDate(format(parsedDate, "yyyy-MM-dd"));
+            }
+          } catch {
+            setEditDate(format(new Date(), "yyyy-MM-dd"));
+          }
+        }
+      }
+    } catch (error) {
+      toast({ title: "Erro ao processar imagem", variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = (reader.result as string).split(",")[1];
+      setPreview(reader.result as string);
+      processImage(base64, file.type);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleConfirm = () => {
+    const amount = parseFloat(editAmount);
+    if (!amount || !cardId) {
+      toast({ title: "Preencha todos os campos", variant: "destructive" });
+      return;
+    }
+    const installments = parseInt(editInstallments) || 1;
+    const installmentValue = amount / installments;
+    createPurchase.mutate({
+      cardId,
+      description: editDescription || "Compra via recibo",
+      totalAmount: String(amount),
+      installments,
+      currentInstallment: 1,
+      installmentValue: String(installmentValue),
+      purchaseDate: editDate,
+      category: editCategory
+    }, {
+      onSuccess: () => {
+        toast({ title: "Compra lançada!", description: `${editDescription} - ${formatCurrency(amount)}` });
+        onPurchaseCreated();
+      },
+      onError: (error: any) => {
+        toast({ title: "Erro ao lançar compra", description: String(error), variant: "destructive" });
+      }
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      {!preview ? (
+        <div className="flex flex-col gap-3">
+          <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
+          <Button onClick={() => fileInputRef.current?.click()} className="w-full h-24 flex flex-col gap-2">
+            <Camera className="w-8 h-8" />
+            <span>Tirar Foto ou Selecionar</span>
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <img src={preview} alt="Recibo" className="w-full rounded-lg max-h-48 object-contain" />
+          {isProcessing ? (
+            <div className="flex items-center justify-center gap-2 py-4">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Processando imagem...</span>
+            </div>
+          ) : result ? (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Valor</Label>
+                <Input type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} placeholder="0.00" step="0.01" />
+              </div>
+              <div className="space-y-2">
+                <Label>Descrição</Label>
+                <Input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Descrição da compra" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Categoria</Label>
+                  <Select value={editCategory} onValueChange={setEditCategory}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {["Alimentação", "Transporte", "Moradia", "Saúde", "Educação", "Lazer", "Compras", "Serviços", "Outros"].map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Parcelas</Label>
+                  <Select value={editInstallments} onValueChange={setEditInstallments}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                        <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => { setPreview(null); setResult(null); }} className="flex-1">Nova Foto</Button>
+                <Button onClick={handleConfirm} disabled={createPurchase.isPending} className="flex-1">
+                  {createPurchase.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+                  Confirmar
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CreditCardVoiceRecorder({ cardId, onPurchaseCreated, createPurchase }: { 
+  cardId: string; 
+  onPurchaseCreated: () => void;
+  createPurchase: any;
+}) {
+  const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [result, setResult] = useState<{ text: string; transaction: { amount: number | null; description: string | null; category: string | null } } | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editCategory, setEditCategory] = useState("Outros");
+  const [editInstallments, setEditInstallments] = useState("1");
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        await processAudio(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+    } catch (error) {
+      toast({ title: "Erro ao acessar microfone", variant: "destructive" });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setIsRecording(false);
+  };
+
+  const processAudio = async (audioBlob: Blob) => {
+    setIsProcessing(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = (reader.result as string).split(",")[1];
+        const response = await apiClient.post("/api/voice", { audioData: base64, mimeType: audioBlob.type });
+        if (response.ok) {
+          const data = await response.json();
+          setResult(data);
+          setEditAmount(data.transaction?.amount?.toString() || "");
+          setEditDescription(data.transaction?.description || "");
+          setEditCategory(data.transaction?.category || "Outros");
+        }
+        setIsProcessing(false);
+      };
+      reader.readAsDataURL(audioBlob);
+    } catch (error) {
+      toast({ title: "Erro ao processar áudio", variant: "destructive" });
+      setIsProcessing(false);
+    }
+  };
+
+  const handleConfirm = () => {
+    const amount = parseFloat(editAmount);
+    if (!amount || !cardId) {
+      toast({ title: "Preencha todos os campos", variant: "destructive" });
+      return;
+    }
+    const installments = parseInt(editInstallments) || 1;
+    const installmentValue = amount / installments;
+    createPurchase.mutate({
+      cardId,
+      description: editDescription || "Compra via voz",
+      totalAmount: String(amount),
+      installments,
+      currentInstallment: 1,
+      installmentValue: String(installmentValue),
+      purchaseDate: format(new Date(), "yyyy-MM-dd"),
+      category: editCategory
+    }, {
+      onSuccess: () => {
+        toast({ title: "Compra lançada!", description: `${editDescription} - ${formatCurrency(amount)}` });
+        onPurchaseCreated();
+      },
+      onError: (error: any) => {
+        toast({ title: "Erro ao lançar compra", description: String(error), variant: "destructive" });
+      }
+    });
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="space-y-4">
+      {!result ? (
+        <div className="flex flex-col items-center gap-4 py-4">
+          <div className={`w-24 h-24 rounded-full flex items-center justify-center ${isRecording ? 'bg-red-100 animate-pulse' : 'bg-gray-100'}`}>
+            <Mic className={`w-12 h-12 ${isRecording ? 'text-red-500' : 'text-gray-400'}`} />
+          </div>
+          {isRecording && <span className="text-2xl font-mono">{formatTime(recordingTime)}</span>}
+          {isProcessing ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Processando...</span>
+            </div>
+          ) : (
+            <Button onClick={isRecording ? stopRecording : startRecording} size="lg" variant={isRecording ? "destructive" : "default"}>
+              {isRecording ? "Parar Gravação" : "Iniciar Gravação"}
+            </Button>
+          )}
+          <p className="text-sm text-gray-500 text-center">
+            Diga algo como: "Comprei um café de 15 reais" ou "37 reais no mercado"
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+            <strong>Transcrição:</strong> {result.text}
+          </div>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>Valor</Label>
+              <Input type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} placeholder="0.00" step="0.01" />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Descrição da compra" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Select value={editCategory} onValueChange={setEditCategory}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Alimentação", "Transporte", "Moradia", "Saúde", "Educação", "Lazer", "Compras", "Serviços", "Outros"].map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Parcelas</Label>
+                <Select value={editInstallments} onValueChange={setEditInstallments}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                      <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setResult(null)} className="flex-1">Nova Gravação</Button>
+              <Button onClick={handleConfirm} disabled={createPurchase.isPending} className="flex-1">
+                {createPurchase.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+                Confirmar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -632,6 +972,8 @@ export default function CreditCards() {
   });
   const [isPurchaseOpen, setIsPurchaseOpen] = useState(false);
   const [editingPurchaseId, setEditingPurchaseId] = useState<string | null>(null);
+  const [isPhotoScannerOpen, setIsPhotoScannerOpen] = useState(false);
+  const [isVoiceRecorderOpen, setIsVoiceRecorderOpen] = useState(false);
 
   const resetPurchaseForm = () => {
       setNewPurchase({
@@ -1179,23 +1521,19 @@ export default function CreditCards() {
                 
                 {/* Quick Actions Grid */}
                 <div className="grid grid-cols-4 gap-3">
-                  <Link href="/photo-entry">
-                    <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1">
-                      <div className="p-2.5 bg-purple-100 dark:bg-purple-900/30 rounded-full group-hover:scale-110 transition-transform">
-                        <Camera className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Recibo</span>
-                    </Button>
-                  </Link>
+                  <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1" onClick={() => setIsPhotoScannerOpen(true)}>
+                    <div className="p-2.5 bg-purple-100 dark:bg-purple-900/30 rounded-full group-hover:scale-110 transition-transform">
+                      <Camera className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Recibo</span>
+                  </Button>
                   
-                  <Link href="/voice-entry">
-                    <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1">
-                      <div className="p-2.5 bg-orange-100 dark:bg-orange-900/30 rounded-full group-hover:scale-110 transition-transform">
-                        <Mic className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                      </div>
-                      <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Voz</span>
-                    </Button>
-                  </Link>
+                  <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1" onClick={() => setIsVoiceRecorderOpen(true)}>
+                    <div className="p-2.5 bg-orange-100 dark:bg-orange-900/30 rounded-full group-hover:scale-110 transition-transform">
+                      <Mic className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Voz</span>
+                  </Button>
 
                   <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1" onClick={() => toast({title: "Leitura de notificação em breve"})}>
                       <div className="p-2.5 bg-blue-100 dark:bg-blue-900/30 rounded-full group-hover:scale-110 transition-transform">
@@ -1756,6 +2094,40 @@ export default function CreditCards() {
                 </Tabs>
             </div>
         )}
+
+        {/* Photo Scanner Dialog */}
+        <Dialog open={isPhotoScannerOpen} onOpenChange={setIsPhotoScannerOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Escanear Recibo</DialogTitle>
+              <DialogDescription>
+                Tire uma foto do recibo para lançar automaticamente no cartão {selectedCard?.name}
+              </DialogDescription>
+            </DialogHeader>
+            <CreditCardPhotoScanner 
+              cardId={selectedCard?.id || ''}
+              onPurchaseCreated={() => setIsPhotoScannerOpen(false)}
+              createPurchase={createCreditPurchaseMutation}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Voice Recorder Dialog */}
+        <Dialog open={isVoiceRecorderOpen} onOpenChange={setIsVoiceRecorderOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Comando de Voz</DialogTitle>
+              <DialogDescription>
+                Fale o valor e descrição da compra para lançar no cartão {selectedCard?.name}
+              </DialogDescription>
+            </DialogHeader>
+            <CreditCardVoiceRecorder 
+              cardId={selectedCard?.id || ''}
+              onPurchaseCreated={() => setIsVoiceRecorderOpen(false)}
+              createPurchase={createCreditPurchaseMutation}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
     </MobileLayout>
   );
