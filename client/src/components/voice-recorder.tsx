@@ -82,7 +82,7 @@ export function VoiceRecorder({ open, onOpenChange, accounts, onTransactionExtra
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (accounts.length > 0 && !editAccountId) {
+    if (accounts && accounts.length > 0 && !editAccountId) {
       setEditAccountId(accounts[0].id);
     }
   }, [accounts, editAccountId]);

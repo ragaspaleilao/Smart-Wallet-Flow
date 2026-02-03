@@ -1,4 +1,5 @@
 import { useFinancialStore, Transaction, Category, Account, Investment } from "@/lib/store";
+import { useAccounts as useApiAccounts, useTransactions as useApiTransactions } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,7 +43,44 @@ import { format, isBefore, startOfDay, getMonth, getYear, parseISO, addMonths, s
 import { AddTransactionSheet } from "@/components/add-transaction-sheet";
 
 export default function SpreadsheetView() {
-  const { transactions, accounts, investments, creditCards, creditPurchases, creditPayments, addTransaction, updateTransaction, removeTransaction, addAccount, updateAccountBalance, addInvestment } = useFinancialStore();
+  const storeData = useFinancialStore();
+  const { addTransaction, updateTransaction, removeTransaction, addAccount, updateAccountBalance, addInvestment } = storeData;
+  
+  const { data: apiAccounts = [], isSuccess: accountsSuccess } = useApiAccounts();
+  const { data: apiTransactions = [], isSuccess: transactionsSuccess } = useApiTransactions();
+
+  const accounts: Account[] = useMemo(() => {
+    if (accountsSuccess && apiAccounts.length > 0) {
+      return apiAccounts.map(a => ({
+        ...a,
+        type: a.type as Account['type'],
+        balance: typeof a.balance === 'string' ? parseFloat(a.balance) : a.balance,
+        initialBalance: typeof a.initialBalance === 'string' ? parseFloat(a.initialBalance) : a.initialBalance,
+      }));
+    }
+    return storeData.accounts;
+  }, [apiAccounts, storeData.accounts, accountsSuccess]);
+
+  const transactions: Transaction[] = useMemo(() => {
+    if (transactionsSuccess && apiTransactions.length > 0) {
+      return apiTransactions.map(t => ({
+        ...t,
+        type: t.type as Transaction['type'],
+        status: t.status as Transaction['status'],
+        source: t.source as Transaction['source'],
+        paymentMethod: (t.paymentMethod || undefined) as Transaction['paymentMethod'],
+        accountId: t.accountId || undefined,
+        creditCardId: t.creditCardId || undefined,
+        vehicleId: t.vehicleId || undefined,
+        tags: t.tags || undefined,
+        notes: t.notes || undefined,
+        amount: typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount,
+      }));
+    }
+    return storeData.transactions;
+  }, [apiTransactions, storeData.transactions, transactionsSuccess]);
+
+  const { investments, creditCards, creditPurchases, creditPayments } = storeData;
   
   // View State
   const [activeTab, setActiveTab] = useState("transactions");

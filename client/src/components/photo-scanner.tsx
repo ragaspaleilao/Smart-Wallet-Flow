@@ -74,7 +74,7 @@ export function PhotoScanner({ open, onOpenChange, accounts, onTransactionExtrac
   const [editPaymentMethod, setEditPaymentMethod] = useState("pix");
 
   useEffect(() => {
-    if (accounts.length > 0 && !editAccountId) {
+    if (accounts && accounts.length > 0 && !editAccountId) {
       setEditAccountId(accounts[0].id);
     }
   }, [accounts, editAccountId]);
