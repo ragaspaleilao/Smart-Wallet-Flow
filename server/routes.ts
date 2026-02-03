@@ -104,8 +104,9 @@ export async function registerRoutes(
       const data = insertTransactionSchema.parse(req.body);
       const transaction = await storage.createTransaction(req.userId!, data);
       res.status(201).json(transaction);
-    } catch (error) {
-      res.status(400).json({ error: 'Invalid transaction data' });
+    } catch (error: any) {
+      console.error('Transaction validation error:', error);
+      res.status(400).json({ error: 'Invalid transaction data', details: error.message || error });
     }
   });
 

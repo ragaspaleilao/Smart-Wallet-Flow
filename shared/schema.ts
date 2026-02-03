@@ -302,6 +302,8 @@ export const insertTransactionSchema = createInsertSchema(transactions).omit({
   userId: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  date: z.union([z.date(), z.string().transform((str) => new Date(str))]),
 });
 
 export const insertCreditCardSchema = createInsertSchema(creditCards).omit({
@@ -316,12 +318,16 @@ export const insertCreditPurchaseSchema = createInsertSchema(creditPurchases).om
   userId: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  purchaseDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
 });
 
 export const insertCreditPaymentSchema = createInsertSchema(creditPayments).omit({
   id: true,
   userId: true,
   createdAt: true,
+}).extend({
+  paymentDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
 });
 
 export const insertGoalSchema = createInsertSchema(goals).omit({
@@ -356,6 +362,8 @@ export const insertSimulationSchema = createInsertSchema(simulations).omit({
   id: true,
   userId: true,
   createdAt: true,
+}).extend({
+  startDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
 });
 
 export const insertBusinessProductSchema = createInsertSchema(businessProducts).omit({
