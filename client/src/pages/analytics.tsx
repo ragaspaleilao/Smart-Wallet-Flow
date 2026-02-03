@@ -46,6 +46,10 @@ export default function Analytics() {
 
   // Year Filter for Projection/Consolidation
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  
+  // Details Sheet State
+  const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
+  const [detailsType, setDetailsType] = useState<'income' | 'expense'>('expense');
 
   // Local filters for Cash Flow
   const [cashFlowView, setCashFlowView] = useState<'daily' | 'weekly' | 'monthly'>('daily');
@@ -453,6 +457,17 @@ export default function Analytics() {
   const balance = totalIncome - totalExpense;
   const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
 
+  const handleOpenDetails = (type: 'income' | 'expense') => {
+    setDetailsType(type);
+    setDetailsSheetOpen(true);
+  };
+
+  const detailsTransactions = useMemo(() => {
+    return filteredOverviewData
+      .filter(t => t.type === detailsType)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [filteredOverviewData, detailsType]);
+
   const handleExport = (format: string) => {
     toast({ title: "Exportando Relatório", description: `Gerando arquivo ${format}...` });
   };
@@ -598,18 +613,90 @@ export default function Analytics() {
                         </div>
                     </div>
 
+  // Details Sheet State
+  const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
+  const [detailsType, setDetailsType] = useState<'income' | 'expense'>('expense');
+
+  // ... existing code ...
+
+  const handleOpenDetails = (type: 'income' | 'expense') => {
+    setDetailsType(type);
+    setDetailsSheetOpen(true);
+  };
+
+  const detailsTransactions = useMemo(() => {
+    return filteredOverviewData
+      .filter(t => t.type === detailsType)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [filteredOverviewData, detailsType]);
+
+  // ... inside return ...
+
                     <div className="grid grid-cols-2 gap-3">
-                        <Card className="p-3 bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30" data-testid="card-total-income">
-                            <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">Entradas</p>
+                        <Card 
+                            className="p-3 bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-colors" 
+                            data-testid="card-total-income"
+                            onClick={() => handleOpenDetails('income')}
+                        >
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">Entradas</p>
+                                <Search className="w-3 h-3 text-blue-400" />
+                            </div>
                             <p className="text-lg font-bold text-blue-700 dark:text-blue-300" data-testid="text-total-income">{formatCurrency(totalIncome)}</p>
                             <p className="text-[11px] text-blue-700/70 dark:text-blue-300/70 mt-1" data-testid="text-total-income-context">No período: {periodLabel}</p>
                         </Card>
-                        <Card className="p-3 bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30" data-testid="card-total-expense">
-                            <p className="text-xs text-red-600 dark:text-red-400 font-medium mb-1">Saídas</p>
+                        <Card 
+                            className="p-3 bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors" 
+                            data-testid="card-total-expense"
+                            onClick={() => handleOpenDetails('expense')}
+                        >
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs text-red-600 dark:text-red-400 font-medium mb-1">Saídas</p>
+                                <Search className="w-3 h-3 text-red-400" />
+                            </div>
                             <p className="text-lg font-bold text-red-700 dark:text-red-300" data-testid="text-total-expense">{formatCurrency(totalExpense)}</p>
                             <p className="text-[11px] text-red-700/70 dark:text-red-300/70 mt-1" data-testid="text-total-expense-context">No período: {periodLabel}</p>
                         </Card>
                     </div>
+
+                    <Sheet open={detailsSheetOpen} onOpenChange={setDetailsSheetOpen}>
+                        <SheetContent side="bottom" className="h-[80vh]">
+                            <SheetHeader className="mb-4">
+                                <SheetTitle>Detalhamento de {detailsType === 'income' ? 'Entradas' : 'Saídas'}</SheetTitle>
+                                <SheetDescription>
+                                    Listagem completa dos lançamentos que compõem o total de {formatCurrency(detailsType === 'income' ? totalIncome : totalExpense)}.
+                                </SheetDescription>
+                            </SheetHeader>
+                            <div className="overflow-y-auto h-full pb-12 space-y-2">
+                                {detailsTransactions.map((t, idx) => (
+                                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-zinc-900 rounded-lg text-sm">
+                                        <div>
+                                            <p className="font-medium text-gray-900 dark:text-white">{t.description}</p>
+                                            <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                                                <span>{format(new Date(t.date), 'dd/MM/yyyy')}</span>
+                                                <span>•</span>
+                                                <span className="capitalize">{t.category}</span>
+                                                {String(t.id).startsWith('virtual-') && (
+                                                    <Badge variant="outline" className="text-[10px] h-4 px-1 py-0 ml-1">Virtual</Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className={`font-bold ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                                                {formatCurrency(t.amount)}
+                                            </p>
+                                            <Badge 
+                                                variant={t.status === 'paid' ? 'default' : 'secondary'} 
+                                                className={`text-[10px] h-5 px-1.5 mt-1 ${t.status === 'paid' ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400'}`}
+                                            >
+                                                {t.status === 'paid' ? 'Pago' : 'Pendente'}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </SheetContent>
+                    </Sheet>
 
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
