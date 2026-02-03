@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { MoreVertical, Trash2, Edit, Save } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAccounts, useTransactions as useApiTransactions } from "@/hooks/use-api";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Transactions() {
   const [location, setLocation] = useLocation();

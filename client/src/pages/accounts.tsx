@@ -29,7 +29,7 @@ import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAccounts, useCreateAccount, useUpdateAccount, useDeleteAccount, useTransactions } from "@/hooks/use-api";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 
 type Account = {
   id: string;

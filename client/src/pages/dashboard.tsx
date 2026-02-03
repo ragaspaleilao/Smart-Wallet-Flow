@@ -11,7 +11,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { ShareButton } from "@/components/share-button";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 import { useAccounts, useTransactions, useCreateTransaction } from "@/hooks/use-api";
 import { PhotoScanner } from "@/components/photo-scanner";
 import { VoiceRecorder } from "@/components/voice-recorder";

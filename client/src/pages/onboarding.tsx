@@ -2,14 +2,14 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { MobileLayout } from "@/components/mobile-layout";
 import heroImage from "@/assets/sloth-hero.jpg";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 import { useEffect } from "react";
 
 const DEMO_USER_ID = "1459dcb9-f821-4688-b08d-c648905cfc92";
 
 export default function Onboarding() {
   const [_, setLocation] = useLocation();
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -18,8 +18,7 @@ export default function Onboarding() {
   }, [isAuthenticated, setLocation]);
 
   const handleStart = () => {
-    login(DEMO_USER_ID);
-    setLocation("/dashboard");
+    window.location.href = "/api/login";
   };
 
   return (

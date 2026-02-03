@@ -30,7 +30,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useMemo, useState, useEffect } from "react";
 import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay, addDays, parseISO, startOfMonth, isSameMonth } from "date-fns";
 import { useCreditCards, useCreditPurchases, useCreditPayments, useCreateCreditCard, useCreateCreditPurchase, useCreateCreditPayment, useDeleteCreditCard, useDeleteCreditPurchase, useAccounts, useUpdateCreditCard } from "@/hooks/use-api";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
