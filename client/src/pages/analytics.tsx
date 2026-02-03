@@ -55,6 +55,9 @@ export default function Analytics() {
   const [categorySource, setCategorySource] = useState<'all' | 'card' | 'other'>('all');
   const [categoryLimit, setCategoryLimit] = useState<string>('5');
 
+  // Overview Data View Mode (Consolidated/Realized vs Competency/Projected)
+  const [overviewViewMode, setOverviewViewMode] = useState<'competency' | 'cash_flow'>('competency');
+
   const toggleMonth = (monthLabel: string) => {
       setExpandedMonths(prev => 
           prev.includes(monthLabel) ? prev.filter(m => m !== monthLabel) : [...prev, monthLabel]
@@ -195,16 +198,25 @@ export default function Analytics() {
 
   // 4. Filtered Data for Overview
   const filteredOverviewData = useMemo(() => {
-    return combinedTransactions.filter(t => {
+    // Select base data source based on view mode
+    // 'competency' = Combined (Real - InvoicePayment + Virtual) -> Standard behavior
+    // 'cash_flow' = Real Transactions Only (including InvoicePayment, ignoring Virtual) -> For "Realized" view
+    const sourceData = overviewViewMode === 'cash_flow' ? transactions : combinedTransactions;
+
+    return sourceData.filter(t => {
       const txDate = new Date(t.date);
       if (!isWithinInterval(txDate, dateRange)) return false;
       if (selectedType !== 'all' && t.type !== selectedType) return false;
       if (selectedAccount !== 'all' && t.accountId !== selectedAccount) return false;
       if (viewMode === 'personal' && !t.isPersonal) return false;
       if (viewMode === 'business' && t.isPersonal) return false;
+      
+      // In Cash Flow (Realized) mode, strictly filter by PAID status
+      if (overviewViewMode === 'cash_flow' && t.status !== 'paid') return false;
+
       return true;
     });
-  }, [combinedTransactions, dateRange, selectedType, selectedAccount, viewMode]);
+  }, [combinedTransactions, transactions, dateRange, selectedType, selectedAccount, viewMode, overviewViewMode]);
 
   // --- PROJECTION DATA (Future 12 Months) ---
   const yearStartingBalance = useMemo(() => {
@@ -568,6 +580,24 @@ export default function Analytics() {
             {/* --- OVERVIEW TAB --- */}
             {activeTab === 'overview' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                    {/* View Mode Switcher */}
+                    <div className="flex justify-end">
+                        <div className="bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg inline-flex">
+                            <button
+                                onClick={() => setOverviewViewMode('competency')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${overviewViewMode === 'competency' ? 'bg-white dark:bg-zinc-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}
+                            >
+                                Lançamentos
+                            </button>
+                            <button
+                                onClick={() => setOverviewViewMode('cash_flow')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${overviewViewMode === 'cash_flow' ? 'bg-white dark:bg-zinc-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}
+                            >
+                                Realizado (Caixa)
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                         <Card className="p-3 bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30" data-testid="card-total-income">
                             <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">Entradas</p>
