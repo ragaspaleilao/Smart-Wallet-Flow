@@ -127,8 +127,8 @@ Mentor:`;
         parts: [{ text: fullPrompt }] 
       }],
       config: {
-        maxOutputTokens: 500,
         temperature: 0.7,
+        maxOutputTokens: 800,
       }
     });
 
