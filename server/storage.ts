@@ -3,8 +3,8 @@ import { Pool } from "pg";
 import { eq, and, desc, sql } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
-  User,
-  InsertUser,
+  AuthUser,
+  UpsertUser,
   Account,
   InsertAccount,
   Transaction,
@@ -35,10 +35,9 @@ import type {
 
 export interface IStorage {
   // User operations
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
+  getUser(id: string): Promise<AuthUser | undefined>;
+  upsertUser(user: UpsertUser): Promise<AuthUser>;
+  updateUser(id: string, updates: Partial<AuthUser>): Promise<AuthUser | undefined>;
 
   // Account operations
   getAccounts(userId: string): Promise<Account[]>;
@@ -134,27 +133,31 @@ export class DbStorage implements IStorage {
 
   // ===== USER OPERATIONS =====
 
-  async getUser(id: string): Promise<User | undefined> {
+  async getUser(id: string): Promise<AuthUser | undefined> {
     const result = await this.db.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
     return result[0];
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await this.db.select().from(schema.users).where(eq(schema.users.username, username)).limit(1);
-    return result[0];
+  async upsertUser(userData: UpsertUser): Promise<AuthUser> {
+    const [user] = await this.db
+      .insert(schema.users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: schema.users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const referralCode = `USER${Math.floor(1000 + Math.random() * 9000)}`;
-    const result = await this.db.insert(schema.users).values({
-      ...insertUser,
-      referralCode,
-    }).returning();
-    return result[0];
-  }
-
-  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
-    const result = await this.db.update(schema.users).set(updates).where(eq(schema.users.id, id)).returning();
+  async updateUser(id: string, updates: Partial<AuthUser>): Promise<AuthUser | undefined> {
+    const result = await this.db.update(schema.users).set({
+      ...updates,
+      updatedAt: new Date(),
+    }).where(eq(schema.users.id, id)).returning();
     return result[0];
   }
 

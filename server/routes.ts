@@ -21,10 +21,15 @@ import {
 
 interface AuthRequest extends Request {
   userId?: string;
+  user?: {
+    claims?: {
+      sub?: string;
+    };
+  };
 }
 
 async function authMiddleware(req: AuthRequest, res: Response, next: Function) {
-  const userId = req.headers['x-user-id'] as string;
+  const userId = req.user?.claims?.sub;
   
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized' });

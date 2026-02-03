@@ -4,9 +4,10 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import { NotificationListenerSimulator } from "@/components/notification-listener-simulator";
-import { AuthProvider } from "@/contexts/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 
 // Pages
+import Landing from "@/pages/landing";
 import Onboarding from "@/pages/onboarding";
 import Permissions from "@/pages/permissions";
 import Dashboard from "@/pages/dashboard";
@@ -36,10 +37,29 @@ import CancelSubscription from "@/pages/cancel-subscription";
 
 import Simulator from "@/pages/simulator";
 
+function HomePage() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Landing />;
+  }
+
+  return <Dashboard />;
+}
+
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Onboarding} />
+      <Route path="/" component={HomePage} />
+      <Route path="/onboarding" component={Onboarding} />
       <Route path="/permissions" component={Permissions} />
       <Route path="/setup-accounts" component={SetupAccounts} />
       <Route path="/dashboard" component={Dashboard} />
@@ -79,11 +99,9 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Toaster />
-        <NotificationListenerSimulator />
-        <Router />
-      </AuthProvider>
+      <Toaster />
+      <NotificationListenerSimulator />
+      <Router />
     </QueryClientProvider>
   );
 }

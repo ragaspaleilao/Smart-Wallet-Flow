@@ -105,18 +105,25 @@ shared/
 
 ## Recent Changes (Feb 2026)
 
+### Authentication with Replit Auth (OAuth)
+- Replaced manual username/password login with Replit Auth (OpenID Connect)
+- Supports OAuth providers: Google, GitHub, Apple, and email/password
+- User info stored: firstName, lastName, email, profileImageUrl
+- Sessions stored in PostgreSQL via sessions table
+- Authentication middleware uses `req.user.claims.sub` for userId
+
+### Landing Page
+- Created beautiful landing page at `/` for non-authenticated users
+- Shows features: Voice commands, Photo OCR, AI Mentor, Credit Cards, Goals, Multi-device
+- "Entrar" and "Começar Grátis" buttons redirect to `/api/login`
+- Once logged in, users see the Dashboard instead
+
 ### Frontend-API Integration
 - Connected Dashboard, Accounts, Transactions, and Credit Cards pages to PostgreSQL backend
 - Implemented React Query hooks in `client/src/hooks/use-api.ts` for data fetching with automatic caching
-- Created API client in `client/src/lib/api.ts` with authentication headers (x-user-id)
-- Added AuthContext in `client/src/contexts/auth-context.tsx` for user session management
+- Created API client in `client/src/lib/api.ts` with authentication headers
+- useAuth hook from `client/src/hooks/use-auth.ts` for Replit Auth session
 - Data type transformations handle API decimal strings to frontend number types
-
-### Authentication Flow
-- Demo user available: username `demo`, password `password123`
-- Login creates localStorage entry with userId
-- Protected routes redirect unauthenticated users to "/"
-- API client automatically includes userId in request headers
 
 ### API Endpoints Active
 - GET/POST /api/accounts - Account CRUD operations
@@ -124,6 +131,10 @@ shared/
 - GET/POST /api/credit-cards - Credit card CRUD operations
 - GET/POST /api/credit-purchases - Credit card purchase tracking
 - GET/POST /api/credit-payments - Invoice payment tracking
-- POST /api/login - User authentication
+- GET /api/auth/user - Get current authenticated user
+- GET /api/login - OAuth login redirect
+- GET /api/callback - OAuth callback handler
+- GET /api/logout - Logout and clear session
 - POST /api/ocr - Process receipt photos with Gemini AI (extracts amount, merchant, date, category)
 - POST /api/voice - Process voice commands with Gemini AI (transcribes and extracts transaction data)
+- POST /api/ai/chat - AI Mentor chat using Gemini 2.5 Flash
