@@ -3,7 +3,7 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { useFinancialStore, Category, Transaction, CreditPurchase } from "@/lib/store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Filter, Calendar, X, Check, Download, PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon, DollarSign, Briefcase, Car, Target, Layers, ArrowDownUp, Search, Share2, ArrowRight, ArrowUp, ArrowDown, ChevronDown, ChevronUp, CreditCard } from "lucide-react";
+import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Filter, Calendar, X, Check, Download, PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon, DollarSign, Briefcase, Car, Target, Layers, ArrowDownUp, Search, Share2, ArrowRight, ArrowUp, ArrowDown, ChevronDown, ChevronUp, CreditCard as CreditCardIcon } from "lucide-react";
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, ComposedChart, Legend, CartesianGrid } from 'recharts';
 import { useState, useMemo } from "react";
@@ -489,7 +489,15 @@ export default function Analytics() {
           }
       }
 
-      if (!acc[key]) acc[key] = { value: 0, color };
+      if (!acc[key]) {
+          acc[key] = { value: 0, color };
+      }
+      
+      // Ensure color is updated if found (e.g. if previous tx didn't have it but this one does)
+      if (color) {
+          acc[key].color = color;
+      }
+
       acc[key].value += t.amount;
       return acc;
     }, {} as Record<string, { value: number, color?: string }>);
@@ -896,7 +904,7 @@ export default function Analytics() {
                                             <div className="flex justify-between items-center text-xs">
                                                 <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                                                     <div className="p-1 bg-orange-100 dark:bg-orange-900/30 rounded text-orange-600">
-                                                        <CreditCard className="w-3 h-3" />
+                                                        <CreditCardIcon className="w-3 h-3" />
                                                     </div>
                                                     Fatura Cartão
                                                 </span>
@@ -987,7 +995,7 @@ export default function Analytics() {
                                             <div className="flex justify-between items-center text-xs">
                                                 <span className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                                                     <div className="p-1 bg-orange-100 dark:bg-orange-900/30 rounded text-orange-600">
-                                                        <CreditCard className="w-3 h-3" />
+                                                        <CreditCardIcon className="w-3 h-3" />
                                                     </div>
                                                     Fatura Cartão
                                                 </span>
