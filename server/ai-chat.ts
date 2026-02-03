@@ -118,7 +118,7 @@ REGRAS:
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       contents: [
         { role: 'user', parts: [{ text: systemPrompt }] },
         { role: 'model', parts: [{ text: 'Entendido! Estou pronto para ajudar como Mentor Financeiro.' }] },
