@@ -59,6 +59,10 @@ export default function Analytics() {
   const [categorySource, setCategorySource] = useState<'all' | 'card' | 'other'>('all');
   const [categoryLimit, setCategoryLimit] = useState<string>('5');
 
+  // Details Sheet State
+  const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
+  const [detailsType, setDetailsType] = useState<'income' | 'expense'>('expense');
+
   // Overview Data View Mode (Consolidated/Realized vs Competency/Projected)
   const [overviewViewMode, setOverviewViewMode] = useState<'competency' | 'cash_flow'>('competency');
 
@@ -221,6 +225,17 @@ export default function Analytics() {
       return true;
     });
   }, [combinedTransactions, transactions, dateRange, selectedType, selectedAccount, viewMode, overviewViewMode]);
+
+  const handleOpenDetails = (type: 'income' | 'expense') => {
+    setDetailsType(type);
+    setDetailsSheetOpen(true);
+  };
+
+  const detailsTransactions = useMemo(() => {
+    return filteredOverviewData
+      .filter(t => t.type === detailsType)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [filteredOverviewData, detailsType]);
 
   // --- PROJECTION DATA (Future 12 Months) ---
   const yearStartingBalance = useMemo(() => {
@@ -602,13 +617,13 @@ export default function Analytics() {
                                 onClick={() => setOverviewViewMode('competency')}
                                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${overviewViewMode === 'competency' ? 'bg-white dark:bg-zinc-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}
                             >
-                                Lançamentos
+                                Competência (Tudo)
                             </button>
                             <button
                                 onClick={() => setOverviewViewMode('cash_flow')}
                                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${overviewViewMode === 'cash_flow' ? 'bg-white dark:bg-zinc-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}
                             >
-                                Realizado (Caixa)
+                                Caixa (Só Pago)
                             </button>
                         </div>
                     </div>
