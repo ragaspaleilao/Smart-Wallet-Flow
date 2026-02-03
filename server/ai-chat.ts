@@ -1,10 +1,8 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { storage } from "./storage";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-
-const model = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash",
+const client = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY!,
 });
 
 interface FinancialContext {
@@ -112,28 +110,22 @@ REGRAS:
 4. Dê conselhos específicos baseados nos dados reais
 5. Sempre sugira ações práticas`;
 
+  const fullPrompt = `${systemPrompt}
+
+HISTÓRICO DA CONVERSA:
+${conversationHistory.map(msg => `${msg.role === 'user' ? 'Usuário' : 'Mentor'}: ${msg.content}`).join('\n')}
+
+Usuário: ${message}
+
+Mentor:`;
+
   try {
-    const chat = model.startChat({
-      history: [
-        {
-          role: "user",
-          parts: [{ text: systemPrompt }],
-        },
-        {
-          role: "model", 
-          parts: [{ text: "Entendido! Estou pronto para ajudar como seu Mentor Financeiro. 💰" }],
-        },
-        ...conversationHistory.map(msg => ({
-          role: msg.role === 'user' ? 'user' as const : 'model' as const,
-          parts: [{ text: msg.content }],
-        })),
-      ],
+    const result = await client.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
     });
 
-    const result = await chat.sendMessage(message);
-    const response = await result.response;
-    const texto = response.text();
-
+    const texto = result.text || "";
     return texto || "Desculpe, não consegui processar sua mensagem.";
   } catch (error: any) {
     console.error("AI Chat error:", error);
