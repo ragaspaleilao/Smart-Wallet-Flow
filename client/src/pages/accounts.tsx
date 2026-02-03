@@ -45,8 +45,8 @@ export default function Accounts() {
   const [_, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
   
-  const { data: apiAccounts = [], isLoading: accountsLoading } = useAccounts();
-  const { data: apiTransactions = [] } = useTransactions();
+  const { data: apiAccounts = [], isLoading: accountsLoading, isSuccess: accountsSuccess } = useAccounts();
+  const { data: apiTransactions = [], isSuccess: transactionsSuccess } = useTransactions();
   const createAccountMutation = useCreateAccount();
   const updateAccountMutation = useUpdateAccount();
   const deleteAccountMutation = useDeleteAccount();
@@ -59,7 +59,7 @@ export default function Accounts() {
     }
   }, [isAuthenticated, setLocation]);
   
-  const accounts: Account[] = apiAccounts.length > 0 
+  const accounts: Account[] = accountsSuccess
     ? apiAccounts.map(a => ({
         ...a,
         balance: parseFloat(a.balance),
@@ -67,7 +67,7 @@ export default function Accounts() {
       }))
     : storeData.accounts;
 
-  const transactions = apiTransactions.length > 0
+  const transactions = transactionsSuccess
     ? apiTransactions.map(t => ({
         ...t,
         amount: parseFloat(t.amount),

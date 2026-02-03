@@ -98,3 +98,26 @@ shared/
 ### File Processing
 - **multer**: File upload handling
 - **xlsx**: Excel file import/export for spreadsheet view feature
+
+## Recent Changes (Feb 2026)
+
+### Frontend-API Integration
+- Connected Dashboard, Accounts, Transactions, and Credit Cards pages to PostgreSQL backend
+- Implemented React Query hooks in `client/src/hooks/use-api.ts` for data fetching with automatic caching
+- Created API client in `client/src/lib/api.ts` with authentication headers (x-user-id)
+- Added AuthContext in `client/src/contexts/auth-context.tsx` for user session management
+- Data type transformations handle API decimal strings to frontend number types
+
+### Authentication Flow
+- Demo user available: username `demo`, password `password123`
+- Login creates localStorage entry with userId
+- Protected routes redirect unauthenticated users to "/"
+- API client automatically includes userId in request headers
+
+### API Endpoints Active
+- GET/POST /api/accounts - Account CRUD operations
+- GET/POST /api/transactions - Transaction CRUD operations  
+- GET/POST /api/credit-cards - Credit card CRUD operations
+- GET/POST /api/credit-purchases - Credit card purchase tracking
+- GET/POST /api/credit-payments - Invoice payment tracking
+- POST /api/login - User authentication

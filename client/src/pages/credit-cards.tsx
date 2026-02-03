@@ -132,10 +132,10 @@ export default function CreditCards() {
   const [_, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
   
-  const { data: apiCreditCards = [], isLoading: cardsLoading } = useCreditCards();
-  const { data: apiCreditPurchases = [] } = useCreditPurchases();
-  const { data: apiCreditPayments = [] } = useCreditPayments();
-  const { data: apiAccounts = [] } = useAccounts();
+  const { data: apiCreditCards = [], isLoading: cardsLoading, isSuccess: cardsSuccess } = useCreditCards();
+  const { data: apiCreditPurchases = [], isSuccess: purchasesSuccess } = useCreditPurchases();
+  const { data: apiCreditPayments = [], isSuccess: paymentsSuccess } = useCreditPayments();
+  const { data: apiAccounts = [], isSuccess: accountsSuccess } = useAccounts();
   
   const createCreditCardMutation = useCreateCreditCard();
   const updateCreditCardMutation = useUpdateCreditCard();
@@ -162,7 +162,7 @@ export default function CreditCards() {
   }, [isAuthenticated, setLocation]);
   
   const creditCards: CreditCard[] = useMemo(() => {
-    if (apiCreditCards.length > 0) {
+    if (cardsSuccess) {
       return apiCreditCards.map(c => ({
         id: c.id,
         name: c.name,
@@ -178,10 +178,10 @@ export default function CreditCards() {
       }));
     }
     return storeData.creditCards;
-  }, [apiCreditCards, storeData.creditCards]);
+  }, [apiCreditCards, storeData.creditCards, cardsSuccess]);
   
   const creditPurchases: CreditPurchase[] = useMemo(() => {
-    if (apiCreditPurchases.length > 0) {
+    if (purchasesSuccess) {
       return apiCreditPurchases.map(p => ({
         id: p.id,
         creditCardId: p.creditCardId,
@@ -199,10 +199,10 @@ export default function CreditCards() {
       }));
     }
     return storeData.creditPurchases;
-  }, [apiCreditPurchases, storeData.creditPurchases]);
+  }, [apiCreditPurchases, storeData.creditPurchases, purchasesSuccess]);
   
   const accounts = useMemo(() => {
-    if (apiAccounts.length > 0) {
+    if (accountsSuccess) {
       return apiAccounts.map(a => ({
         ...a,
         balance: parseFloat(a.balance),
@@ -210,7 +210,7 @@ export default function CreditCards() {
       }));
     }
     return storeData.accounts;
-  }, [apiAccounts, storeData.accounts]);
+  }, [apiAccounts, storeData.accounts, accountsSuccess]);
 
   const [selectedCardId, setSelectedCardId] = useState<string>(creditCards[0]?.id || "");
   const [activeTab, setActiveTab] = useState("current");

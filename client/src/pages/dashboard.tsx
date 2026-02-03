@@ -18,8 +18,8 @@ export default function Dashboard() {
   const [_, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
   
-  const { data: apiAccounts = [], isLoading: accountsLoading } = useAccounts();
-  const { data: apiTransactions = [], isLoading: transactionsLoading } = useTransactions();
+  const { data: apiAccounts = [], isLoading: accountsLoading, isSuccess: accountsSuccess } = useAccounts();
+  const { data: apiTransactions = [], isLoading: transactionsLoading, isSuccess: transactionsSuccess } = useTransactions();
   
   const storeData = useFinancialStore();
   
@@ -29,7 +29,7 @@ export default function Dashboard() {
     }
   }, [isAuthenticated, setLocation]);
   
-  const allTransactions = apiTransactions.length > 0 
+  const allTransactions = transactionsSuccess
     ? apiTransactions.map(t => ({
         ...t,
         amount: parseFloat(t.amount),
@@ -40,7 +40,7 @@ export default function Dashboard() {
       }))
     : storeData.transactions;
     
-  const accounts = apiAccounts.length > 0
+  const accounts = accountsSuccess
     ? apiAccounts.map(a => ({
         ...a,
         balance: parseFloat(a.balance),

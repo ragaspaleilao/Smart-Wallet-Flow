@@ -22,8 +22,8 @@ export default function Transactions() {
   const [location, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
   
-  const { data: apiTransactions = [], isLoading: transactionsLoading } = useApiTransactions();
-  const { data: apiAccounts = [] } = useAccounts();
+  const { data: apiTransactions = [], isLoading: transactionsLoading, isSuccess: transactionsSuccess } = useApiTransactions();
+  const { data: apiAccounts = [], isSuccess: accountsSuccess } = useAccounts();
   
   const storeData = useFinancialStore();
   
@@ -34,7 +34,7 @@ export default function Transactions() {
   }, [isAuthenticated, setLocation]);
   
   const allTransactions = useMemo(() => {
-    if (apiTransactions.length > 0) {
+    if (transactionsSuccess) {
       return apiTransactions.map(t => ({
         ...t,
         amount: parseFloat(t.amount),
@@ -44,10 +44,10 @@ export default function Transactions() {
       }));
     }
     return storeData.transactions;
-  }, [apiTransactions, storeData.transactions]);
+  }, [apiTransactions, storeData.transactions, transactionsSuccess]);
   
   const accounts = useMemo(() => {
-    if (apiAccounts.length > 0) {
+    if (accountsSuccess) {
       return apiAccounts.map(a => ({
         ...a,
         balance: parseFloat(a.balance),
@@ -55,7 +55,7 @@ export default function Transactions() {
       }));
     }
     return storeData.accounts;
-  }, [apiAccounts, storeData.accounts]);
+  }, [apiAccounts, storeData.accounts, accountsSuccess]);
   
   // Parse query params for initial filters
   const searchParams = new URLSearchParams(window.location.search);
