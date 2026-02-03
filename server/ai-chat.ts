@@ -81,7 +81,7 @@ async function callGeminiWithRetry(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const response = await ai.models.generateContent({
-        model: "models/gemini-1.5-flash",
+        model: "gemini-1.5-flash-latest",
         contents,
       });
       return response.text || "Desculpe, não consegui processar sua mensagem.";
