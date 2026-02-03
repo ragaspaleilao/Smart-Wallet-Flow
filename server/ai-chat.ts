@@ -83,14 +83,13 @@ export async function processAiChat(
 ): Promise<string> {
   const context = await getFinancialContext(userId);
 
-  const systemPrompt = `Você é o Mentor Financeiro do app "Xô Preguiça", um consultor financeiro pessoal brasileiro. 
-Seu papel é analisar as finanças do usuário e dar conselhos práticos, diretos e personalizados.
+  const systemPrompt = `Você é o Mentor Financeiro do app "Xô Preguiça".
+Sua personalidade: Brasileiro, direto, usa emojis e é muito atento.
 
-DADOS FINANCEIROS DO USUÁRIO:
-- Saldo total: R$ ${context.totalBalance.toFixed(2)}
-- Receita do mês: R$ ${context.monthlyIncome.toFixed(2)}
-- Despesas do mês: R$ ${context.monthlyExpenses.toFixed(2)}
-- Saldo do mês: R$ ${(context.monthlyIncome - context.monthlyExpenses).toFixed(2)}
+DADOS DO USUÁRIO AGORA:
+- Saldo Total: R$ ${context.totalBalance.toFixed(2)}
+- Gasto no Mês: R$ ${context.monthlyExpenses.toFixed(2)}
+- Renda no Mês: R$ ${context.monthlyIncome.toFixed(2)}
 
 CONTAS:
 ${context.accounts.map(a => `- ${a.name} (${a.type}): R$ ${a.balance}`).join('\n')}
@@ -103,12 +102,13 @@ ${context.creditCards.length > 0
 TRANSAÇÕES RECENTES:
 ${context.recentTransactions.map(t => `- ${t.date}: ${t.description} - R$ ${t.amount} (${t.type === 'income' ? 'Receita' : 'Despesa'} - ${t.category})`).join('\n')}
 
-REGRAS:
-1. Seja direto e prático
-2. Use linguagem informal brasileira
-3. Use emojis moderadamente
-4. Dê conselhos específicos baseados nos dados reais
-5. Sempre sugira ações práticas`;
+REGRAS DE OURO:
+1. Se o usuário disser que comprou algo, calcule o impacto no saldo.
+2. Se houver gastos parcelados, lembre-o do comprometimento dos próximos meses.
+3. SEMPRE relacione o gasto com as metas (se houver).
+4. Se o gasto for grande, pergunte sobre outras prioridades.
+
+Responda sempre em Português do Brasil de forma curta e amigável, como se fosse um chat de WhatsApp.`;
 
   const fullPrompt = `${systemPrompt}
 
@@ -121,19 +121,30 @@ Mentor:`;
 
   try {
     const result = await client.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: fullPrompt,
+      model: "gemini-1.5-flash",
+      contents: [{ 
+        role: "user", 
+        parts: [{ text: fullPrompt }] 
+      }],
+      config: {
+        maxOutputTokens: 500,
+        temperature: 0.7,
+      }
     });
 
     const texto = result.text || "";
     return texto || "Desculpe, não consegui processar sua mensagem.";
   } catch (error: any) {
-    console.error("AI Chat error:", error);
+    console.error("Erro detalhado da IA:", error);
     
-    if (error.status === 429 || error.message?.includes('429') || error.message?.includes('quota')) {
-      return "⚠️ O serviço está temporariamente sobrecarregado. Por favor, aguarde 1 minuto e tente novamente.";
+    if (error.message?.includes('not found')) {
+      return "⚠️ Erro de configuração: Modelo não encontrado. Verifique se o nome do modelo está correto.";
     }
     
-    throw new Error("Erro ao processar mensagem com IA");
+    if (error.status === 429) {
+      return "⚠️ O serviço está temporariamente sobrecarregado. Aguarde um pouco.";
+    }
+    
+    return "Tive um probleminha técnico. Pode repetir?";
   }
 }
