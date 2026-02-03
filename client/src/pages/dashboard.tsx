@@ -1,19 +1,54 @@
 import { getCategoryIcon, formatCurrency } from "@/lib/utils";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp, Zap, Flame, Car } from "lucide-react";
+import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp, Zap, Flame, Car, Loader2 } from "lucide-react";
 import { useFinancialStore } from "@/lib/store";
 import { format, isBefore, startOfDay, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, parseISO, isWithinInterval, addDays } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { ShareButton } from "@/components/share-button";
+import { useAuth } from "@/contexts/auth-context";
+import { useAccounts, useTransactions } from "@/hooks/use-api";
 
 export default function Dashboard() {
-  const { balance, income, expense, transactions: allTransactions } = useFinancialStore();
+  const [_, setLocation] = useLocation();
+  const { isAuthenticated } = useAuth();
+  
+  const { data: apiAccounts = [], isLoading: accountsLoading } = useAccounts();
+  const { data: apiTransactions = [], isLoading: transactionsLoading } = useTransactions();
+  
+  const storeData = useFinancialStore();
+  
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setLocation("/");
+    }
+  }, [isAuthenticated, setLocation]);
+  
+  const allTransactions = apiTransactions.length > 0 
+    ? apiTransactions.map(t => ({
+        ...t,
+        amount: parseFloat(t.amount),
+        date: t.date,
+        isPersonal: t.isPersonal,
+        status: t.status as 'paid' | 'pending',
+        type: t.type as 'income' | 'expense',
+      }))
+    : storeData.transactions;
+    
+  const accounts = apiAccounts.length > 0
+    ? apiAccounts.map(a => ({
+        ...a,
+        balance: parseFloat(a.balance),
+        initialBalance: parseFloat(a.initialBalance),
+      }))
+    : storeData.accounts;
+
+  const isLoading = accountsLoading || transactionsLoading;
 
   const [period, setPeriod] = useState<'this_month' | 'last_month' | 'year' | 'custom'>('this_month');
   const [customStart, setCustomStart] = useState<string>(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
@@ -77,7 +112,6 @@ export default function Dashboard() {
   // Approximate personal balance (assuming store balance mixes both, we might want to split it properly later, 
   // but for now let's just use the store balance as it's the sum of accounts. 
   // Ideally, dashboard should show "Personal Net Worth")
-  const { accounts } = useFinancialStore();
   const personalBalance = accounts
     .filter(a => a.isPersonal)
     .filter(a => a.type !== 'investment')

@@ -2,9 +2,25 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { MobileLayout } from "@/components/mobile-layout";
 import heroImage from "@/assets/sloth-hero.jpg";
+import { useAuth } from "@/contexts/auth-context";
+import { useEffect } from "react";
+
+const DEMO_USER_ID = "1459dcb9-f821-4688-b08d-c648905cfc92";
 
 export default function Onboarding() {
   const [_, setLocation] = useLocation();
+  const { isAuthenticated, login } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setLocation("/dashboard");
+    }
+  }, [isAuthenticated, setLocation]);
+
+  const handleStart = () => {
+    login(DEMO_USER_ID);
+    setLocation("/dashboard");
+  };
 
   return (
     <MobileLayout>
@@ -38,7 +54,8 @@ export default function Onboarding() {
           <Button 
             size="lg" 
             className="w-full h-14 text-lg font-medium rounded-2xl shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all hover:-translate-y-1"
-            onClick={() => setLocation("/permissions")}
+            onClick={handleStart}
+            data-testid="button-start"
           >
             Começar Agora
           </Button>
