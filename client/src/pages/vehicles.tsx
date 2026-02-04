@@ -10,12 +10,39 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 import { Plus, Car, Calendar, FileText, Wrench, Shield, ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle, Trash2, Edit2, AlertTriangle, DollarSign } from "lucide-react";
-import { useFinancialStore, Vehicle, Transaction } from "@/lib/store";
+import { useFinancialStore, Transaction } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { format, addMonths, isBefore, startOfDay, parseISO } from "date-fns";
+import { useVehicles, useCreateVehicle, useUpdateVehicle, useDeleteVehicle, useAccounts, useTransactions, useCreateTransaction, useDeleteTransaction } from "@/hooks/use-api";
+
+interface Vehicle {
+  id: string;
+  name: string;
+  plate: string;
+  expenses?: any[];
+}
 
 export default function Vehicles() {
-  const { vehicles, addVehicle, updateVehicle, removeVehicle, transactions, addTransaction, removeTransaction, accounts } = useFinancialStore();
+  // Use API hooks for vehicles
+  const { data: apiVehicles = [], isLoading: vehiclesLoading } = useVehicles();
+  const { data: apiAccounts = [] } = useAccounts();
+  const { data: apiTransactions = [] } = useTransactions();
+  
+  const createVehicleMutation = useCreateVehicle();
+  const updateVehicleMutation = useUpdateVehicle();
+  const deleteVehicleMutation = useDeleteVehicle();
+  const createTransactionMutation = useCreateTransaction();
+  const deleteTransactionMutation = useDeleteTransaction();
+  
+  const vehicles = apiVehicles as Vehicle[];
+  const accounts = apiAccounts.map(a => ({ ...a, balance: parseFloat(a.balance) }));
+  const transactions = apiTransactions.map(t => ({
+    ...t,
+    amount: parseFloat(t.amount),
+    type: t.type as 'income' | 'expense',
+    status: t.status as 'paid' | 'pending',
+    source: t.source as 'manual' | 'notification' | 'voice' | 'photo',
+  }));
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -51,102 +78,121 @@ export default function Vehicles() {
     }));
   };
 
-  const handleAddVehicle = () => {
+  const handleAddVehicle = async () => {
     if (!newVehicle.name || !newVehicle.plate) {
         toast({ title: "Preencha todos os campos", variant: "destructive" });
         return;
     }
-    addVehicle({
-      name: newVehicle.name,
-      plate: newVehicle.plate,
-      expenses: []
-    });
-    setOpen(false);
-    setNewVehicle({ name: "", plate: "" });
-    toast({ title: "Veículo adicionado!" });
+    try {
+      await createVehicleMutation.mutateAsync({
+        name: newVehicle.name,
+        plate: newVehicle.plate,
+      });
+      setOpen(false);
+      setNewVehicle({ name: "", plate: "" });
+      toast({ title: "Veículo adicionado!" });
+    } catch (error) {
+      toast({ title: "Erro ao adicionar veículo", variant: "destructive" });
+    }
   };
 
-  const handleEditVehicle = () => {
+  const handleEditVehicle = async () => {
     if (!editingVehicle.name || !editingVehicle.plate) {
         toast({ title: "Preencha todos os campos", variant: "destructive" });
         return;
     }
-    updateVehicle(editingVehicle.id, {
-        name: editingVehicle.name,
-        plate: editingVehicle.plate
-    });
-    setEditOpen(false);
-    toast({ title: "Veículo atualizado!" });
+    try {
+      await updateVehicleMutation.mutateAsync({
+        id: editingVehicle.id,
+        data: {
+          name: editingVehicle.name,
+          plate: editingVehicle.plate
+        }
+      });
+      setEditOpen(false);
+      toast({ title: "Veículo atualizado!" });
+    } catch (error) {
+      toast({ title: "Erro ao atualizar veículo", variant: "destructive" });
+    }
   };
 
-  const handleDeleteVehicle = () => {
+  const handleDeleteVehicle = async () => {
      if (selectedVehicleId) {
-         removeVehicle(selectedVehicleId);
+       try {
+         await deleteVehicleMutation.mutateAsync(selectedVehicleId);
          setDeleteOpen(false);
          toast({ title: "Veículo removido com sucesso" });
+       } catch (error) {
+         toast({ title: "Erro ao remover veículo", variant: "destructive" });
+       }
      }
   };
 
-  const handleDeleteGroup = (vehicleId: string, groupName: string) => {
+  const handleDeleteGroup = async (vehicleId: string, groupName: string) => {
       if (confirm(`Tem certeza que deseja excluir todas as parcelas de "${groupName}"?`)) {
           const txsToDelete = transactions.filter(t => 
               t.vehicleId === vehicleId && 
               t.description.replace(/\s\(\d+\/\d+\)$/, "") === groupName
           );
           
-          txsToDelete.forEach(tx => removeTransaction(tx.id));
+          for (const tx of txsToDelete) {
+            await deleteTransactionMutation.mutateAsync(tx.id);
+          }
           toast({ title: "Despesa completa removida!" });
       }
   };
 
-  const handleAddExpense = () => {
+  const handleAddExpense = async () => {
     if (!expenseAmount || !selectedVehicleId) return;
 
-    // Remove non-numeric characters and parse to number
     const numericAmount = Number(expenseAmount.replace(/\D/g, "")) / 100;
     const vehicle = vehicles.find(v => v.id === selectedVehicleId);
     
-    if (paymentType === 'installments') {
-        const installmentValue = numericAmount / installments;
-        const baseDate = new Date(expenseDate);
+    try {
+      if (paymentType === 'installments') {
+          const installmentValue = numericAmount / installments;
+          const baseDate = new Date(expenseDate);
 
-        for (let i = 0; i < installments; i++) {
-            const newDate = new Date(baseDate);
-            newDate.setMonth(baseDate.getMonth() + i);
-            
-            addTransaction({
-                amount: installmentValue,
-                type: 'expense',
-                category: 'Transporte',
-                description: `${expenseType} - ${vehicle?.name} (${i + 1}/${installments})`,
-                source: 'manual',
-                isPersonal: true,
-                accountId,
-                status: 'pending',
-                date: newDate.toISOString(),
-                vehicleId: selectedVehicleId
-            });
-        }
-        toast({ title: "Despesa parcelada lançada!" });
-    } else {
-        addTransaction({
-            amount: numericAmount,
-            type: 'expense',
-            category: 'Transporte',
-            description: `${expenseType} - ${vehicle?.name}`,
-            source: 'manual',
-            isPersonal: true,
-            accountId,
-            status: 'pending', // Default to pending/scheduled
-            date: new Date(expenseDate).toISOString(),
-            vehicleId: selectedVehicleId
-        });
-        toast({ title: "Despesa lançada!" });
+          for (let i = 0; i < installments; i++) {
+              const newDate = new Date(baseDate);
+              newDate.setMonth(baseDate.getMonth() + i);
+              
+              await createTransactionMutation.mutateAsync({
+                  amount: String(installmentValue),
+                  type: 'expense',
+                  category: 'Transporte',
+                  description: `${expenseType} - ${vehicle?.name} (${i + 1}/${installments})`,
+                  source: 'manual',
+                  isPersonal: true,
+                  accountId,
+                  status: 'pending',
+                  date: newDate.toISOString(),
+                  vehicleId: selectedVehicleId
+              });
+          }
+          toast({ title: "Despesa parcelada lançada!" });
+      } else {
+          await createTransactionMutation.mutateAsync({
+              amount: String(numericAmount),
+              type: 'expense',
+              category: 'Transporte',
+              description: `${expenseType} - ${vehicle?.name}`,
+              source: 'manual',
+              isPersonal: true,
+              accountId,
+              status: 'pending',
+              date: new Date(expenseDate).toISOString(),
+              vehicleId: selectedVehicleId
+          });
+          toast({ title: "Despesa lançada!" });
+      }
+
+      setExpenseOpen(false);
+      setExpenseAmount("");
+      setExpenseType("Manutenção");
+    } catch (error) {
+      toast({ title: "Erro ao lançar despesa", variant: "destructive" });
     }
-
-    setExpenseOpen(false);
-    setExpenseAmount("");
-    setExpenseType("Manutenção");
   };
 
   const formatCurrency = (val: string) => {
