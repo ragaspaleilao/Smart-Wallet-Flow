@@ -12,7 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 import { ShareButton } from "@/components/share-button";
 import { useAuth } from "@/hooks/use-auth";
-import { useAccounts, useTransactions, useCreateTransaction } from "@/hooks/use-api";
+import { useAccounts, useTransactions, useCreateTransaction, useCreditCards, useCreateCreditPurchase } from "@/hooks/use-api";
 import { PhotoScanner } from "@/components/photo-scanner";
 import { VoiceRecorder } from "@/components/voice-recorder";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,7 @@ export default function Dashboard() {
   
   const { data: apiAccounts = [], isLoading: accountsLoading, isSuccess: accountsSuccess } = useAccounts();
   const { data: apiTransactions = [], isLoading: transactionsLoading, isSuccess: transactionsSuccess } = useTransactions();
+  const { data: apiCreditCards = [] } = useCreditCards();
   
   const storeData = useFinancialStore();
   
@@ -61,7 +62,10 @@ export default function Dashboard() {
   const [voiceRecorderOpen, setVoiceRecorderOpen] = useState(false);
   
   const createTransactionMutation = useCreateTransaction();
+  const createCreditPurchaseMutation = useCreateCreditPurchase();
   const { toast } = useToast();
+  
+  const creditCards = apiCreditCards;
 
   const dateRange = useMemo(() => {
     const today = new Date();
@@ -478,6 +482,7 @@ export default function Dashboard() {
         open={photoScannerOpen}
         onOpenChange={setPhotoScannerOpen}
         accounts={accounts}
+        creditCards={creditCards}
         onTransactionExtracted={async (data) => {
           try {
             await createTransactionMutation.mutateAsync({
@@ -504,12 +509,37 @@ export default function Dashboard() {
             });
           }
         }}
+        onCreditPurchaseExtracted={async (data) => {
+          try {
+            const purchaseDate = new Date(data.date);
+            await createCreditPurchaseMutation.mutateAsync({
+              creditCardId: data.creditCardId,
+              totalAmount: String(data.amount),
+              installmentValue: String(data.amount),
+              description: data.description || 'Compra via foto',
+              category: data.category || 'Outros',
+              purchaseDate: purchaseDate.toISOString(),
+              installments: 1,
+            });
+            toast({
+              title: "Compra no crédito registrada",
+              description: `${formatCurrency(data.amount)} no cartão.`,
+            });
+          } catch (error) {
+            toast({
+              title: "Erro ao salvar",
+              description: "Não foi possível salvar a compra. Tente novamente.",
+              variant: "destructive",
+            });
+          }
+        }}
       />
       
       <VoiceRecorder
         open={voiceRecorderOpen}
         onOpenChange={setVoiceRecorderOpen}
         accounts={accounts}
+        creditCards={creditCards}
         onTransactionExtracted={async (data) => {
           try {
             await createTransactionMutation.mutateAsync({
@@ -532,6 +562,30 @@ export default function Dashboard() {
             toast({
               title: "Erro ao salvar",
               description: "Não foi possível salvar a transação. Tente novamente.",
+              variant: "destructive",
+            });
+          }
+        }}
+        onCreditPurchaseExtracted={async (data) => {
+          try {
+            const purchaseDate = new Date(data.date);
+            await createCreditPurchaseMutation.mutateAsync({
+              creditCardId: data.creditCardId,
+              totalAmount: String(data.amount),
+              installmentValue: String(data.amount),
+              description: data.description || 'Compra por voz',
+              category: data.category || 'Outros',
+              purchaseDate: purchaseDate.toISOString(),
+              installments: 1,
+            });
+            toast({
+              title: "Compra no crédito registrada",
+              description: `${formatCurrency(data.amount)} no cartão.`,
+            });
+          } catch (error) {
+            toast({
+              title: "Erro ao salvar",
+              description: "Não foi possível salvar a compra. Tente novamente.",
               variant: "destructive",
             });
           }

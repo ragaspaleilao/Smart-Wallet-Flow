@@ -148,3 +148,5 @@ shared/
 - **Credit Card Creation**: Fixed schema to make status field optional (defaults to 'active')
 - **Category Validation**: Added 'Outros' fallback for credit purchase category field
 - **LinkedAccountId**: Credit card creation no longer sends undefined linkedAccountId
+- **Credit Card Toggle in Scanners**: Photo and voice input methods now support toggle between Conta (debit/account) and Crédito (credit card), eliminating need for separate credit card buttons
+- **Category Synchronization**: Categories are shared between photo scanner, voice recorder, and manual entry through Zustand store

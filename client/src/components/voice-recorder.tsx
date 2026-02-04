@@ -26,10 +26,18 @@ interface Account {
   type: string;
 }
 
+interface CreditCard {
+  id: string;
+  name: string;
+  brand: string;
+  closingDay: number;
+}
+
 interface VoiceRecorderProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   accounts: Account[];
+  creditCards?: CreditCard[];
   onTransactionExtracted: (data: {
     amount: number;
     description: string;
@@ -38,6 +46,13 @@ interface VoiceRecorderProps {
     date: string;
     accountId: string;
     paymentMethod: string;
+  }) => void;
+  onCreditPurchaseExtracted?: (data: {
+    amount: number;
+    description: string;
+    category: string;
+    date: string;
+    creditCardId: string;
   }) => void;
 }
 
@@ -64,7 +79,7 @@ const PAYMENT_METHODS = [
   { value: "transfer", label: "Transferência", icon: ArrowRightLeft },
 ];
 
-export function VoiceRecorder({ open, onOpenChange, accounts, onTransactionExtracted }: VoiceRecorderProps) {
+export function VoiceRecorder({ open, onOpenChange, accounts, creditCards = [], onTransactionExtracted, onCreditPurchaseExtracted }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<VoiceResult | null>(null);
@@ -77,6 +92,8 @@ export function VoiceRecorder({ open, onOpenChange, accounts, onTransactionExtra
   const [editDate, setEditDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [editAccountId, setEditAccountId] = useState("");
   const [editPaymentMethod, setEditPaymentMethod] = useState("pix");
+  const [isCredit, setIsCredit] = useState(false);
+  const [editCardId, setEditCardId] = useState("");
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -95,6 +112,12 @@ export function VoiceRecorder({ open, onOpenChange, accounts, onTransactionExtra
       setEditAccountId(accounts[0].id);
     }
   }, [accounts, editAccountId]);
+
+  useEffect(() => {
+    if (creditCards && creditCards.length > 0 && !editCardId) {
+      setEditCardId(creditCards[0].id);
+    }
+  }, [creditCards, editCardId]);
 
   useEffect(() => {
     if (result?.transaction) {
@@ -193,6 +216,28 @@ export function VoiceRecorder({ open, onOpenChange, accounts, onTransactionExtra
       toast({ title: "Valor inválido", variant: "destructive" });
       return;
     }
+
+    // Credit card purchase
+    if (isCredit) {
+      if (!editCardId) {
+        toast({ title: "Selecione um cartão", variant: "destructive" });
+        return;
+      }
+      if (onCreditPurchaseExtracted) {
+        onCreditPurchaseExtracted({
+          amount,
+          description: editDescription || "Compra por voz",
+          category: editCategory || "Outros",
+          date: editDate,
+          creditCardId: editCardId,
+        });
+        resetState();
+        onOpenChange(false);
+        return;
+      }
+    }
+
+    // Regular transaction
     if (!editAccountId) {
       toast({ title: "Selecione uma conta", variant: "destructive" });
       return;
@@ -386,7 +431,7 @@ export function VoiceRecorder({ open, onOpenChange, accounts, onTransactionExtra
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {PAYMENT_METHODS.map(method => (
+                        {PAYMENT_METHODS.filter(m => m.value !== 'credit').map(method => (
                           <SelectItem key={method.value} value={method.value}>
                             <div className="flex items-center gap-2">
                               <method.icon className="w-3 h-3" />
@@ -398,6 +443,57 @@ export function VoiceRecorder({ open, onOpenChange, accounts, onTransactionExtra
                     </Select>
                   </div>
                 </div>
+
+                {/* Toggle between Debit/Account and Credit Card */}
+                {creditCards.length > 0 && onCreditPurchaseExtracted && (
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-zinc-900 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setIsCredit(false)}
+                      className={`flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-all ${
+                        !isCredit 
+                        ? 'bg-white dark:bg-zinc-800 shadow-sm text-primary' 
+                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                      }`}
+                    >
+                      <Wallet className="w-4 h-4" />
+                      Débito/Conta
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsCredit(true)}
+                      className={`flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-all ${
+                        isCredit 
+                        ? 'bg-white dark:bg-zinc-800 shadow-sm text-purple-600' 
+                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                      }`}
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      Crédito
+                    </button>
+                  </div>
+                )}
+
+                {isCredit && creditCards.length > 0 && (
+                  <div>
+                    <Label className="text-xs">Cartão de Crédito</Label>
+                    <Select value={editCardId} onValueChange={setEditCardId}>
+                      <SelectTrigger data-testid="select-credit-card">
+                        <SelectValue placeholder="Selecione o cartão" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {creditCards.map(card => (
+                          <SelectItem key={card.id} value={card.id}>
+                            <div className="flex items-center gap-2">
+                              <CreditCard className="w-3 h-3" />
+                              {card.name} (Dia {card.closingDay})
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2 pt-2">
