@@ -11,10 +11,17 @@ import { useFinancialStore, Category } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import * as Popover from "@radix-ui/react-popover";
+import { useAccounts, useCreditCards, useCreateTransaction, useCreateCreditPurchase } from "@/hooks/use-api";
 
 export default function ManualEntry() {
   const [_, setLocation] = useLocation();
-  const { addTransaction, addCreditPurchase, accounts, creditCards, transactionCategories, addTransactionCategory, removeTransactionCategory } = useFinancialStore();
+  const { transactionCategories, addTransactionCategory, removeTransactionCategory } = useFinancialStore();
+  
+  // Use API hooks for real data
+  const { data: accounts = [] } = useAccounts();
+  const { data: creditCards = [] } = useCreditCards();
+  const createTransactionMutation = useCreateTransaction();
+  const createCreditPurchaseMutation = useCreateCreditPurchase();
   
   const [type, setType] = useState<"expense" | "income">("expense");
   const [paymentMethod, setPaymentMethod] = useState<"debit" | "credit">("debit");
@@ -142,22 +149,30 @@ export default function ManualEntry() {
 
         const purchaseDate = date; // Transaction date
 
-        addCreditPurchase({
+        createCreditPurchaseMutation.mutate({
             creditCardId: cardId,
             purchaseDate: purchaseDate,
-            totalAmount: finalTotalAmount,
+            totalAmount: String(finalTotalAmount),
             installments: numInstallments,
-            installmentValue: finalTotalAmount / numInstallments,
-            category,
+            installmentValue: String(finalTotalAmount / numInstallments),
+            category: category || 'Outros',
             description,
+        }, {
+            onSuccess: () => {
+                toast({
+                    title: "Compra no Crédito salva!",
+                    description: `${description} - ${numInstallments}x de ${(finalTotalAmount / numInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
+                });
+                setLocation("/dashboard");
+            },
+            onError: () => {
+                toast({
+                    title: "Erro ao salvar",
+                    description: "Não foi possível salvar a compra.",
+                    variant: "destructive",
+                });
+            }
         });
-
-        toast({
-            title: "Compra no Crédito salva!",
-            description: `${description} - ${numInstallments}x de ${(finalTotalAmount / numInstallments).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
-        });
-
-        setLocation("/dashboard");
         return;
     }
     
@@ -183,33 +198,44 @@ export default function ManualEntry() {
                 installmentValue = numericAmount;
             }
             
+            // Create all installments
+            const promises = [];
             for (let i = 0; i < installments; i++) {
                 const newDate = new Date(baseDate);
                 newDate.setMonth(baseDate.getMonth() + i);
                 
-                addTransaction({
-                    amount: installmentValue,
+                promises.push(createTransactionMutation.mutateAsync({
+                    amount: String(installmentValue),
                     type,
-                    category,
+                    category: category || 'Outros',
                     description: `${description} (${i + 1}/${installments})`,
                     source: "manual",
                     isPersonal: true,
                     accountId,
-                    // First installment follows selected status, others are pending usually? 
-                    // For simplicity, let's keep selected status for first, and pending for future.
                     status: i === 0 ? status : 'pending',
-                    date: newDate.toISOString()
-                });
+                    date: newDate.toISOString().split('T')[0],
+                    paymentMethod: 'pix',
+                }));
             }
-             toast({
-                title: "Parcelamento gerado!",
-                description: `${installments} parcelas de R$ ${installmentValue.toFixed(2)} criadas.`,
+            
+            Promise.all(promises).then(() => {
+                toast({
+                    title: "Parcelamento gerado!",
+                    description: `${installments} parcelas de R$ ${installmentValue.toFixed(2)} criadas.`,
+                });
+                setLocation("/dashboard");
+            }).catch(() => {
+                toast({
+                    title: "Erro ao salvar",
+                    description: "Não foi possível salvar algumas parcelas.",
+                    variant: "destructive",
+                });
             });
 
         } else {
             // Fixed/Recurring Logic (Amount * N)
-            // e.g. Salary, Subscription
             const count = occurrences;
+            const promises = [];
             
             for (let i = 0; i < count; i++) {
                 const newDate = new Date(baseDate);
@@ -218,44 +244,64 @@ export default function ManualEntry() {
                 else if (frequency === 'yearly') newDate.setFullYear(baseDate.getFullYear() + i);
                 else if (frequency === 'biweekly') newDate.setDate(baseDate.getDate() + (i * 14));
                 
-                addTransaction({
-                    amount: numericAmount, // Recurring keeps same value
+                promises.push(createTransactionMutation.mutateAsync({
+                    amount: String(numericAmount),
                     type,
-                    category,
-                    description: `${description} (${i + 1}/${count})`, // Optional counter
+                    category: category || 'Outros',
+                    description: `${description} (${i + 1}/${count})`,
                     source: "manual",
                     isPersonal: true,
                     accountId,
-                    status: i === 0 ? status : 'pending', // Future ones pending
-                    date: newDate.toISOString()
-                });
+                    status: i === 0 ? status : 'pending',
+                    date: newDate.toISOString().split('T')[0],
+                    paymentMethod: 'pix',
+                }));
             }
-             toast({
-                title: "Recorrência gerada!",
-                description: `${count} lançamentos de R$ ${numericAmount.toFixed(2)} criados.`,
+            
+            Promise.all(promises).then(() => {
+                toast({
+                    title: "Recorrência gerada!",
+                    description: `${count} lançamentos de R$ ${numericAmount.toFixed(2)} criados.`,
+                });
+                setLocation("/dashboard");
+            }).catch(() => {
+                toast({
+                    title: "Erro ao salvar",
+                    description: "Não foi possível salvar alguns lançamentos.",
+                    variant: "destructive",
+                });
             });
         }
     } else {
         // Single Transaction
-        addTransaction({
-            amount: numericAmount,
+        createTransactionMutation.mutate({
+            amount: String(numericAmount),
             type,
-            category,
+            category: category || 'Outros',
             description,
             source: "manual",
             isPersonal: true,
             accountId,
             status,
-            date // Add date here
-        });
-
-        toast({
-            title: "Salvo com sucesso!",
-            description: `${type === "expense" ? "Despesa" : "Receita"} de R$ ${numericAmount.toFixed(2)} registrada.`,
+            date,
+            paymentMethod: 'pix',
+        }, {
+            onSuccess: () => {
+                toast({
+                    title: "Salvo com sucesso!",
+                    description: `${type === "expense" ? "Despesa" : "Receita"} de R$ ${numericAmount.toFixed(2)} registrada.`,
+                });
+                setLocation("/dashboard");
+            },
+            onError: () => {
+                toast({
+                    title: "Erro ao salvar",
+                    description: "Não foi possível salvar a transação.",
+                    variant: "destructive",
+                });
+            }
         });
     }
-
-    setLocation("/dashboard");
   };
 
   return (
@@ -371,7 +417,7 @@ export default function ManualEntry() {
                     <SelectTrigger className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
                         <SelectValue placeholder="Selecione o cartão" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper" sideOffset={4} className="z-50">
                         {creditCards.length > 0 ? (
                             creditCards.map(card => (
                                 <SelectItem key={card.id} value={card.id}>
@@ -388,10 +434,14 @@ export default function ManualEntry() {
                     <SelectTrigger className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
                         <SelectValue placeholder="Selecione a conta" />
                     </SelectTrigger>
-                    <SelectContent>
-                        {accounts.map(acc => (
-                        <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {acc.balance.toLocaleString('pt-BR')})</SelectItem>
-                        ))}
+                    <SelectContent position="popper" sideOffset={4} className="z-50">
+                        {accounts.length > 0 ? (
+                            accounts.map(acc => (
+                                <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {Number(acc.balance).toLocaleString('pt-BR')})</SelectItem>
+                            ))
+                        ) : (
+                            <SelectItem value="none" disabled>Nenhuma conta cadastrada</SelectItem>
+                        )}
                     </SelectContent>
                 </Select>
             )}
@@ -528,7 +578,7 @@ export default function ManualEntry() {
               </Popover.Root>
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+            <div className="flex flex-wrap gap-2">
               {normalizedTransactionCategories.map((cat) => (
                 <button
                   key={cat}
