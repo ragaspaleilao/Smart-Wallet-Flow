@@ -666,6 +666,7 @@ export default function CreditCards() {
       if (accounts[0]?.id) {
         cardData.linkedAccountId = accounts[0].id;
       }
+      console.log('Creating credit card with data:', cardData);
       await createCreditCardMutation.mutateAsync(cardData);
 
       setNewCardData({
@@ -680,8 +681,9 @@ export default function CreditCards() {
       });
       setIsAddCardOpen(false);
       toast({ title: "Cartão adicionado com sucesso!" });
-    } catch (error) {
-      toast({ title: "Erro ao salvar cartão", variant: "destructive" });
+    } catch (error: any) {
+      console.error('Error creating credit card:', error);
+      toast({ title: "Erro ao salvar cartão", description: error?.message || String(error), variant: "destructive" });
     }
   };
 
