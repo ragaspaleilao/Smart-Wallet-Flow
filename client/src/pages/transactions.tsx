@@ -206,7 +206,7 @@ export default function Transactions() {
       return transactions;
   }, [transactions]);
 
-  // Projections
+  // Projections - calculate current balance dynamically from initialBalance + paid transactions
   const projections = useMemo(() => {
       const pendingIncome = transactions
         .filter(t => t.type === 'income' && t.status === 'pending')
@@ -217,12 +217,29 @@ export default function Transactions() {
         .reduce((acc, curr) => acc + curr.amount, 0);
 
       const personalAccounts = accounts.filter(a => a.isPersonal);
-      const currentBalance = personalAccounts.reduce((acc, a: any) => acc + (Number(a.balance) || 0), 0);
+      
+      // Calculate current balance from initialBalance + all paid transactions
+      const currentBalance = personalAccounts.reduce((total, account: any) => {
+        const initialBalance = account.initialBalance || account.balance || 0;
+        
+        // Get all paid transactions for this account
+        const accountTransactions = allTransactions.filter(t => 
+          t.accountId === account.id && t.status === 'paid'
+        );
+        
+        const transactionTotal = accountTransactions.reduce((sum, t) => {
+          if (t.type === 'income') return sum + t.amount;
+          if (t.type === 'expense') return sum - t.amount;
+          return sum;
+        }, 0);
+        
+        return total + initialBalance + transactionTotal;
+      }, 0);
 
       const projectedBalance = currentBalance + pendingIncome - pendingExpense;
         
       return { pendingIncome, pendingExpense, currentBalance, projectedBalance };
-  }, [transactions, accounts]);
+  }, [transactions, accounts, allTransactions]);
 
   const categories = useFinancialStore((state) => state.transactionCategories);
 
