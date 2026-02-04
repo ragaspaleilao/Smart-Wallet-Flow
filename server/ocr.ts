@@ -19,12 +19,17 @@ export async function extractTransactionFromImage(
   try {
     const prompt = `Você é um especialista em extrair informações de cupons fiscais, notas e recibos brasileiros.
 
-Analise esta imagem e extraia as seguintes informações:
+Analise esta imagem CUIDADOSAMENTE e extraia as seguintes informações:
 1. Valor total da compra (em reais)
 2. Nome do estabelecimento/loja
-3. Data da compra (formato YYYY-MM-DD)
+3. Data da compra - LEIA ATENTAMENTE a data impressa no cupom. Formato brasileiro comum: DD/MM/AAAA ou DD/MMM/AAAA (ex: 04/FEV/2026 = 2026-02-04)
 4. Descrição resumida da compra
 5. Categoria sugerida (escolha uma: Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Vestuário, Serviços, Investimento, Outros)
+
+ATENÇÃO ESPECIAL PARA A DATA:
+- Leia EXATAMENTE o que está escrito no cupom
+- Formato de saída deve ser YYYY-MM-DD
+- Exemplos de conversão: 04/FEV/2026 → 2026-02-04, 15/01/2026 → 2026-01-15
 
 Responda APENAS com um JSON válido no formato:
 {
