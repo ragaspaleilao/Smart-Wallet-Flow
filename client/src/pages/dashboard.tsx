@@ -485,13 +485,15 @@ export default function Dashboard() {
         creditCards={creditCards}
         onTransactionExtracted={async (data) => {
           try {
+            // Use date string directly to avoid timezone issues
+            const dateStr = data.date.includes('T') ? data.date.split('T')[0] : data.date;
             await createTransactionMutation.mutateAsync({
               accountId: data.accountId,
               amount: String(data.amount),
               type: 'expense',
               category: data.category || 'Outros',
               description: data.description || 'Compra via foto',
-              date: new Date(data.date).toISOString(),
+              date: dateStr,
               source: 'photo',
               isPersonal: true,
               status: 'paid',
@@ -511,14 +513,15 @@ export default function Dashboard() {
         }}
         onCreditPurchaseExtracted={async (data) => {
           try {
-            const purchaseDate = new Date(data.date);
+            // Use date string directly to avoid timezone issues
+            const dateStr = data.date.includes('T') ? data.date.split('T')[0] : data.date;
             await createCreditPurchaseMutation.mutateAsync({
               creditCardId: data.creditCardId,
               totalAmount: String(data.amount),
               installmentValue: String(data.amount),
               description: data.description || 'Compra via foto',
               category: data.category || 'Outros',
-              purchaseDate: purchaseDate.toISOString(),
+              purchaseDate: dateStr,
               installments: 1,
             });
             toast({
@@ -542,13 +545,15 @@ export default function Dashboard() {
         creditCards={creditCards}
         onTransactionExtracted={async (data) => {
           try {
+            // Use date string directly to avoid timezone issues
+            const dateStr = data.date.includes('T') ? data.date.split('T')[0] : data.date;
             await createTransactionMutation.mutateAsync({
               accountId: data.accountId,
               amount: String(data.amount),
               type: data.type,
               category: data.category || 'Outros',
               description: data.description || 'Lançamento via voz',
-              date: new Date(data.date).toISOString(),
+              date: dateStr,
               source: 'voice',
               isPersonal: true,
               status: 'paid',
@@ -568,14 +573,15 @@ export default function Dashboard() {
         }}
         onCreditPurchaseExtracted={async (data) => {
           try {
-            const purchaseDate = new Date(data.date);
+            // Use date string directly to avoid timezone issues
+            const dateStr = data.date.includes('T') ? data.date.split('T')[0] : data.date;
             await createCreditPurchaseMutation.mutateAsync({
               creditCardId: data.creditCardId,
               totalAmount: String(data.amount),
               installmentValue: String(data.amount),
               description: data.description || 'Compra por voz',
               category: data.category || 'Outros',
-              purchaseDate: purchaseDate.toISOString(),
+              purchaseDate: dateStr,
               installments: 1,
             });
             toast({
