@@ -82,26 +82,43 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
       ? `${formData.date}T12:00:00`
       : new Date(formData.date).toISOString();
 
-    updateTransaction(transaction.id, {
-      description: formData.description,
-      amount: numericAmount,
-      category: formData.category,
-      type: formData.type,
-      accountId: formData.accountId,
-      date: normalizedDate,
-      status: formData.status as 'paid' | 'pending'
+    updateMutation.mutate({
+      id: transaction.id,
+      data: {
+        description: formData.description,
+        amount: String(numericAmount),
+        category: formData.category,
+        type: formData.type,
+        accountId: formData.accountId,
+        date: normalizedDate,
+        status: formData.status as 'paid' | 'pending'
+      }
+    }, {
+      onSuccess: () => {
+        setOpen(false);
+        toast({ title: "Transação atualizada!" });
+      },
+      onError: () => {
+        toast({ title: "Erro ao atualizar transação", variant: "destructive" });
+      }
     });
-    setOpen(false);
-    toast({ title: "Transação atualizada!" });
   };
 
   const handleDelete = () => {
     if (confirm("Tem certeza que deseja apagar esta transação?")) {
-        removeTransaction(transaction.id);
-        setOpen(false);
-        toast({ title: "Transação removida." });
+      deleteMutation.mutate(transaction.id, {
+        onSuccess: () => {
+          setOpen(false);
+          toast({ title: "Transação removida." });
+        },
+        onError: () => {
+          toast({ title: "Erro ao remover transação", variant: "destructive" });
+        }
+      });
     }
   };
+  
+  const isLoading = updateMutation.isPending || deleteMutation.isPending;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -224,12 +241,28 @@ export function EditTransactionSheet({ transaction, children }: EditTransactionS
             </div>
 
             <div className="pt-4 flex gap-3">
-                <Button variant="destructive" className="flex-1 bg-red-100 text-red-600 hover:bg-red-200 border-none" onClick={handleDelete}>
-                    <Trash2 className="w-4 h-4 mr-2" />
+                <Button 
+                  variant="destructive" 
+                  className="flex-1 bg-red-100 text-red-600 hover:bg-red-200 border-none" 
+                  onClick={handleDelete}
+                  disabled={isLoading}
+                >
+                    {deleteMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4 mr-2" />
+                    )}
                     Excluir
                 </Button>
-                <Button className="flex-[2]" onClick={handleSave}>
-                    Salvar Alterações
+                <Button className="flex-[2]" onClick={handleSave} disabled={isLoading}>
+                    {updateMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      "Salvar Alterações"
+                    )}
                 </Button>
             </div>
         </div>
