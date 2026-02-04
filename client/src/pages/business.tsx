@@ -55,8 +55,14 @@ export default function Business() {
   const businessAccounts = accounts.filter(a => !a.isPersonal);
   const businessTransactions = useMemo(() => transactions.filter(t => !t.isPersonal), [transactions]);
 
-  const defaultSettings = { monthlyFixedCosts: 0, monthlyGoal: 5000, taxRate: 0.06 };
-  const metrics = useMemo(() => calculateBusinessMetrics(businessProducts, businessSettings || defaultSettings), [businessProducts, businessSettings]);
+  const defaultSettings = { monthlyFixedCosts: 0, monthlyGoal: 5000, taxRate: 0.06, fixedCosts: [] };
+  const normalizedProducts = useMemo(() => businessProducts.map(p => ({
+    ...p,
+    sellingPrice: Number(p.sellingPrice),
+    averageMonthlySales: Number(p.averageMonthlySales),
+    directCosts: Array.isArray(p.directCosts) ? p.directCosts : []
+  })), [businessProducts]);
+  const metrics = useMemo(() => calculateBusinessMetrics(normalizedProducts as any, businessSettings || defaultSettings), [normalizedProducts, businessSettings]);
   const insights = useMemo(() => generateBusinessInsights(metrics), [metrics]);
 
   const [newProduct, setNewProduct] = useState({
@@ -428,7 +434,7 @@ export default function Business() {
             <div className="grid grid-cols-2 gap-4">
                 <Card className="p-4 bg-blue-600 text-white border-none shadow-lg">
                     <p className="text-blue-100 text-xs mb-1">Caixa da Empresa</p>
-                    <h2 className="text-2xl font-bold">R$ {businessAccounts.reduce((acc, curr) => acc + curr.balance, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h2>
+                    <h2 className="text-2xl font-bold">R$ {businessAccounts.reduce((acc, curr) => acc + Number(curr.balance), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h2>
                     <p className="text-[10px] text-blue-200 mt-1">Saldo acumulado</p>
                 </Card>
                 <Card className="p-4 bg-white dark:bg-zinc-900 border-gray-100 dark:border-zinc-800 shadow-sm">
@@ -454,7 +460,7 @@ export default function Business() {
                 ) : (
                     <div className="space-y-2">
                         {businessTransactions.slice(0, 5).map(tx => (
-                            <EditTransactionSheet key={tx.id} transaction={tx}>
+                            <EditTransactionSheet key={tx.id} transaction={tx as any}>
                             <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-100 dark:border-zinc-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
                                 <div className="flex items-center gap-3">
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs ${
@@ -468,7 +474,7 @@ export default function Business() {
                                     </div>
                                 </div>
                                 <span className={`text-sm font-bold ${tx.type === 'income' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
-                                    {tx.type === 'income' ? '+' : '-'} R$ {tx.amount.toFixed(2)}
+                                    {tx.type === 'income' ? '+' : '-'} R$ {Number(tx.amount).toFixed(2)}
                                 </span>
                             </div>
                             </EditTransactionSheet>
@@ -500,7 +506,7 @@ export default function Business() {
                         </div>
                         <div className="space-y-2 flex-1">
                             <p className="text-xs text-gray-700 dark:text-gray-300 font-medium">
-                                "Baseado nas suas vendas de {format(new Date(), 'MMMM', { locale: undefined })} (R$ {businessTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0).toLocaleString('pt-BR')}), sua margem de lucro está em {(metrics.totalMonthlyRevenue > 0 ? (metrics.totalMonthlyProfit / metrics.totalMonthlyRevenue * 100) : 0).toFixed(0)}%. Sugiro focar no produto '{metrics.calculatedProducts[0]?.name || 'Principal'}' que tem a maior margem."
+                                "Baseado nas suas vendas de {format(new Date(), 'MMMM', { locale: undefined })} (R$ {businessTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + Number(t.amount), 0).toLocaleString('pt-BR')}), sua margem de lucro está em {(metrics.totalMonthlyRevenue > 0 ? (metrics.totalMonthlyProfit / metrics.totalMonthlyRevenue * 100) : 0).toFixed(0)}%. Sugiro focar no produto '{metrics.calculatedProducts[0]?.name || 'Principal'}' que tem a maior margem."
                             </p>
                             <Link href="/ai-chat">
                                 <Button size="sm" variant="outline" className="w-full h-7 text-xs border-purple-200 text-purple-700 hover:bg-purple-100">
