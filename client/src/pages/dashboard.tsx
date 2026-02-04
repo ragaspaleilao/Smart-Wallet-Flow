@@ -118,13 +118,28 @@ export default function Dashboard() {
     .filter(t => t.type === 'expense' && t.status === 'paid')
     .reduce((acc, curr) => acc + curr.amount, 0);
 
-  // Approximate personal balance (assuming store balance mixes both, we might want to split it properly later, 
-  // but for now let's just use the store balance as it's the sum of accounts. 
-  // Ideally, dashboard should show "Personal Net Worth")
-  const personalBalance = accounts
-    .filter(a => a.isPersonal)
-    .filter(a => a.type !== 'investment')
-    .reduce((acc, curr) => acc + curr.balance, 0);
+  // Calculate personal balance from initial balance + all transactions (not just filtered period)
+  const personalBalance = useMemo(() => {
+    const personalAccounts = accounts.filter(a => a.isPersonal && a.type !== 'investment');
+    
+    return personalAccounts.reduce((total, account) => {
+      const initialBalance = account.initialBalance || account.balance;
+      
+      // Get all transactions for this account
+      const accountTransactions = allTransactions.filter(t => 
+        t.accountId === account.id && t.status === 'paid'
+      );
+      
+      // Calculate balance: initial + income - expenses
+      const transactionTotal = accountTransactions.reduce((sum, t) => {
+        if (t.type === 'income') return sum + t.amount;
+        if (t.type === 'expense') return sum - t.amount;
+        return sum;
+      }, 0);
+      
+      return total + initialBalance + transactionTotal;
+    }, 0);
+  }, [accounts, allTransactions]);
 
   // Overdue Logic
   const overdueTransactions = transactions.filter(t => 
