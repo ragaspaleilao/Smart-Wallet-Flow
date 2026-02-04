@@ -123,7 +123,7 @@ export function ResponsiveLayout({ children, showNav = true }: ResponsiveLayoutP
   const [location] = useLocation();
   const isMobile = useIsMobile();
   
-  const isFullScreen = location === "/" || location === "/permissions" || location === "/voice-entry" || location === "/photo-entry";
+  const isFullScreen = location === "/permissions" || location === "/voice-entry" || location === "/photo-entry";
   const shouldShowNav = showNav && !isFullScreen;
 
   if (isMobile) {
