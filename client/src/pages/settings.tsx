@@ -5,17 +5,56 @@ import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { User, Moon, HelpCircle, LogOut, Car, Shield, CreditCard, ChevronRight, Wallet, Crown, Gift, Cloud, Calendar, Trash2 } from "lucide-react";
 import { Link } from "wouter";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { ShareButton } from "@/components/share-button";
-import { useFinancialStore } from "@/lib/store";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { getUserId } from "@/lib/api";
 
 export default function Settings() { 
-  const resetAllData = useFinancialStore((s) => s.resetAllData);
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      const userId = getUserId();
+      if (!userId) throw new Error('Não autenticado');
+      
+      const response = await fetch('/api/reset-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId,
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Falha ao zerar dados');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      toast({
+        title: 'Dados zerados!',
+        description: 'Todos os dados foram apagados. Uma conta padrão foi criada.',
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível zerar os dados. Tente novamente.',
+        variant: 'destructive',
+      });
+    },
+  });
 
   const handleReset = () => {
-    resetAllData();
+    resetMutation.mutate();
   };
 
   const handleLogout = () => {

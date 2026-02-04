@@ -679,5 +679,16 @@ export async function registerRoutes(
     }
   });
 
+  // Reset all user data
+  app.post('/api/reset-data', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      await storage.resetAllData(req.userId!);
+      res.json({ success: true, message: 'Todos os dados foram apagados' });
+    } catch (error) {
+      console.error('Reset data error:', error);
+      res.status(500).json({ error: 'Failed to reset data' });
+    }
+  });
+
   return httpServer;
 }

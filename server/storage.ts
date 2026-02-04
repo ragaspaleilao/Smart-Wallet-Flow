@@ -119,6 +119,9 @@ export interface IStorage {
   // Business Settings
   getBusinessSettings(userId: string): Promise<any>;
   updateBusinessSettings(userId: string, settings: any): Promise<any>;
+
+  // Reset all user data
+  resetAllData(userId: string): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -593,6 +596,37 @@ export class DbStorage implements IStorage {
       }).returning();
       return result[0];
     }
+  }
+
+  // ===== RESET ALL USER DATA =====
+
+  async resetAllData(userId: string): Promise<void> {
+    // Delete in order of dependencies (children first)
+    await this.db.delete(schema.creditPayments).where(eq(schema.creditPayments.userId, userId));
+    await this.db.delete(schema.creditPurchases).where(eq(schema.creditPurchases.userId, userId));
+    await this.db.delete(schema.transactions).where(eq(schema.transactions.userId, userId));
+    await this.db.delete(schema.creditCards).where(eq(schema.creditCards.userId, userId));
+    await this.db.delete(schema.goals).where(eq(schema.goals.userId, userId));
+    await this.db.delete(schema.investments).where(eq(schema.investments.userId, userId));
+    await this.db.delete(schema.vehicles).where(eq(schema.vehicles.userId, userId));
+    await this.db.delete(schema.subscriptions).where(eq(schema.subscriptions.userId, userId));
+    await this.db.delete(schema.simulations).where(eq(schema.simulations.userId, userId));
+    await this.db.delete(schema.businessProducts).where(eq(schema.businessProducts.userId, userId));
+    await this.db.delete(schema.categories).where(eq(schema.categories.userId, userId));
+    await this.db.delete(schema.budgets).where(eq(schema.budgets.userId, userId));
+    await this.db.delete(schema.businessSettings).where(eq(schema.businessSettings.userId, userId));
+    await this.db.delete(schema.accounts).where(eq(schema.accounts.userId, userId));
+
+    // Create a default account with R$ 0.00
+    await this.db.insert(schema.accounts).values({
+      userId,
+      name: 'Conta Principal',
+      type: 'bank',
+      balance: '0.00',
+      initialBalance: '0.00',
+      color: 'bg-green-600',
+      isPersonal: true,
+    });
   }
 }
 
