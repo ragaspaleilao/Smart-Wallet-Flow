@@ -13,8 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFinancialStore, Transaction, Category, AccountType, TransactionType } from "@/lib/store";
+import { useUpdateTransaction, useDeleteTransaction, useAccounts } from "@/hooks/use-api";
 import { useState, useEffect } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface EditTransactionSheetProps {
@@ -23,7 +24,13 @@ interface EditTransactionSheetProps {
 }
 
 export function EditTransactionSheet({ transaction, children }: EditTransactionSheetProps) {
-  const { updateTransaction, removeTransaction, accounts, transactionCategories } = useFinancialStore();
+  const { transactionCategories } = useFinancialStore();
+  const storeAccounts = useFinancialStore(s => s.accounts);
+  const { data: apiAccounts } = useAccounts();
+  const accounts = apiAccounts?.map(a => ({ ...a, balance: parseFloat(a.balance) })) || storeAccounts;
+  
+  const updateMutation = useUpdateTransaction();
+  const deleteMutation = useDeleteTransaction();
   const [open, setOpen] = useState(false);
   
   const [formData, setFormData] = useState({
