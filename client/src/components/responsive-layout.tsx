@@ -10,7 +10,6 @@ import {
   Car,
   Bot,
   Repeat,
-  Briefcase,
   ChevronLeft,
   ChevronRight
 } from "lucide-react";
@@ -24,7 +23,6 @@ const sidebarItems = [
   { icon: Car, label: "Veículos", path: "/vehicles" },
   { icon: Repeat, label: "Assinaturas", path: "/subscriptions" },
   { icon: Bot, label: "Mentor IA", path: "/ai-chat" },
-  { icon: Briefcase, label: "Negócio", path: "/business" },
 ];
 
 interface ResponsiveLayoutProps {
