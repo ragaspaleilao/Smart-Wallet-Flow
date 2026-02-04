@@ -2,20 +2,35 @@ import { useState, useEffect } from "react";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Flame, Snowflake, ChevronDown, ChevronUp, ExternalLink, Zap, Clock, Hourglass, Bell, AlertCircle, Brain, Trash2 } from "lucide-react";
+import { ArrowLeft, Flame, Snowflake, ChevronDown, ChevronUp, ExternalLink, Zap, Clock, Hourglass, Bell, AlertCircle, Brain, Trash2, Loader2, Plus } from "lucide-react";
 import { Link } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
-import { useFinancialStore } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
+import { useSubscriptions, useUpdateSubscription, useDeleteSubscription } from "@/hooks/use-api";
+
+interface Subscription {
+  id: string;
+  name: string;
+  price: number;
+  icon?: string;
+  color?: string;
+  frequency?: string;
+  usage?: 'high' | 'medium' | 'low';
+  category?: string;
+  billingDay?: number;
+}
 
 export default function Subscriptions() {
-    const subscriptions = useFinancialStore((state) => state.subscriptions || []);
-    const updateSubscription = useFinancialStore((state) => state.updateSubscription);
-    const removeSubscriptionAndCharges = useFinancialStore((state) => state.removeSubscriptionAndCharges);
-    const clearOrphanSubscriptionCharges = useFinancialStore((state) => state.clearOrphanSubscriptionCharges);
-    const resetSubscriptions = useFinancialStore((state) => state.resetSubscriptions);
+    const { data: apiSubscriptions = [], isLoading: subscriptionsLoading } = useSubscriptions();
+    const updateSubscriptionMutation = useUpdateSubscription();
+    const deleteSubscriptionMutation = useDeleteSubscription();
+    
+    const subscriptions: Subscription[] = apiSubscriptions.map(s => ({
+      ...s,
+      price: parseFloat(String(s.price)),
+    }));
     
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -27,12 +42,16 @@ export default function Subscriptions() {
         setExpandedId(expandedId === id ? null : id);
     };
     
-    const handleRemove = (id: string, name: string) => {
-        removeSubscriptionAndCharges(id);
-        toast({
-            title: "Assinatura removida",
-            description: `${name} foi removido do seu clube e os lan\u00e7amentos futuros foram apagados.`
-        });
+    const handleRemove = async (id: string, name: string) => {
+        try {
+          await deleteSubscriptionMutation.mutateAsync(id);
+          toast({
+              title: "Assinatura removida",
+              description: `${name} foi removido do seu clube.`
+          });
+        } catch (error) {
+          toast({ title: "Erro ao remover assinatura", variant: "destructive" });
+        }
     };
 
   return (
@@ -52,40 +71,11 @@ export default function Subscriptions() {
             </div>
             
             <div className="flex items-center gap-2">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-zinc-800 text-xs"
-                    onClick={() => {
-                        if (confirm("Deseja limpar cobranças órfãs? Isso remove lançamentos marcados como (Assinatura) que não estão no Clube.")) {
-                            clearOrphanSubscriptionCharges();
-                            toast({
-                                title: "Cobranças órfãs removidas",
-                                description: "Removi lançamentos (Assinatura) que sobraram em faturas/projeções.",
-                            });
-                        }
-                    }}
-                    data-testid="button-clear-orphan-charges"
-                >
-                    Limpar órfãs
-                </Button>
-
-                {subscriptions.length > 0 && (
-                    <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs"
-                        onClick={() => {
-                            if (confirm("Tem certeza que deseja zerar todas as assinaturas?")) {
-                                resetSubscriptions();
-                                toast({ title: "Todas as assinaturas foram removidas." });
-                            }
-                        }}
-                        data-testid="button-reset-subscriptions"
-                    >
-                        Zerar Tudo
-                    </Button>
-                )}
+                <Link href="/add-subscription">
+                  <Button size="icon" className="rounded-full bg-primary hover:bg-primary/90">
+                    <Plus className="w-5 h-5" />
+                  </Button>
+                </Link>
             </div>
           </div>
 
@@ -274,9 +264,13 @@ export default function Subscriptions() {
                                                     max={31}
                                                     value={subDay}
                                                     onClick={(e) => e.stopPropagation()}
-                                                    onChange={(e) => {
+                                                    onChange={async (e) => {
                                                         const next = Math.max(1, Math.min(31, Number(e.target.value) || 1));
-                                                        updateSubscription(sub.id, { date: String(next) });
+                                                        try {
+                                                          await updateSubscriptionMutation.mutateAsync({ id: sub.id, data: { date: String(next) } });
+                                                        } catch (error) {
+                                                          toast({ title: "Erro ao atualizar", variant: "destructive" });
+                                                        }
                                                     }}
                                                     className="w-[52px] h-6 rounded-md border border-gray-200 bg-white px-2 text-[10px] font-semibold text-gray-900 shadow-sm outline-none focus:ring-2 focus:ring-purple-200 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:focus:ring-purple-900/40"
                                                 />

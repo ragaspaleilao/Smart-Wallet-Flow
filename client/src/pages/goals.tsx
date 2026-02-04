@@ -2,9 +2,8 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Target, Trophy, Edit2, Wallet, Trash2, Mountain } from "lucide-react";
+import { Plus, Target, Trophy, Edit2, Wallet, Trash2, Mountain, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { useFinancialStore, Goal } from "@/lib/store";
 import {
   Dialog,
   DialogContent,
@@ -17,13 +16,31 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
+import { useGoals, useCreateGoal, useUpdateGoal, useDeleteGoal, useAccounts } from "@/hooks/use-api";
+
+interface Goal {
+  id: string;
+  name: string;
+  target: number;
+  current: number;
+  color?: string;
+  linkedAccountId?: string | null;
+}
 
 export default function Goals() {
-  const goals = useFinancialStore((state) => state.goals);
-  const accounts = useFinancialStore((state) => state.accounts);
-  const addGoal = useFinancialStore((state) => state.addGoal);
-  const updateGoal = useFinancialStore((state) => state.updateGoal);
-  const removeGoal = useFinancialStore((state) => state.removeGoal);
+  const { data: apiGoals = [], isLoading: goalsLoading } = useGoals();
+  const { data: apiAccounts = [] } = useAccounts();
+  
+  const createGoalMutation = useCreateGoal();
+  const updateGoalMutation = useUpdateGoal();
+  const deleteGoalMutation = useDeleteGoal();
+  
+  const goals: Goal[] = apiGoals.map(g => ({
+    ...g,
+    target: parseFloat(String(g.target)),
+    current: parseFloat(String(g.current)),
+  }));
+  const accounts = apiAccounts.map(a => ({ ...a, balance: parseFloat(a.balance) }));
 
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -55,15 +72,19 @@ export default function Goals() {
     setOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (editingId) {
-        removeGoal(editingId);
+      try {
+        await deleteGoalMutation.mutateAsync(editingId);
         toast({ title: "Meta excluída!" });
         setOpen(false);
+      } catch (error) {
+        toast({ title: "Erro ao excluir meta", variant: "destructive" });
+      }
     }
   };
 
-  const handleSaveGoal = () => {
+  const handleSaveGoal = async () => {
     if (!formState.name || !formState.target) {
         toast({ title: "Preencha todos os campos", variant: "destructive" });
         return;
@@ -78,21 +99,24 @@ export default function Goals() {
 
     const goalData = {
         name: formState.name,
-        target: Number(formState.target.replace(/\D/g, "")) / 100,
-        current: currentVal,
-        color: "bg-blue-500", // Default color
+        target: String(Number(formState.target.replace(/\D/g, "")) / 100),
+        current: String(currentVal),
+        color: "bg-blue-500",
         linkedAccountId: formState.linkedAccountId === "none" ? undefined : formState.linkedAccountId
     };
 
-    if (editingId) {
-        updateGoal(editingId, goalData);
-        toast({ title: "Meta atualizada!" });
-    } else {
-        addGoal(goalData);
-        toast({ title: "Meta criada com sucesso!" });
+    try {
+      if (editingId) {
+          await updateGoalMutation.mutateAsync({ id: editingId, data: goalData });
+          toast({ title: "Meta atualizada!" });
+      } else {
+          await createGoalMutation.mutateAsync(goalData);
+          toast({ title: "Meta criada com sucesso!" });
+      }
+      setOpen(false);
+    } catch (error) {
+      toast({ title: "Erro ao salvar meta", variant: "destructive" });
     }
-    
-    setOpen(false);
   };
 
   // Sort goals so the one with highest progress or priority is first if needed

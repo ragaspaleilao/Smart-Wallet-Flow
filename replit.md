@@ -150,3 +150,11 @@ shared/
 - **LinkedAccountId**: Credit card creation no longer sends undefined linkedAccountId
 - **Credit Card Toggle in Scanners**: Photo and voice input methods now support toggle between Conta (debit/account) and Crédito (credit card), eliminating need for separate credit card buttons
 - **Category Synchronization**: Categories are shared between photo scanner, voice recorder, and manual entry through Zustand store
+- **Investments Page**: Migrated from Zustand localStorage to PostgreSQL API (useInvestments, useCreateInvestment, useUpdateInvestment, useDeleteInvestment hooks)
+- **Subscriptions Page**: Migrated from Zustand localStorage to PostgreSQL API (useSubscriptions, useUpdateSubscription, useDeleteSubscription hooks)
+- **Vehicles Page**: Migrated from Zustand localStorage to PostgreSQL API
+- **Goals Page**: Migrated from Zustand localStorage to PostgreSQL API
+
+### API Migration Status
+- **Completed**: Dashboard, Accounts, Transactions, Credit Cards, Credit Purchases, Credit Payments, Investments, Subscriptions, Vehicles, Goals
+- **Pending**: Budget, Simulator, Business, Calendar Integration, Backup (still using localStorage via Zustand store)

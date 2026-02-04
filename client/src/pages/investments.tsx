@@ -1,8 +1,7 @@
 import { MobileLayout } from "@/components/mobile-layout";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { PieChart, TrendingUp, Plus, Calendar as CalendarIcon, Calculator, Trash2, Save, Info, Wand2 } from "lucide-react";
-import { useFinancialStore, Investment } from "@/lib/store";
+import { PieChart, TrendingUp, Plus, Calendar as CalendarIcon, Calculator, Trash2, Save, Info, Wand2, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,15 +16,36 @@ import { Switch } from "@/components/ui/switch";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { format, addMonths, differenceInDays, differenceInMonths } from "date-fns";
-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useInvestments, useCreateInvestment, useUpdateInvestment, useDeleteInvestment, useAccounts, useCreateTransaction } from "@/hooks/use-api";
+
+interface Investment {
+  id: string;
+  name: string;
+  value: number;
+  yield: number;
+  yieldRate: number;
+  startDate?: string;
+  hasTax?: boolean;
+  accountId?: string | null;
+}
 
 export default function Investments() {
-  const investments = useFinancialStore((state) => state.investments);
-  const accounts = useFinancialStore((state) => state.accounts); // Get accounts
-  const addInvestment = useFinancialStore((state) => state.addInvestment);
-  const updateInvestment = useFinancialStore((state) => state.updateInvestment);
-  const removeInvestment = useFinancialStore((state) => state.removeInvestment);
+  const { data: apiInvestments = [], isLoading: investmentsLoading } = useInvestments();
+  const { data: apiAccounts = [] } = useAccounts();
+  
+  const createInvestmentMutation = useCreateInvestment();
+  const updateInvestmentMutation = useUpdateInvestment();
+  const deleteInvestmentMutation = useDeleteInvestment();
+  const createTransactionMutation = useCreateTransaction();
+  
+  const investments: Investment[] = apiInvestments.map(i => ({
+    ...i,
+    value: parseFloat(String(i.value)),
+    yield: parseFloat(String(i.yield || 0)),
+    yieldRate: parseFloat(String(i.yieldRate || 0)),
+  }));
+  const accounts = apiAccounts.map(a => ({ ...a, balance: parseFloat(a.balance) }));
   
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -91,7 +111,7 @@ export default function Investments() {
     return (Number(number) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // If account linked, name and value might be optional or auto-filled
     if ((!formData.accountId || formData.accountId === "none") && (!formData.name || !formData.value)) {
         toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
@@ -120,48 +140,55 @@ export default function Investments() {
         lastYieldAppliedAt: new Date().toISOString()
     };
 
-    if (editingId) {
-        updateInvestment(editingId, payload);
-        toast({ title: "Investimento atualizado!" });
-    } else {
-        addInvestment(payload);
-        
-        // Handle "Debit from Balance" logic
-        if (createTransaction && formData.value) {
-             // Use the linked account if selected, otherwise need a source account
-             // If manual value, we need to know WHICH account to debit from.
-             // If linked account is selected, we technically don't debit it because the logic assumes
-             // the money is ALREADY there (it's just a view).
-             // So this option only makes sense for MANUAL investments where we are "moving" money from an account to this investment.
-             
-             if (formData.accountId !== "none") {
-                 // Linked account: The balance IS the investment value. 
-                 // Usually doesn't require a transaction unless we want to record "Initial Deposit".
-                 // Let's create a transaction just for record keeping if user requested.
-                 const linkedAcc = accounts.find(a => a.id === formData.accountId);
-                 if (linkedAcc) {
-                     useFinancialStore.getState().addTransaction({
-                        amount: Number(formData.value.replace(/\D/g, "")) / 100,
-                        type: 'expense',
-                        category: 'Investimento',
-                        description: `Aplicação: ${finalName}`,
-                        date: formData.startDate,
-                        source: 'manual',
-                        isPersonal: true,
-                        accountId: linkedAcc.id,
-                        status: 'paid'
-                     });
-                 }
-             } else if (transactionSourceAccountId) {
-                 // Manual Investment: We need to debit from a source account
-                 useFinancialStore.getState().addTransaction({
-                    amount: Number(formData.value.replace(/\D/g, "")) / 100,
-                    type: 'expense',
-                    category: 'Investimento',
-                    description: `Aplicação: ${finalName}`,
-                    date: formData.startDate,
-                    source: 'manual',
-                    isPersonal: true,
+    try {
+      if (editingId) {
+          await updateInvestmentMutation.mutateAsync({ id: editingId, data: {
+            name: payload.name,
+            value: String(payload.value),
+            yield: String(payload.yield),
+            yieldRate: String(payload.yieldRate),
+            startDate: payload.startDate,
+            hasTax: payload.hasTax,
+            accountId: payload.accountId,
+          }});
+          toast({ title: "Investimento atualizado!" });
+      } else {
+          await createInvestmentMutation.mutateAsync({
+            name: payload.name,
+            value: String(payload.value),
+            yield: String(payload.yield),
+            yieldRate: String(payload.yieldRate),
+            startDate: payload.startDate,
+            hasTax: payload.hasTax,
+            accountId: payload.accountId,
+          });
+          
+          // Handle "Debit from Balance" logic
+          if (createTransaction && formData.value) {
+               if (formData.accountId !== "none") {
+                   const linkedAcc = accounts.find(a => a.id === formData.accountId);
+                   if (linkedAcc) {
+                       await createTransactionMutation.mutateAsync({
+                          amount: String(Number(formData.value.replace(/\D/g, "")) / 100),
+                          type: 'expense',
+                          category: 'Investimento',
+                          description: `Aplicação: ${finalName}`,
+                          date: formData.startDate,
+                          source: 'manual',
+                          isPersonal: true,
+                          accountId: linkedAcc.id,
+                          status: 'paid'
+                       });
+                   }
+               } else if (transactionSourceAccountId) {
+                   await createTransactionMutation.mutateAsync({
+                      amount: String(Number(formData.value.replace(/\D/g, "")) / 100),
+                      type: 'expense',
+                      category: 'Investimento',
+                      description: `Aplicação: ${finalName}`,
+                      date: formData.startDate,
+                      source: 'manual',
+                      isPersonal: true,
                     accountId: transactionSourceAccountId,
                     status: 'paid'
                  });
@@ -169,9 +196,11 @@ export default function Investments() {
         }
         
         toast({ title: "Investimento adicionado!" });
+      }
+      handleClose();
+    } catch (error) {
+      toast({ title: "Erro ao salvar investimento", variant: "destructive" });
     }
-
-    handleClose();
   };
 
   const handleEdit = (inv: Investment) => {
@@ -450,10 +479,14 @@ export default function Investments() {
                             <Button 
                                 variant="destructive" 
                                 className="flex-1 bg-red-100 text-red-600 hover:bg-red-200 border-none"
-                                onClick={() => {
-                                    removeInvestment(editingId);
-                                    handleClose();
-                                    toast({ title: "Investimento removido" });
+                                onClick={async () => {
+                                    try {
+                                      await deleteInvestmentMutation.mutateAsync(editingId);
+                                      handleClose();
+                                      toast({ title: "Investimento removido" });
+                                    } catch (error) {
+                                      toast({ title: "Erro ao remover", variant: "destructive" });
+                                    }
                                 }}
                                 data-testid="button-delete-investment"
                             >
@@ -465,7 +498,7 @@ export default function Investments() {
                           <Button
                             variant="outline"
                             className="flex-1 border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-900/40 dark:text-purple-300 dark:hover:bg-purple-900/20"
-                            onClick={() => {
+                            onClick={async () => {
                               const inv = investments.find(i => i.id === editingId);
                               if (!inv) return;
 
@@ -475,17 +508,21 @@ export default function Investments() {
                                 return;
                               }
 
-                              updateInvestment(editingId, {
-                                value: result.nextValue,
-                                lastYieldAppliedAt: new Date().toISOString()
-                              });
-
-                              setFormData(prev => ({
-                                ...prev,
-                                value: result.nextValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-                              }));
-
-                              toast({ title: "Rendimento aplicado" });
+                              try {
+                                await updateInvestmentMutation.mutateAsync({ id: editingId, data: {
+                                  value: String(result.nextValue),
+                                  lastYieldAppliedAt: new Date().toISOString()
+                                }});
+  
+                                setFormData(prev => ({
+                                  ...prev,
+                                  value: result.nextValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                                }));
+  
+                                toast({ title: "Rendimento aplicado" });
+                              } catch (error) {
+                                toast({ title: "Erro ao aplicar rendimento", variant: "destructive" });
+                              }
                             }}
                             data-testid="button-apply-yield"
                           >
