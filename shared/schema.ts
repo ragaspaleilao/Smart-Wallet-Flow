@@ -328,6 +328,8 @@ export const insertCreditCardSchema = createInsertSchema(creditCards).omit({
   userId: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  status: z.string().optional().default('active'),
 });
 
 export const insertCreditPurchaseSchema = createInsertSchema(creditPurchases).omit({

@@ -145,3 +145,6 @@ shared/
 - **Credit Card Purchases**: Photo/voice scanner now saves to credit_purchases table (uses `creditCardId` field)
 - **Credit Card Forms**: Manual purchase form, delete, and update operations all use API mutations
 - **Credit Payments**: Month field uses 0-11 range to match database schema
+- **Credit Card Creation**: Fixed schema to make status field optional (defaults to 'active')
+- **Category Validation**: Added 'Outros' fallback for credit purchase category field
+- **LinkedAccountId**: Credit card creation no longer sends undefined linkedAccountId

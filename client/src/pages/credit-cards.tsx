@@ -651,7 +651,7 @@ export default function CreditCards() {
     const numericFee = newCardData.hasAnnualFee ? (Number(newCardData.annualFeeValue.replace(/\D/g, "")) / 100) : 0;
 
     try {
-      await createCreditCardMutation.mutateAsync({
+      const cardData: any = {
         name: newCardData.name,
         brand: newCardData.brand,
         creditLimit: String(numericLimit),
@@ -659,9 +659,14 @@ export default function CreditCards() {
         dueDay: Number(newCardData.dueDay),
         color: newCardData.color,
         hasAnnualFee: newCardData.hasAnnualFee,
-        annualFeeValue: numericFee > 0 ? String(numericFee) : undefined,
-        linkedAccountId: accounts[0]?.id,
-      });
+      };
+      if (numericFee > 0) {
+        cardData.annualFeeValue = String(numericFee);
+      }
+      if (accounts[0]?.id) {
+        cardData.linkedAccountId = accounts[0].id;
+      }
+      await createCreditCardMutation.mutateAsync(cardData);
 
       setNewCardData({
         name: "",
