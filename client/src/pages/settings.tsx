@@ -8,12 +8,18 @@ import { Link } from "wouter";
 
 import { ShareButton } from "@/components/share-button";
 import { useFinancialStore } from "@/lib/store";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Settings() { 
   const resetAllData = useFinancialStore((s) => s.resetAllData);
+  const { user } = useAuth();
 
   const handleReset = () => {
     resetAllData();
+  };
+
+  const handleLogout = () => {
+    window.location.href = '/api/logout';
   };
 
   return (
@@ -24,12 +30,18 @@ export default function Settings() {
         <div className="space-y-8">
           {/* Profile Section */}
           <div className="flex items-center gap-4 pb-6 border-b border-gray-100 dark:border-zinc-800">
-            <div className="w-16 h-16 bg-gray-200 dark:bg-zinc-800 rounded-full flex items-center justify-center">
-              <User className="w-8 h-8 text-gray-500" />
-            </div>
+            {user?.profileImageUrl ? (
+              <img src={user.profileImageUrl} alt="Perfil" className="w-16 h-16 rounded-full object-cover" />
+            ) : (
+              <div className="w-16 h-16 bg-gray-200 dark:bg-zinc-800 rounded-full flex items-center justify-center">
+                <User className="w-8 h-8 text-gray-500" />
+              </div>
+            )}
             <div>
-              <h2 className="text-lg font-bold">João Silva</h2>
-              <p className="text-sm text-gray-500">joao.silva@email.com</p>
+              <h2 className="text-lg font-bold" data-testid="text-user-name">
+                {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Usuário' : 'Carregando...'}
+              </h2>
+              <p className="text-sm text-gray-500" data-testid="text-user-email">{user?.email || ''}</p>
             </div>
           </div>
           
@@ -209,7 +221,12 @@ export default function Settings() {
               <HelpCircle className="w-5 h-5 mr-3" />
               Ajuda e Suporte
             </Button>
-            <Button variant="ghost" className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 pl-0" data-testid="button-logout">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 pl-0" 
+              data-testid="button-logout"
+              onClick={handleLogout}
+            >
               <LogOut className="w-5 h-5 mr-3" />
               Sair da conta
             </Button>
