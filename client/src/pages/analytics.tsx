@@ -3,7 +3,7 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { useFinancialStore, Category, Transaction, CreditPurchase } from "@/lib/store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Filter, Calendar, X, Check, Download, PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon, DollarSign, Briefcase, Car, Target, Layers, ArrowDownUp, Search, Share2, ArrowRight, ArrowUp, ArrowDown, ChevronDown, ChevronUp, CreditCard as CreditCardIcon } from "lucide-react";
+import { ArrowLeft, Brain, TrendingUp, AlertTriangle, Lightbulb, Filter, Calendar, X, Check, Download, PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon, DollarSign, Briefcase, Car, Target, Layers, ArrowDownUp, Search, Share2, ArrowRight, ArrowUp, ArrowDown, ChevronDown, ChevronUp, CreditCard as CreditCardIcon, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, ComposedChart, Legend, CartesianGrid } from 'recharts';
 import { useState, useMemo } from "react";
@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useAccounts, useTransactions, useCreditCards, useCreditPurchases, useCreditPayments } from "@/hooks/use-api";
 
 const COLORS = ['#8b5cf6', '#f97316', '#10b981', '#ef4444', '#3b82f6', '#eab308', '#ec4899', '#6366f1', '#14b8a6', '#f43f5e'];
 
@@ -43,7 +44,84 @@ const TAILWIND_COLOR_MAP: Record<string, string> = {
 };
 
 export default function Analytics() {
-  const { transactions, accounts, creditCards, creditPurchases, creditPayments } = useFinancialStore();
+  const storeData = useFinancialStore();
+  
+  // Fetch data from API
+  const { data: apiTransactions = [], isLoading: transactionsLoading, isSuccess: transactionsSuccess } = useTransactions();
+  const { data: apiAccounts = [], isSuccess: accountsSuccess } = useAccounts();
+  const { data: apiCreditCards = [], isSuccess: cardsSuccess } = useCreditCards();
+  const { data: apiCreditPurchases = [], isSuccess: purchasesSuccess } = useCreditPurchases();
+  const { data: apiCreditPayments = [], isSuccess: paymentsSuccess } = useCreditPayments();
+  
+  // Use API data when available, fallback to store
+  const transactions: Transaction[] = useMemo(() => {
+    if (transactionsSuccess) {
+      return apiTransactions.map(t => ({
+        ...t,
+        amount: parseFloat(t.amount),
+        date: t.date,
+        isPersonal: t.isPersonal,
+        status: t.status as 'paid' | 'pending',
+        type: t.type as 'income' | 'expense',
+      }));
+    }
+    return storeData.transactions;
+  }, [apiTransactions, storeData.transactions, transactionsSuccess]);
+  
+  const accounts = useMemo(() => {
+    if (accountsSuccess) {
+      return apiAccounts.map(a => ({
+        ...a,
+        balance: parseFloat(a.balance),
+        initialBalance: parseFloat(a.initialBalance),
+      }));
+    }
+    return storeData.accounts;
+  }, [apiAccounts, storeData.accounts, accountsSuccess]);
+  
+  const creditCards = useMemo(() => {
+    if (cardsSuccess) {
+      return apiCreditCards.map(c => ({
+        ...c,
+        creditLimit: parseFloat(c.creditLimit),
+        annualFeeValue: c.annualFeeValue ? parseFloat(c.annualFeeValue) : undefined,
+      }));
+    }
+    return storeData.creditCards;
+  }, [apiCreditCards, storeData.creditCards, cardsSuccess]);
+  
+  const creditPurchases: CreditPurchase[] = useMemo(() => {
+    if (purchasesSuccess) {
+      return apiCreditPurchases.map(p => ({
+        id: p.id,
+        creditCardId: p.creditCardId,
+        description: p.description,
+        totalAmount: parseFloat(p.totalAmount),
+        purchaseDate: p.purchaseDate,
+        installments: p.installments,
+        installmentValue: parseFloat(p.installmentValue),
+        category: (p.category ?? 'outros') as any,
+        status: (p.status === 'active' || p.status === 'partial_refund' || p.status === 'refunded') 
+          ? p.status as "active" | "partial_refund" | "refunded"
+          : 'active',
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      }));
+    }
+    return storeData.creditPurchases;
+  }, [apiCreditPurchases, storeData.creditPurchases, purchasesSuccess]);
+  
+  const creditPayments = useMemo(() => {
+    if (paymentsSuccess) {
+      return apiCreditPayments.map(p => ({
+        ...p,
+        amount: parseFloat(p.amount),
+      }));
+    }
+    return storeData.creditPayments;
+  }, [apiCreditPayments, storeData.creditPayments, paymentsSuccess]);
+
+  const isLoading = transactionsLoading;
   
   // View State
   const [activeTab, setActiveTab] = useState("overview");

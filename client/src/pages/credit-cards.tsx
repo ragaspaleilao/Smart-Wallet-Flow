@@ -29,7 +29,7 @@ import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay, addDays, parseISO, startOfMonth, isSameMonth } from "date-fns";
-import { useCreditCards, useCreditPurchases, useCreditPayments, useCreateCreditCard, useCreateCreditPurchase, useCreateCreditPayment, useDeleteCreditCard, useDeleteCreditPurchase, useAccounts, useUpdateCreditCard } from "@/hooks/use-api";
+import { useCreditCards, useCreditPurchases, useCreditPayments, useCreateCreditCard, useCreateCreditPurchase, useUpdateCreditPurchase, useCreateCreditPayment, useDeleteCreditCard, useDeleteCreditPurchase, useAccounts, useUpdateCreditCard } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
 import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
@@ -197,11 +197,10 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
     const installments = parseInt(editInstallments) || 1;
     const installmentValue = amount / installments;
     createPurchase.mutate({
-      cardId,
+      creditCardId: cardId,
       description: editDescription || "Compra via recibo",
       totalAmount: String(amount),
       installments,
-      currentInstallment: 1,
       installmentValue: String(installmentValue),
       purchaseDate: editDate,
       category: editCategory
@@ -378,11 +377,10 @@ function CreditCardVoiceRecorder({ cardId, onPurchaseCreated, createPurchase }: 
     const installments = parseInt(editInstallments) || 1;
     const installmentValue = amount / installments;
     createPurchase.mutate({
-      cardId,
+      creditCardId: cardId,
       description: editDescription || "Compra via voz",
       totalAmount: String(amount),
       installments,
-      currentInstallment: 1,
       installmentValue: String(installmentValue),
       purchaseDate: format(new Date(), "yyyy-MM-dd"),
       category: editCategory
@@ -490,13 +488,11 @@ export default function CreditCards() {
   const updateCreditCardMutation = useUpdateCreditCard();
   const deleteCreditCardMutation = useDeleteCreditCard();
   const createCreditPurchaseMutation = useCreateCreditPurchase();
+  const updateCreditPurchaseMutation = useUpdateCreditPurchase();
   const deleteCreditPurchaseMutation = useDeleteCreditPurchase();
   const createCreditPaymentMutation = useCreateCreditPayment();
   
   const storeData = useFinancialStore();
-  const addCreditPurchase = storeData.addCreditPurchase;
-  const updateCreditPurchase = storeData.updateCreditPurchase;
-  const removeCreditPurchase = storeData.removeCreditPurchase;
   const addCreditPayment = storeData.addCreditPayment;
   const creditCategories = storeData.creditCategories;
   const addCreditCategory = storeData.addCreditCategory;
@@ -1023,55 +1019,78 @@ export default function CreditCards() {
       }
 
       if (editingPurchaseId) {
-          updateCreditPurchase(editingPurchaseId, {
-              description: newPurchase.description,
-              totalAmount: total,
-              installments: inst,
-              installmentValue: total / inst,
-              category: newPurchase.category as any,
-              purchaseDate: newPurchase.date,
+          updateCreditPurchaseMutation.mutate({
+              id: editingPurchaseId,
+              data: {
+                  description: newPurchase.description,
+                  totalAmount: String(total),
+                  installments: inst,
+                  installmentValue: String(total / inst),
+                  category: newPurchase.category || 'Outros',
+                  purchaseDate: newPurchase.date,
+              }
+          }, {
+              onSuccess: () => {
+                  toast({ title: "Lançamento atualizado" });
+                  resetPurchaseForm();
+                  setIsPurchaseOpen(false);
+              },
+              onError: () => {
+                  toast({ title: "Erro ao atualizar compra", variant: "destructive" });
+              }
           });
-          toast({ title: "Lançamento atualizado" });
       } else {
-          addCreditPurchase({
+          createCreditPurchaseMutation.mutate({
               creditCardId: selectedCardId,
               description: newPurchase.description,
-              totalAmount: total,
+              totalAmount: String(total),
               installments: inst,
-              installmentValue: total / inst,
-              category: newPurchase.category as any,
+              installmentValue: String(total / inst),
+              category: newPurchase.category || 'Outros',
               purchaseDate: newPurchase.date,
+          }, {
+              onSuccess: () => {
+                  toast({ title: "Compra adicionada com sucesso!" });
+                  resetPurchaseForm();
+                  setIsPurchaseOpen(false);
+              },
+              onError: () => {
+                  toast({ title: "Erro ao adicionar compra", variant: "destructive" });
+              }
           });
-          toast({ title: "Compra adicionada com sucesso!" });
       }
-
-      resetPurchaseForm();
-      setIsPurchaseOpen(false);
   };
 
   const handleDeleteInstallmentOnly = (purchaseId: string) => {
-      // Mockup: remove esta parcela apenas marcando a compra como reembolsada parcial.
-      // Como o modelo atual n\u00e3o armazena parcelas individualmente, removemos 1 parcela do total.
       const p = creditPurchases.find(x => x.id === purchaseId);
       if (!p) return;
 
       if (p.installments <= 1) {
-          removeCreditPurchase(purchaseId);
-          toast({ title: "Lançamento removido" });
+          deleteCreditPurchaseMutation.mutate(purchaseId, {
+              onSuccess: () => toast({ title: "Lançamento removido" }),
+              onError: () => toast({ title: "Erro ao remover", variant: "destructive" })
+          });
           return;
       }
 
       const newInstallments = p.installments - 1;
-      updateCreditPurchase(purchaseId, {
-          installments: newInstallments,
-          totalAmount: p.installmentValue * newInstallments,
+      updateCreditPurchaseMutation.mutate({
+          id: purchaseId,
+          data: {
+              installments: newInstallments,
+              totalAmount: String(p.installmentValue * newInstallments),
+          }
+      }, {
+          onSuccess: () => toast({ title: "Parcela removida", description: "Removeu 1 parcela deste lançamento." }),
+          onError: () => toast({ title: "Erro ao atualizar", variant: "destructive" })
       });
-      toast({ title: "Parcela removida", description: "Removeu 1 parcela deste lançamento." });
   };
 
   const handleDeleteEntirePurchase = (purchaseId: string) => {
-      removeCreditPurchase(purchaseId);
-      toast({ title: "Lançamento excluído" });
+      deleteCreditPurchaseMutation.mutate(purchaseId, {
+          onSuccess: () => toast({ title: "Lançamento excluído" }),
+          onError: () => toast({ title: "Erro ao excluir", variant: "destructive" })
+      });
   };
 
   // --- Payment Form ---
@@ -1093,20 +1112,23 @@ export default function CreditCards() {
       const payDate = parseISO(String(paymentData.date || '').length === 10 ? `${paymentData.date}T12:00:00` : paymentData.date);
       const paymentCompetence = getInvoiceMonthDate(payDate, selectedCard?.closingDay || 1);
 
-      addCreditPayment({
+      createCreditPaymentMutation.mutate({
           creditCardId: selectedCardId,
-          amount: numericAmount,
+          amount: String(numericAmount),
           accountId: paymentData.accountId,
           paymentDate: paymentData.date,
-          // Competência do pagamento deve seguir o ciclo do cartão (fechamento),
-          // para cair no mês correto nos relatórios.
           month: paymentCompetence.getMonth(),
           year: paymentCompetence.getFullYear(),
-          type: 'partial' // Simplified for now
+          type: 'partial'
+      }, {
+          onSuccess: () => {
+              toast({ title: "Pagamento registrado com sucesso!" });
+              setIsPaymentOpen(false);
+          },
+          onError: () => {
+              toast({ title: "Erro ao registrar pagamento", variant: "destructive" });
+          }
       });
-
-      toast({ title: "Pagamento registrado com sucesso!" });
-      setIsPaymentOpen(false);
   };
 
   return (

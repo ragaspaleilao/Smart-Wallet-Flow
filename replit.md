@@ -138,3 +138,10 @@ shared/
 - POST /api/ocr - Process receipt photos with Gemini AI (extracts amount, merchant, date, category)
 - POST /api/voice - Process voice commands with Gemini AI (transcribes and extracts transaction data)
 - POST /api/ai/chat - AI Mentor chat using Gemini 2.5 Flash
+
+### Recent Bug Fixes (Feb 4, 2026)
+- **Dashboard Balance**: Now calculates dynamically from initialBalance + income - expenses
+- **Analytics Page**: Uses API hooks (useTransactions, useCreditPurchases, etc.) instead of empty Zustand store
+- **Credit Card Purchases**: Photo/voice scanner now saves to credit_purchases table (uses `creditCardId` field)
+- **Credit Card Forms**: Manual purchase form, delete, and update operations all use API mutations
+- **Credit Payments**: Month field uses 0-11 range to match database schema
