@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Camera, X, Loader2, Check, ImageIcon, Wallet, CreditCard, Banknote, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { apiClient } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { useFinancialStore } from "@/lib/store";
 
 interface OCRResult {
   amount: number | null;
@@ -39,7 +40,7 @@ interface PhotoScannerProps {
   }) => void;
 }
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   "Alimentação",
   "Transporte",
   "Moradia",
@@ -72,6 +73,14 @@ export function PhotoScanner({ open, onOpenChange, accounts, onTransactionExtrac
   const [editDate, setEditDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [editAccountId, setEditAccountId] = useState("");
   const [editPaymentMethod, setEditPaymentMethod] = useState("pix");
+
+  // Use shared categories from store
+  const storeCategories = useFinancialStore((s) => s.transactionCategories);
+  const categories = useMemo(() => {
+    const combined = [...(storeCategories || []), ...DEFAULT_CATEGORIES];
+    const unique = Array.from(new Set(combined));
+    return unique.filter(Boolean).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [storeCategories]);
 
   useEffect(() => {
     if (accounts && accounts.length > 0 && !editAccountId) {
@@ -294,7 +303,7 @@ export function PhotoScanner({ open, onOpenChange, accounts, onTransactionExtrac
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        {CATEGORIES.map(cat => (
+                        {categories.map(cat => (
                           <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                         ))}
                       </SelectContent>

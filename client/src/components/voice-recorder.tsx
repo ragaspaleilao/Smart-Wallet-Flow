@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Mic, Square, Loader2, Check, X, Calendar, Wallet, CreditCard, Banknote, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { apiClient } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { useFinancialStore } from "@/lib/store";
 
 interface VoiceResult {
   text: string;
@@ -40,7 +41,7 @@ interface VoiceRecorderProps {
   }) => void;
 }
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   "Alimentação",
   "Transporte",
   "Moradia",
@@ -80,6 +81,14 @@ export function VoiceRecorder({ open, onOpenChange, accounts, onTransactionExtra
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Use shared categories from store
+  const storeCategories = useFinancialStore((s) => s.transactionCategories);
+  const categories = useMemo(() => {
+    const combined = [...(storeCategories || []), ...DEFAULT_CATEGORIES];
+    const unique = Array.from(new Set(combined));
+    return unique.filter(Boolean).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [storeCategories]);
 
   useEffect(() => {
     if (accounts && accounts.length > 0 && !editAccountId) {
@@ -332,7 +341,7 @@ export function VoiceRecorder({ open, onOpenChange, accounts, onTransactionExtra
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        {CATEGORIES.map(cat => (
+                        {categories.map(cat => (
                           <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                         ))}
                       </SelectContent>
