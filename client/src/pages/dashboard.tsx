@@ -353,7 +353,7 @@ export default function Dashboard() {
         {/* Management Modules */}
         <div className="grid grid-cols-2 gap-3">
             <Link href="/investments">
-                <Card className="p-3 border-none shadow-sm bg-green-50 dark:bg-green-900/10 flex items-center gap-3 cursor-pointer hover:bg-green-100 transition-colors">
+                <Card className="p-3 border-none shadow-sm bg-gray-50 dark:bg-zinc-900 flex items-center gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
                     <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-600">
                         <ArrowUp className="w-5 h-5" />
                     </div>
@@ -364,8 +364,8 @@ export default function Dashboard() {
                 </Card>
             </Link>
             <Link href="/vehicles">
-                <Card className="p-3 border-none shadow-sm bg-blue-50 dark:bg-blue-900/10 flex items-center gap-3 cursor-pointer hover:bg-blue-100 transition-colors">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600">
+                <Card className="p-3 border-none shadow-sm bg-gray-50 dark:bg-zinc-900 flex items-center gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-600">
                         <Car className="w-5 h-5" />
                     </div>
                     <div>
@@ -375,8 +375,8 @@ export default function Dashboard() {
                 </Card>
             </Link>
             <Link href="/ai-chat">
-                <Card className="p-3 border-none shadow-sm bg-purple-50 dark:bg-purple-900/10 flex items-center gap-3 cursor-pointer hover:bg-purple-100 transition-colors">
-                    <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-xl text-purple-600">
+                <Card className="p-3 border-none shadow-sm bg-gray-50 dark:bg-zinc-900 flex items-center gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-600">
                         <Brain className="w-5 h-5" />
                     </div>
                     <div>
@@ -386,8 +386,8 @@ export default function Dashboard() {
                 </Card>
             </Link>
             <Link href="/subscriptions">
-                <Card className="p-3 border-none shadow-sm bg-indigo-50 dark:bg-indigo-900/10 flex items-center gap-3 cursor-pointer hover:bg-indigo-100 transition-colors">
-                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl text-indigo-600">
+                <Card className="p-3 border-none shadow-sm bg-gray-50 dark:bg-zinc-900 flex items-center gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-600">
                         <Zap className="w-5 h-5" />
                     </div>
                     <div>
