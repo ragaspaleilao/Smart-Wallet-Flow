@@ -29,6 +29,13 @@ import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { format, addMonths, setDate, isAfter, isBefore, startOfDay, endOfDay, addDays, parseISO, startOfMonth, isSameMonth } from "date-fns";
+
+// Helper function to parse dates without timezone issues
+// Always extracts YYYY-MM-DD and adds T12:00:00 to avoid timezone shifts
+const parseDateSafe = (dateStr: string): Date => {
+  const dateOnly = dateStr.slice(0, 10);
+  return parseISO(`${dateOnly}T12:00:00`);
+};
 import { useCreditCards, useCreditPurchases, useCreditPayments, useCreateCreditCard, useCreateCreditPurchase, useUpdateCreditPurchase, useCreateCreditPayment, useDeleteCreditCard, useDeleteCreditPurchase, useAccounts, useUpdateCreditCard } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
 import { ptBR } from "date-fns/locale";
@@ -727,7 +734,7 @@ export default function CreditCards() {
     let items: { purchase: CreditPurchase, installment: number, value: number, date: string }[] = [];
 
     creditPurchases.filter(p => p.creditCardId === cardId && p.status === 'active').forEach(purchase => {
-        const pDate = parseISO(purchase.purchaseDate.length === 10 ? `${purchase.purchaseDate}T12:00:00` : purchase.purchaseDate);
+        const pDate = parseDateSafe(purchase.purchaseDate);
         // First installment month
         let currentInstallmentMonth = getInvoiceMonthDate(pDate, card.closingDay);
         
@@ -948,7 +955,7 @@ export default function CreditCards() {
         // Only real installments can create "future installments".
         .filter(p => (p.installments || 1) > 1)
         .reduce((sum, purchase) => {
-          const pDate = parseISO(purchase.purchaseDate.length === 10 ? `${purchase.purchaseDate}T12:00:00` : purchase.purchaseDate);
+          const pDate = parseDateSafe(purchase.purchaseDate);
           let monthCursor = getInvoiceMonthDate(pDate, selectedCard.closingDay);
 
           let futureSum = 0;
@@ -2011,7 +2018,7 @@ export default function CreditCards() {
                                                 >
                                                     {item.purchase.description === 'Anuidade' ? 
                                                         'Cobrança Mensal' : 
-                                                        `${format(parseISO(item.purchase.purchaseDate.length === 10 ? `${item.purchase.purchaseDate}T12:00:00` : item.purchase.purchaseDate), 'dd/MM')} • Parcela ${item.installment}/${item.purchase.installments}`
+                                                        `${format(parseDateSafe(item.purchase.purchaseDate), 'dd/MM')} • Parcela ${item.installment}/${item.purchase.installments}`
                                                     }
                                                 </p>
                                             </div>
