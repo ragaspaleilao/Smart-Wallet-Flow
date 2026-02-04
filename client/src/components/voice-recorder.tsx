@@ -58,17 +58,19 @@ interface VoiceRecorderProps {
 
 const DEFAULT_CATEGORIES = [
   "Alimentação",
-  "Transporte",
-  "Moradia",
-  "Saúde",
-  "Educação",
-  "Lazer",
   "Compras",
-  "Serviços",
-  "Salário",
+  "Educação",
   "Freelance",
-  "Investimentos",
-  "Outros"
+  "Investimento",
+  "Lazer",
+  "Moradia",
+  "Outros",
+  "Salário",
+  "Saúde",
+  "Serviços",
+  "Transporte",
+  "Uber",
+  "Vendas"
 ];
 
 const PAYMENT_METHODS = [

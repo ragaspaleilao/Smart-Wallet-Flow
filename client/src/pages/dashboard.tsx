@@ -481,7 +481,7 @@ export default function Dashboard() {
       <PhotoScanner
         open={photoScannerOpen}
         onOpenChange={setPhotoScannerOpen}
-        accounts={accounts}
+        accounts={accounts.filter(a => a.isPersonal)}
         creditCards={creditCards}
         onTransactionExtracted={async (data) => {
           try {
@@ -538,7 +538,7 @@ export default function Dashboard() {
       <VoiceRecorder
         open={voiceRecorderOpen}
         onOpenChange={setVoiceRecorderOpen}
-        accounts={accounts}
+        accounts={accounts.filter(a => a.isPersonal)}
         creditCards={creditCards}
         onTransactionExtracted={async (data) => {
           try {

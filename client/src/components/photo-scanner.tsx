@@ -57,14 +57,18 @@ interface PhotoScannerProps {
 
 const DEFAULT_CATEGORIES = [
   "Alimentação",
-  "Transporte",
-  "Moradia",
-  "Saúde",
-  "Educação",
-  "Lazer",
   "Compras",
+  "Educação",
+  "Investimento",
+  "Lazer",
+  "Moradia",
+  "Outros",
+  "Salário",
+  "Saúde",
   "Serviços",
-  "Outros"
+  "Transporte",
+  "Uber",
+  "Vendas"
 ];
 
 const PAYMENT_METHODS = [
@@ -118,7 +122,9 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
       setEditCategory(result.category || "Outros");
       if (result.date) {
         try {
-          const parsedDate = new Date(result.date);
+          // Add time to avoid timezone issues (date string without time is interpreted as UTC)
+          const dateStr = result.date.includes('T') ? result.date : `${result.date}T12:00:00`;
+          const parsedDate = new Date(dateStr);
           if (!isNaN(parsedDate.getTime())) {
             setEditDate(format(parsedDate, "yyyy-MM-dd"));
           }
