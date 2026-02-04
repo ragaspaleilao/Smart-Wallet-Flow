@@ -5,20 +5,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, CheckCircle2, DollarSign, Calendar, Sparkles, AlertTriangle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, DollarSign, Calendar, Sparkles, AlertTriangle, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { toast } from "@/hooks/use-toast";
 import { useFinancialStore } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
 import { addMonths, setDate, startOfDay } from "date-fns";
+import { useCreateSubscription, useCreateCreditPurchase, useCreateTransaction, useAccounts, useCreditCards } from "@/hooks/use-api";
 
 export default function AddSubscription() {
   const [_, setLocation] = useLocation();
-  const addSubscription = useFinancialStore((state) => state.addSubscription);
-  const addCreditPurchase = useFinancialStore((state) => state.addCreditPurchase);
-  const addTransaction = useFinancialStore((state) => state.addTransaction);
-  const accounts = useFinancialStore((state) => state.accounts);
-  const creditCards = useFinancialStore((state) => state.creditCards);
+  const createSubscriptionMutation = useCreateSubscription();
+  const createCreditPurchaseMutation = useCreateCreditPurchase();
+  const createTransactionMutation = useCreateTransaction();
+  const { data: accounts = [] } = useAccounts();
+  const { data: creditCards = [] } = useCreditCards();
   const subscriptionCategories = useFinancialStore((state) => state.subscriptionCategories);
   
   const [formData, setFormData] = useState({
@@ -42,7 +43,7 @@ export default function AddSubscription() {
     { name: "iCloud", color: "bg-blue-400", category: "Software" },
   ];
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name || !formData.price || (!formData.billingDay && !formData.isTrial)) {
         toast({ title: "Preencha todos os campos", variant: "destructive" });
         return;
@@ -61,96 +62,92 @@ export default function AddSubscription() {
     const price = Number(formData.price);
     const billingDay = Math.max(1, Math.min(31, Number(formData.isTrial ? formData.trialDays : formData.billingDay)));
 
-    // Subscriptions are ALWAYS recurring until cancelled.
-    // Behavior:
-    // - credit: generate monthly 1x purchases on the card (no installment plan)
-    // - non-credit: generate monthly pending expense transactions (projections)
-    addSubscription({
-        name: formData.name,
-        price: price,
-        date: formData.isTrial ? "" : String(billingDay),
-        logo: "",
-        color: formData.color,
-        category: formData.category,
-        paymentMethod: formData.paymentMethod,
-        accountId: formData.paymentMethod === 'credit' ? undefined : formData.accountId,
-        creditCardId: formData.paymentMethod === 'credit' ? formData.creditCardId : undefined,
-        usage: "medium",
-        usageLabel: "Uso Normal",
-        isTrial: formData.isTrial,
-        trialDays: formData.isTrial ? Number(formData.trialDays) : undefined,
-        futurePrice: formData.isTrial ? price : undefined
-    });
+    try {
+      await createSubscriptionMutation.mutateAsync({
+          name: formData.name,
+          price: String(price),
+          date: formData.isTrial ? "" : String(billingDay),
+          logo: "",
+          color: formData.color,
+          category: formData.category,
+          paymentMethod: formData.paymentMethod,
+          accountId: formData.paymentMethod === 'credit' ? undefined : formData.accountId,
+          creditCardId: formData.paymentMethod === 'credit' ? formData.creditCardId : undefined,
+          usage: "medium",
+          usageLabel: "Uso Normal",
+          isTrial: formData.isTrial,
+          trialDays: formData.isTrial ? Number(formData.trialDays) : undefined,
+          futurePrice: formData.isTrial ? String(price) : undefined
+      });
 
-    if (!formData.isTrial) {
-        const start = startOfDay(new Date());
-        const day = Math.max(1, Math.min(31, billingDay || 1));
-        const firstOccurrence = (() => {
-            const thisMonth = setDate(start, day);
-            if (thisMonth >= start) return thisMonth;
-            return setDate(addMonths(start, 1), day);
-        })();
+      if (!formData.isTrial) {
+          const start = startOfDay(new Date());
+          const day = Math.max(1, Math.min(31, billingDay || 1));
+          const firstOccurrence = (() => {
+              const thisMonth = setDate(start, day);
+              if (thisMonth >= start) return thisMonth;
+              return setDate(addMonths(start, 1), day);
+          })();
 
-        const now = new Date();
-        const cardForPosting = creditCards.find(c => c.id === formData.creditCardId);
-        const isCardCycleStillOpen = (() => {
-            if (!cardForPosting) return false;
-            const closesNextMonth = cardForPosting.closingDay <= now.getDate();
-            // Same rule used on credit-cards page: if cycle closes next month, current open invoice is "this month"
-            return !closesNextMonth;
-        })();
+          const now = new Date();
+          const cardForPosting = creditCards.find(c => c.id === formData.creditCardId);
+          const isCardCycleStillOpen = (() => {
+              if (!cardForPosting) return false;
+              const closesNextMonth = cardForPosting.closingDay <= now.getDate();
+              return !closesNextMonth;
+          })();
 
-        const isSameMonthAndYear = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+          const isSameMonthAndYear = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 
-        for (let i = 0; i < 12; i++) {
-            const occurrence = addMonths(firstOccurrence, i);
-            // Store as local YYYY-MM-DD so date-fns parseISO won't shift days by timezone
-            const ymd = `${occurrence.getFullYear()}-${String(occurrence.getMonth() + 1).padStart(2, '0')}-${String(occurrence.getDate()).padStart(2, '0')}`;
+          for (let i = 0; i < 12; i++) {
+              const occurrence = addMonths(firstOccurrence, i);
+              const ymd = `${occurrence.getFullYear()}-${String(occurrence.getMonth() + 1).padStart(2, '0')}-${String(occurrence.getDate()).padStart(2, '0')}`;
 
-            // If the charge is due in the current month AND the card cycle hasn't closed yet, it must enter the CURRENT invoice month.
-            // To do that, we post it as "today" (midday) so it stays within the open cycle.
-            const iso = (i === 0 && isSameMonthAndYear(occurrence, start) && isCardCycleStillOpen)
-                ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-                : ymd;
+              const iso = (i === 0 && isSameMonthAndYear(occurrence, start) && isCardCycleStillOpen)
+                  ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+                  : ymd;
 
-            if (formData.paymentMethod === 'credit') {
-                addCreditPurchase({
-                    creditCardId: formData.creditCardId,
-                    description: `${formData.name} (Assinatura)`,
-                    totalAmount: price,
-                    installments: 1,
-                    installmentValue: price,
-                    category: 'Outros' as any,
-                    purchaseDate: iso,
-                });
-            } else {
-                addTransaction({
-                    amount: price,
-                    type: 'expense',
-                    category: 'Outros' as any,
-                    description: `${formData.name} (Assinatura)`,
-                    date: iso,
-                    source: 'manual',
-                    isPersonal: true,
-                    status: 'pending',
-                    accountId: formData.accountId,
-                    paymentMethod: formData.paymentMethod,
-                });
-            }
-        }
+              if (formData.paymentMethod === 'credit') {
+                  await createCreditPurchaseMutation.mutateAsync({
+                      creditCardId: formData.creditCardId,
+                      description: `${formData.name} (Assinatura)`,
+                      totalAmount: String(price),
+                      installments: 1,
+                      installmentValue: String(price),
+                      category: 'Outros',
+                      purchaseDate: iso,
+                  });
+              } else {
+                  await createTransactionMutation.mutateAsync({
+                      amount: String(price),
+                      type: 'expense',
+                      category: 'Outros',
+                      description: `${formData.name} (Assinatura)`,
+                      date: iso,
+                      source: 'manual',
+                      isPersonal: true,
+                      status: 'pending',
+                      accountId: formData.accountId,
+                      paymentMethod: formData.paymentMethod,
+                  });
+              }
+          }
 
-        toast({
-            title: "Assinatura adicionada e projetada!",
-            description: "J\u00e1 lancei automaticamente os pr\u00f3ximos 12 meses nas faturas/proje\u00e7\u00f5es (sem parcelamento).",
-        });
-    } else {
-        toast({
-            title: "Sentinela Ativado!",
-            description: `${formData.name} foi adicionado como teste gr\u00e1tis.`,
-        });
+          toast({
+              title: "Assinatura adicionada e projetada!",
+              description: "Já lancei automaticamente os próximos 12 meses nas faturas/projeções (sem parcelamento).",
+          });
+      } else {
+          toast({
+              title: "Sentinela Ativado!",
+              description: `${formData.name} foi adicionado como teste grátis.`,
+          });
+      }
+
+      setLocation("/subscriptions");
+    } catch (error) {
+      toast({ title: "Erro ao salvar assinatura", variant: "destructive" });
     }
-
-    setLocation("/subscriptions");
   };
 
   const handleServiceSelect = (service: typeof popularServices[0]) => {

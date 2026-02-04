@@ -1,5 +1,5 @@
 import { MobileLayout } from "@/components/mobile-layout";
-import { useFinancialStore, Category, TransactionType, AccountType } from "@/lib/store";
+import { Category, TransactionType } from "@/lib/store";
 import { calculateBusinessMetrics, generateBusinessInsights } from "@/lib/business-ai";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,25 +18,45 @@ import { nanoid } from "nanoid";
 import { EditProductDialog } from "@/components/edit-product-dialog";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { 
+  useAccounts, useTransactions, useCreateAccount, useCreateTransaction,
+  useBusinessProducts, useBusinessSettings, useCreateBusinessProduct, useUpdateBusinessSettings 
+} from "@/hooks/use-api";
 
 export default function Business() {
-  const { businessProducts, businessSettings, addBusinessProduct, updateBusinessSettings, addTransaction, accounts, transactions, addAccount } = useFinancialStore();
+  const { data: accounts = [] } = useAccounts();
+  const { data: transactions = [] } = useTransactions();
+  const { data: businessProducts = [] } = useBusinessProducts();
+  const { data: businessSettings } = useBusinessSettings();
+  
+  const createAccountMutation = useCreateAccount();
+  const createTransactionMutation = useCreateTransaction();
+  const createBusinessProductMutation = useCreateBusinessProduct();
+  const updateBusinessSettingsMutation = useUpdateBusinessSettings();
   
   // Ensure business accounts exist (for users with old data)
   useEffect(() => {
-    const hasBusinessAccounts = accounts.some(a => !a.isPersonal);
-    if (!hasBusinessAccounts) {
-        addAccount({ name: 'Caixa Empresa', type: 'cash', balance: 500.00, initialBalance: 0, color: 'bg-blue-600', isPersonal: false });
-        addAccount({ name: 'Banco PJ', type: 'bank', balance: 2500.00, initialBalance: 0, color: 'bg-indigo-600', isPersonal: false });
-        toast({ title: "Contas empresariais criadas!" });
-    }
-  }, [accounts, addAccount]);
+    const createBusinessAccounts = async () => {
+      const hasBusinessAccounts = accounts.some(a => !a.isPersonal);
+      if (!hasBusinessAccounts && accounts.length > 0) {
+        try {
+          await createAccountMutation.mutateAsync({ name: 'Caixa Empresa', type: 'cash', balance: '500.00', initialBalance: '0', color: 'bg-blue-600', isPersonal: false });
+          await createAccountMutation.mutateAsync({ name: 'Banco PJ', type: 'bank', balance: '2500.00', initialBalance: '0', color: 'bg-indigo-600', isPersonal: false });
+          toast({ title: "Contas empresariais criadas!" });
+        } catch (error) {
+          toast({ title: "Erro ao criar contas empresariais", variant: "destructive" });
+        }
+      }
+    };
+    createBusinessAccounts();
+  }, [accounts.length]);
 
   // Filter only business related accounts and transactions
   const businessAccounts = accounts.filter(a => !a.isPersonal);
   const businessTransactions = useMemo(() => transactions.filter(t => !t.isPersonal), [transactions]);
 
-  const metrics = useMemo(() => calculateBusinessMetrics(businessProducts, businessSettings), [businessProducts, businessSettings]);
+  const defaultSettings = { monthlyFixedCosts: 0, monthlyGoal: 5000, taxRate: 0.06 };
+  const metrics = useMemo(() => calculateBusinessMetrics(businessProducts, businessSettings || defaultSettings), [businessProducts, businessSettings]);
   const insights = useMemo(() => generateBusinessInsights(metrics), [metrics]);
 
   const [newProduct, setNewProduct] = useState({
@@ -69,39 +89,43 @@ export default function Business() {
     description: "Pro-labore"
   });
 
-  const handleTransfer = () => {
+  const handleTransfer = async () => {
     if (!transferData.amount || !transferData.fromAccountId || !transferData.toAccountId) {
         toast({ title: "Preencha todos os campos", variant: "destructive" });
         return;
     }
 
-    // 1. Withdraw from Business Account
-    addTransaction({
-        type: 'expense',
-        amount: Number(transferData.amount),
-        description: `Transferência para Pessoal: ${transferData.description}`,
-        category: 'Outros', // Or specific category for transfers
-        source: 'manual',
-        isPersonal: false,
-        accountId: transferData.fromAccountId,
-        date: new Date().toISOString()
-    });
+    try {
+      // 1. Withdraw from Business Account
+      await createTransactionMutation.mutateAsync({
+          type: 'expense',
+          amount: transferData.amount,
+          description: `Transferência para Pessoal: ${transferData.description}`,
+          category: 'Outros',
+          source: 'manual',
+          isPersonal: false,
+          accountId: transferData.fromAccountId,
+          date: new Date().toISOString().split('T')[0]
+      });
 
-    // 2. Deposit into Personal Account
-    addTransaction({
-        type: 'income',
-        amount: Number(transferData.amount),
-        description: `Recebido da Empresa: ${transferData.description}`,
-        category: 'Salário', // Or specific category
-        source: 'manual',
-        isPersonal: true,
-        accountId: transferData.toAccountId,
-        date: new Date().toISOString()
-    });
+      // 2. Deposit into Personal Account
+      await createTransactionMutation.mutateAsync({
+          type: 'income',
+          amount: transferData.amount,
+          description: `Recebido da Empresa: ${transferData.description}`,
+          category: 'Salário',
+          source: 'manual',
+          isPersonal: true,
+          accountId: transferData.toAccountId,
+          date: new Date().toISOString().split('T')[0]
+      });
 
-    setTransferOpen(false);
-    setTransferData({ amount: "", fromAccountId: "", toAccountId: "", description: "Pro-labore" });
-    toast({ title: "Transferência realizada com sucesso!" });
+      setTransferOpen(false);
+      setTransferData({ amount: "", fromAccountId: "", toAccountId: "", description: "Pro-labore" });
+      toast({ title: "Transferência realizada com sucesso!" });
+    } catch (error) {
+      toast({ title: "Erro na transferência", variant: "destructive" });
+    }
   };
 
   const handleAddCost = () => {
@@ -115,38 +139,46 @@ export default function Business() {
     }
   };
 
-  const handleSaveProduct = () => {
-    addBusinessProduct({
-        name: newProduct.name,
-        category: newProduct.category || "Geral",
-        sellingPrice: Number(newProduct.sellingPrice),
-        averageMonthlySales: Number(newProduct.averageMonthlySales),
-        directCosts: newProduct.directCosts
-    });
-    setNewProduct({ name: "", category: "", sellingPrice: "", averageMonthlySales: "", directCosts: [] });
-    toast({ title: "Produto adicionado!" });
+  const handleSaveProduct = async () => {
+    try {
+      await createBusinessProductMutation.mutateAsync({
+          name: newProduct.name,
+          category: newProduct.category || "Geral",
+          sellingPrice: newProduct.sellingPrice,
+          averageMonthlySales: newProduct.averageMonthlySales,
+          directCosts: newProduct.directCosts
+      });
+      setNewProduct({ name: "", category: "", sellingPrice: "", averageMonthlySales: "", directCosts: [] });
+      toast({ title: "Produto adicionado!" });
+    } catch (error) {
+      toast({ title: "Erro ao adicionar produto", variant: "destructive" });
+    }
   };
 
-  const handleSaveDailyEntry = () => {
+  const handleSaveDailyEntry = async () => {
     if (!dailyEntry.description || !dailyEntry.amount || !dailyEntry.accountId) {
         toast({ title: "Preencha todos os campos", variant: "destructive" });
         return;
     }
 
-    addTransaction({
-        type: dailyEntry.type,
-        amount: Number(dailyEntry.amount),
-        description: dailyEntry.description,
-        category: dailyEntry.category,
-        source: 'manual',
-        isPersonal: false, // Business Transaction
-        accountId: dailyEntry.accountId,
-        date: new Date().toISOString()
-    });
+    try {
+      await createTransactionMutation.mutateAsync({
+          type: dailyEntry.type,
+          amount: dailyEntry.amount,
+          description: dailyEntry.description,
+          category: dailyEntry.category,
+          source: 'manual',
+          isPersonal: false,
+          accountId: dailyEntry.accountId,
+          date: new Date().toISOString().split('T')[0]
+      });
 
-    setDailyEntryOpen(false);
-    setDailyEntry({ type: 'income', description: "", amount: "", category: "Vendas", accountId: "" });
-    toast({ title: "Lançamento registrado!" });
+      setDailyEntryOpen(false);
+      setDailyEntry({ type: 'income', description: "", amount: "", category: "Vendas", accountId: "" });
+      toast({ title: "Lançamento registrado!" });
+    } catch (error) {
+      toast({ title: "Erro ao registrar lançamento", variant: "destructive" });
+    }
   };
 
   const chartData = metrics.calculatedProducts.map(p => ({
@@ -208,7 +240,7 @@ export default function Business() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         {businessAccounts.map(acc => (
-                                            <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {acc.balance.toFixed(2)})</SelectItem>
+                                            <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {Number(acc.balance).toFixed(2)})</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -222,7 +254,7 @@ export default function Business() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         {accounts.filter(a => a.isPersonal).map(acc => (
-                                            <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {acc.balance.toFixed(2)})</SelectItem>
+                                            <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {Number(acc.balance).toFixed(2)})</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>

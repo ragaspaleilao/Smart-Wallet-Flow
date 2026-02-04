@@ -4,17 +4,17 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Mic, X, Check, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useFinancialStore } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { useAccounts, useCreditCards, useCreateTransaction, useCreateCreditPurchase } from "@/hooks/use-api";
 
 export default function VoiceEntry() {
   const [_, setLocation] = useLocation();
-  const addTransaction = useFinancialStore((state) => state.addTransaction);
-  const addCreditPurchase = useFinancialStore((state) => state.addCreditPurchase);
-  const accounts = useFinancialStore((state) => state.accounts);
-  const creditCards = useFinancialStore((state) => state.creditCards);
+  const { data: accounts = [] } = useAccounts();
+  const { data: creditCards = [] } = useCreditCards();
+  const createTransactionMutation = useCreateTransaction();
+  const createCreditPurchaseMutation = useCreateCreditPurchase();
 
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -59,39 +59,43 @@ export default function VoiceEntry() {
     }, 3000);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (parsedData && selectedSourceId) {
-        if (paymentType === "credit") {
-            addCreditPurchase({
-                creditCardId: selectedSourceId,
-                description: parsedData.description,
-                totalAmount: parsedData.amount,
-                installments: 1, // Default to 1x for voice for now
-                installmentValue: parsedData.amount,
-                category: parsedData.category,
-                purchaseDate: new Date().toISOString()
-            });
-            toast({
-                title: "Compra no Cartão salva!",
-                description: `Despesa de R$ ${parsedData.amount.toFixed(2)} registrada.`,
-            });
-        } else {
-            addTransaction({
-                amount: parsedData.amount,
-                type: "expense",
-                category: parsedData.category,
-                description: parsedData.description,
-                source: "voice",
-                isPersonal: true,
-                accountId: selectedSourceId,
-                date: new Date().toISOString()
-            });
-            toast({
-                title: "Salvo com sucesso!",
-                description: `Despesa de R$ ${parsedData.amount.toFixed(2)} registrada.`,
-            });
+        try {
+          if (paymentType === "credit") {
+              await createCreditPurchaseMutation.mutateAsync({
+                  creditCardId: selectedSourceId,
+                  description: parsedData.description,
+                  totalAmount: String(parsedData.amount),
+                  installments: 1,
+                  installmentValue: String(parsedData.amount),
+                  category: parsedData.category,
+                  purchaseDate: new Date().toISOString().split('T')[0]
+              });
+              toast({
+                  title: "Compra no Cartão salva!",
+                  description: `Despesa de R$ ${parsedData.amount.toFixed(2)} registrada.`,
+              });
+          } else {
+              await createTransactionMutation.mutateAsync({
+                  amount: String(parsedData.amount),
+                  type: "expense",
+                  category: parsedData.category,
+                  description: parsedData.description,
+                  source: "voice",
+                  isPersonal: true,
+                  accountId: selectedSourceId,
+                  date: new Date().toISOString().split('T')[0]
+              });
+              toast({
+                  title: "Salvo com sucesso!",
+                  description: `Despesa de R$ ${parsedData.amount.toFixed(2)} registrada.`,
+              });
+          }
+          setLocation("/dashboard");
+        } catch (error) {
+          toast({ title: "Erro ao salvar", variant: "destructive" });
         }
-        setLocation("/dashboard");
     } else {
         toast({ title: "Selecione a conta ou cartão", variant: "destructive" });
     }
@@ -197,7 +201,7 @@ export default function VoiceEntry() {
                                     ))
                                 ) : (
                                     accounts.map(acc => (
-                                        <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {acc.balance.toFixed(2)})</SelectItem>
+                                        <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {Number(acc.balance).toFixed(2)})</SelectItem>
                                     ))
                                 )}
                             </SelectContent>

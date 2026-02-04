@@ -3,18 +3,18 @@ import { useLocation } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Camera, X, Check, Upload, Image as ImageIcon } from "lucide-react";
-import { useFinancialStore } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useAccounts, useCreditCards, useCreateTransaction, useCreateCreditPurchase } from "@/hooks/use-api";
 
 export default function PhotoEntry() {
   const [_, setLocation] = useLocation();
-  const addTransaction = useFinancialStore((state) => state.addTransaction);
-  const addCreditPurchase = useFinancialStore((state) => state.addCreditPurchase);
-  const accounts = useFinancialStore((state) => state.accounts);
-  const creditCards = useFinancialStore((state) => state.creditCards);
+  const { data: accounts = [] } = useAccounts();
+  const { data: creditCards = [] } = useCreditCards();
+  const createTransactionMutation = useCreateTransaction();
+  const createCreditPurchaseMutation = useCreateCreditPurchase();
 
   const [image, setImage] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -40,39 +40,43 @@ export default function PhotoEntry() {
     }, 2000);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
       if (ocrData && selectedSourceId) {
-          if (paymentType === "credit") {
-              addCreditPurchase({
-                  creditCardId: selectedSourceId,
-                  description: ocrData.description,
-                  totalAmount: ocrData.amount,
-                  installments: 1, 
-                  installmentValue: ocrData.amount,
-                  category: "Alimentação", // Mock
-                  purchaseDate: new Date().toISOString()
-              });
-              toast({
-                  title: "Recibo de Cartão Salvo!",
-                  description: `Despesa de R$ ${ocrData.amount.toFixed(2)} registrada.`,
-              });
-          } else {
-              addTransaction({
-                  amount: ocrData.amount,
-                  type: "expense",
-                  category: "Alimentação", // Mock categorization
-                  description: ocrData.description,
-                  source: "photo",
-                  isPersonal: true,
-                  accountId: selectedSourceId,
-                  date: new Date().toISOString()
-              });
-              toast({
-                  title: "Recibo salvo!",
-                  description: `Despesa de R$ ${ocrData.amount.toFixed(2)} registrada.`,
-              });
+          try {
+            if (paymentType === "credit") {
+                await createCreditPurchaseMutation.mutateAsync({
+                    creditCardId: selectedSourceId,
+                    description: ocrData.description,
+                    totalAmount: String(ocrData.amount),
+                    installments: 1, 
+                    installmentValue: String(ocrData.amount),
+                    category: "Alimentação",
+                    purchaseDate: new Date().toISOString().split('T')[0]
+                });
+                toast({
+                    title: "Recibo de Cartão Salvo!",
+                    description: `Despesa de R$ ${ocrData.amount.toFixed(2)} registrada.`,
+                });
+            } else {
+                await createTransactionMutation.mutateAsync({
+                    amount: String(ocrData.amount),
+                    type: "expense",
+                    category: "Alimentação",
+                    description: ocrData.description,
+                    source: "photo",
+                    isPersonal: true,
+                    accountId: selectedSourceId,
+                    date: new Date().toISOString().split('T')[0]
+                });
+                toast({
+                    title: "Recibo salvo!",
+                    description: `Despesa de R$ ${ocrData.amount.toFixed(2)} registrada.`,
+                });
+            }
+            setLocation("/dashboard");
+          } catch (error) {
+            toast({ title: "Erro ao salvar", variant: "destructive" });
           }
-          setLocation("/dashboard");
       }
   };
 

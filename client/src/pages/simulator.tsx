@@ -6,16 +6,47 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useFinancialStore, Category, Simulation } from "@/lib/store";
-import { ArrowLeft, Calculator, Calendar, CreditCard, DollarSign, Plus, Save, Trash2, CheckCircle2, AlertTriangle, TrendingDown, Pencil } from "lucide-react";
+import { Category } from "@/lib/store";
+import { ArrowLeft, Calculator, Calendar, CreditCard, DollarSign, Plus, Save, Trash2, CheckCircle2, AlertTriangle, TrendingDown, Pencil, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { format, addMonths, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
 import { toast } from "@/hooks/use-toast";
+import { useSimulations, useCreateSimulation, useUpdateSimulation, useDeleteSimulation, useTransactions, useAccounts } from "@/hooks/use-api";
+
+interface Simulation {
+  id: string;
+  name: string;
+  totalValue: number;
+  downPayment: number;
+  installments: number;
+  startDate: string;
+  category: Category;
+  type: string;
+  createdAt: string;
+  interestRate?: number;
+  manualInstallmentValue?: number;
+}
 
 export default function Simulator() {
   const [location, setLocation] = useLocation();
-  const { transactions, accounts, simulations, addSimulation, removeSimulation, convertSimulationToReal, updateSimulation } = useFinancialStore();
+  const { data: transactionsData = [] } = useTransactions();
+  const { data: accountsData = [] } = useAccounts();
+  const { data: simulationsData = [], isLoading } = useSimulations();
+  const createSimulationMutation = useCreateSimulation();
+  const updateSimulationMutation = useUpdateSimulation();
+  const deleteSimulationMutation = useDeleteSimulation();
+  
+  const transactions = transactionsData;
+  const accounts = accountsData;
+  const simulations: Simulation[] = (simulationsData || []).map((s: any) => ({
+    ...s,
+    totalValue: Number(s.totalValue),
+    downPayment: Number(s.downPayment),
+    installments: Number(s.installments),
+    interestRate: s.interestRate ? Number(s.interestRate) : undefined,
+    manualInstallmentValue: s.manualInstallmentValue ? Number(s.manualInstallmentValue) : undefined,
+  }));
   
   // State for new simulation form
   const [showForm, setShowForm] = useState(false);
@@ -44,7 +75,7 @@ export default function Simulator() {
     // For mockup: Using fixed hypothetical values based on store initial data if not enough history
     const avgIncome = 3500; 
     const avgFixedExpense = 2000; // Rent, food, etc.
-    const currentBalance = accounts.reduce((acc, curr) => acc + curr.balance, 0);
+    const currentBalance = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
 
     return { avgIncome, avgFixedExpense, currentBalance };
   }, [accounts, transactions]);
@@ -69,11 +100,11 @@ export default function Simulator() {
         
         const monthlyPendingIncome = pendingForMonth
             .filter(t => t.type === 'income')
-            .reduce((acc, t) => acc + t.amount, 0);
+            .reduce((acc, t) => acc + Number(t.amount), 0);
             
         const monthlyPendingExpense = pendingForMonth
             .filter(t => t.type === 'expense')
-            .reduce((acc, t) => acc + t.amount, 0);
+            .reduce((acc, t) => acc + Number(t.amount), 0);
 
         // If we have pending data, use it. If not (future undefined months), use averages.
         // Logic: specific pending transactions override averages? Or add to them? 
@@ -194,7 +225,7 @@ export default function Simulator() {
 
   }, [baseFinancials, transactions, simulations, showForm, formData]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name || !formData.totalValue) {
         toast({ title: "Preencha os dados obrigatórios", variant: "destructive" });
         return;
@@ -202,36 +233,40 @@ export default function Simulator() {
     
     const payload = {
         name: formData.name,
-        totalValue: Number(formData.totalValue),
-        downPayment: Number(formData.downPayment || 0),
+        totalValue: String(formData.totalValue),
+        downPayment: String(formData.downPayment || 0),
         installments: Number(formData.installments),
         startDate: formData.startDate,
         category: formData.category,
-        type: 'purchase' as const,
-        interestRate: formData.interestRate ? Number(formData.interestRate) : undefined,
-        manualInstallmentValue: formData.manualInstallmentValue ? Number(formData.manualInstallmentValue) : undefined
+        type: 'purchase',
+        interestRate: formData.interestRate ? String(formData.interestRate) : undefined,
+        manualInstallmentValue: formData.manualInstallmentValue ? String(formData.manualInstallmentValue) : undefined
     };
 
-    if (editingId) {
-        updateSimulation(editingId, payload);
-        toast({ title: "Simulação atualizada!" });
-    } else {
-        addSimulation(payload);
-        toast({ title: "Simulação salva!" });
+    try {
+      if (editingId) {
+          await updateSimulationMutation.mutateAsync({ id: editingId, data: payload });
+          toast({ title: "Simulação atualizada!" });
+      } else {
+          await createSimulationMutation.mutateAsync(payload);
+          toast({ title: "Simulação salva!" });
+      }
+      
+      setShowForm(false);
+      setEditingId(null);
+      setFormData({
+          name: "",
+          totalValue: "",
+          downPayment: "",
+          installments: "1",
+          startDate: new Date().toISOString().split('T')[0],
+          category: "Outros" as Category,
+          interestRate: "",
+          manualInstallmentValue: ""
+      });
+    } catch (error) {
+      toast({ title: "Erro ao salvar simulação", variant: "destructive" });
     }
-    
-    setShowForm(false);
-    setEditingId(null);
-    setFormData({
-        name: "",
-        totalValue: "",
-        downPayment: "",
-        installments: "1",
-        startDate: new Date().toISOString().split('T')[0],
-        category: "Outros" as Category,
-        interestRate: "",
-        manualInstallmentValue: ""
-    });
   };
 
   const handleEdit = (sim: Simulation) => {
@@ -249,9 +284,17 @@ export default function Simulator() {
     setShowForm(true);
   };
 
-  const handleApply = (id: string) => {
-      convertSimulationToReal(id);
-      toast({ title: "Simulação efetivada!", description: "Lançamentos criados no seu extrato." });
+  const handleApply = async (id: string) => {
+      toast({ title: "Funcionalidade em desenvolvimento", description: "A conversão de simulação para lançamentos reais será implementada em breve." });
+  };
+  
+  const handleDelete = async (id: string) => {
+      try {
+        await deleteSimulationMutation.mutateAsync(id);
+        toast({ title: "Simulação removida!" });
+      } catch (error) {
+        toast({ title: "Erro ao remover", variant: "destructive" });
+      }
   };
 
   return (
@@ -600,7 +643,7 @@ export default function Simulator() {
                                     size="sm" 
                                     variant="outline" 
                                     className="px-3 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20"
-                                    onClick={() => removeSimulation(sim.id)}
+                                    onClick={() => handleDelete(sim.id)}
                                 >
                                     <Trash2 className="w-3 h-3" />
                                 </Button>

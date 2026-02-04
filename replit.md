@@ -156,5 +156,5 @@ shared/
 - **Goals Page**: Migrated from Zustand localStorage to PostgreSQL API
 
 ### API Migration Status
-- **Completed**: Dashboard, Accounts, Transactions, Credit Cards, Credit Purchases, Credit Payments, Investments, Subscriptions, Vehicles, Goals
-- **Pending**: Budget, Simulator, Business, Calendar Integration, Backup (still using localStorage via Zustand store)
+- **Completed**: Dashboard, Accounts, Transactions, Credit Cards, Credit Purchases, Credit Payments, Investments, Subscriptions, Vehicles, Goals, Budget, Simulator, Business, Photo-entry, Voice-entry, Manual-entry, Add-subscription
+- **Pending**: Calendar Integration, Backup (still using localStorage via Zustand store)

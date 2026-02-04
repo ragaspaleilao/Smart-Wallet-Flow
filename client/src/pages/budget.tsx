@@ -1,27 +1,43 @@
 import { MobileLayout } from "@/components/mobile-layout";
 import { formatCurrency } from "@/lib/utils";
-import { useFinancialStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Wallet, CreditCard, Bell } from "lucide-react";
+import { ArrowLeft, Wallet, CreditCard, Bell, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "@/hooks/use-toast";
 import { startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { useBudget, useUpdateBudget, useTransactions } from "@/hooks/use-api";
 
 export default function Budget() {
   const [_, setLocation] = useLocation();
-  const { budget, updateBudget, transactions } = useFinancialStore();
+  const { data: budgetData, isLoading: budgetLoading } = useBudget();
+  const { data: transactions = [] } = useTransactions();
+  const updateBudgetMutation = useUpdateBudget();
+  
+  const budget = budgetData ? {
+    spendingLimit: Number(budgetData.spendingLimit) || 0,
+    creditLimit: Number(budgetData.creditLimit) || 0,
+    income: Number(budgetData.income) || 0,
+    alertThresholds: budgetData.alertThresholds || [70, 90]
+  } : { spendingLimit: 0, creditLimit: 0, income: 0, alertThresholds: [70, 90] };
   
   const [localBudget, setLocalBudget] = useState(budget);
 
   useEffect(() => {
-    setLocalBudget(budget);
-  }, [budget]);
+    if (budgetData) {
+      setLocalBudget({
+        spendingLimit: Number(budgetData.spendingLimit) || 0,
+        creditLimit: Number(budgetData.creditLimit) || 0,
+        income: Number(budgetData.income) || 0,
+        alertThresholds: budgetData.alertThresholds || [70, 90]
+      });
+    }
+  }, [budgetData]);
 
   // Calculate expenses for the CURRENT MONTH only
   const currentMonthExpense = useMemo(() => {
@@ -34,14 +50,33 @@ export default function Budget() {
         const tDate = new Date(t.date);
         return t.type === 'expense' && isWithinInterval(tDate, { start, end });
       })
-      .reduce((acc, curr) => acc + curr.amount, 0);
+      .reduce((acc, curr) => acc + Number(curr.amount), 0);
   }, [transactions]);
 
-  const handleSave = () => {
-    updateBudget(localBudget);
-    toast({ title: "Orçamento atualizado!" });
-    setLocation("/dashboard");
+  const handleSave = async () => {
+    try {
+      await updateBudgetMutation.mutateAsync({
+        spendingLimit: String(localBudget.spendingLimit),
+        creditLimit: String(localBudget.creditLimit),
+        income: String(localBudget.income),
+        alertThresholds: localBudget.alertThresholds,
+      });
+      toast({ title: "Orçamento atualizado!" });
+      setLocation("/dashboard");
+    } catch (error) {
+      toast({ title: "Erro ao salvar orçamento", variant: "destructive" });
+    }
   };
+  
+  if (budgetLoading) {
+    return (
+      <MobileLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </MobileLayout>
+    );
+  }
 
   const spendingPercentage = localBudget.spendingLimit > 0 
     ? Math.min(100, Math.round((currentMonthExpense / localBudget.spendingLimit) * 100))
