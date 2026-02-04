@@ -230,6 +230,8 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
     setEditCategory("");
     setEditDate(format(new Date(), "yyyy-MM-dd"));
     setEditPaymentMethod("pix");
+    setIsCredit(false);
+    setEditCardId("");
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
