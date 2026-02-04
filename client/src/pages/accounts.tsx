@@ -59,7 +59,7 @@ export default function Accounts() {
     }
   }, [isAuthenticated, setLocation]);
   
-  const accounts: Account[] = accountsSuccess
+  const rawAccounts: Account[] = accountsSuccess
     ? apiAccounts.map(a => ({
         ...a,
         balance: parseFloat(a.balance),
@@ -73,6 +73,26 @@ export default function Accounts() {
         amount: parseFloat(t.amount),
       }))
     : storeData.transactions;
+
+  // Calculate dynamic balance for each account based on initialBalance + transactions
+  const accounts: Account[] = rawAccounts.map(account => {
+    const accountTransactions = transactions.filter(t => 
+      t.accountId === account.id && t.status === 'paid'
+    );
+    
+    const transactionTotal = accountTransactions.reduce((sum, t) => {
+      if (t.type === 'income') return sum + t.amount;
+      if (t.type === 'expense') return sum - t.amount;
+      return sum;
+    }, 0);
+    
+    const calculatedBalance = (account.initialBalance || account.balance) + transactionTotal;
+    
+    return {
+      ...account,
+      balance: calculatedBalance,
+    };
+  });
     
   const investments = storeData.investments;
   
