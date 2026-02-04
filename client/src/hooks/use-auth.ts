@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import type { AuthUser } from "@shared/schema";
+import { setUserId, clearUserId } from "@/lib/api";
 
 async function fetchUser(): Promise<AuthUser | null> {
   const response = await fetch("/api/auth/user", {
@@ -18,6 +20,7 @@ async function fetchUser(): Promise<AuthUser | null> {
 }
 
 async function logout(): Promise<void> {
+  clearUserId();
   window.location.href = "/api/logout";
 }
 
@@ -29,6 +32,12 @@ export function useAuth() {
     retry: false,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
+
+  useEffect(() => {
+    if (user?.id) {
+      setUserId(user.id);
+    }
+  }, [user?.id]);
 
   const logoutMutation = useMutation({
     mutationFn: logout,
