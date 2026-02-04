@@ -1,4 +1,4 @@
-import { getCategoryIcon, formatCurrency } from "@/lib/utils";
+import { getCategoryIcon, formatCurrency, parseLocalDate } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
@@ -625,7 +625,7 @@ function DashboardTransactionItem({ tx, isChild = false }: { tx: any, isChild?: 
                             {isOverdue && <span className="text-[9px] font-bold text-red-600 bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded">ATRASADO</span>}
                         </div>
                         <p className="text-xs text-gray-500 flex items-center gap-1">
-                            {!isChild && <>{tx.category} • </>} {format(new Date(tx.date), 'dd/MM HH:mm')}
+                            {!isChild && <>{tx.category} • </>} {format(parseLocalDate(tx.date), 'dd/MM')}
                             {(() => {
                                 const account = useFinancialStore.getState().accounts.find(a => a.id === tx.accountId);
                                 return account ? (

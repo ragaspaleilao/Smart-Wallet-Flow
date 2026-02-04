@@ -1,4 +1,4 @@
-import { getCategoryIcon, formatCurrency } from "@/lib/utils";
+import { getCategoryIcon, formatCurrency, parseLocalDate } from "@/lib/utils";
 import { MobileLayout } from "@/components/mobile-layout";
 import { ArrowLeft, Search, Filter, ArrowUpRight, ArrowDownLeft, Table as TableIcon, AlertCircle, Clock, CheckCircle2, X, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -644,7 +644,7 @@ function TransactionItem({ tx, isChild = false }: { tx: any, isChild?: boolean }
             {!isOverdue && isPending && <span className="text-[9px] font-bold text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PENDENTE</span>}
           </div>
           <p className="text-xs text-gray-500 flex items-center gap-1">
-            {!isChild && <>{tx.category} • </>} {format(new Date(String(tx.date || '').length === 10 ? `${tx.date}T12:00:00` : tx.date), 'dd/MM HH:mm')}
+            {!isChild && <>{tx.category} • </>} {format(parseLocalDate(tx.date), 'dd/MM')}
             {account && (
               <>
                 <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-zinc-700" />
