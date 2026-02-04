@@ -156,12 +156,16 @@ export async function registerRoutes(
 
   app.post('/api/credit-cards', authMiddleware, async (req: AuthRequest, res) => {
     try {
+      console.log('Credit card request body:', JSON.stringify(req.body));
       const data = insertCreditCardSchema.parse(req.body);
       const card = await storage.createCreditCard(req.userId!, data);
       res.status(201).json(card);
-    } catch (error) {
-      console.error('Error creating credit card:', error);
-      res.status(400).json({ error: 'Invalid credit card data', details: String(error) });
+    } catch (error: any) {
+      console.error('Error creating credit card:', error?.message || error);
+      if (error?.errors) {
+        console.error('Validation errors:', JSON.stringify(error.errors));
+      }
+      res.status(400).json({ error: 'Invalid credit card data', details: error?.message || String(error) });
     }
   });
 
