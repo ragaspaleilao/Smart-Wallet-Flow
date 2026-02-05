@@ -1637,7 +1637,14 @@ export default function CreditCards() {
                                                 <button
                                                     type="button"
                                                     className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${newPurchase.amountMode === 'total' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-500'}`}
-                                                    onClick={() => setNewPurchase({ ...newPurchase, amountMode: 'total', installmentAmount: '' })}
+                                                    onClick={() => {
+                                                        // When switching to Total, calculate total from installment amount
+                                                        const inst = Number(newPurchase.installments || '1') || 1;
+                                                        const instAmountCents = Number((newPurchase.installmentAmount || '').replace(/\D/g, ""));
+                                                        const totalCents = instAmountCents * inst;
+                                                        const newAmount = totalCents > 0 ? formatCurrencyInput(String(totalCents)) : newPurchase.amount;
+                                                        setNewPurchase({ ...newPurchase, amountMode: 'total', amount: newAmount });
+                                                    }}
                                                     data-testid="button-credit-amountmode-total"
                                                 >
                                                     Total
@@ -1645,7 +1652,14 @@ export default function CreditCards() {
                                                 <button
                                                     type="button"
                                                     className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${newPurchase.amountMode === 'installment' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-500'}`}
-                                                    onClick={() => setNewPurchase({ ...newPurchase, amountMode: 'installment', amount: '' })}
+                                                    onClick={() => {
+                                                        // When switching to Parcela, calculate installment from total
+                                                        const inst = Number(newPurchase.installments || '1') || 1;
+                                                        const totalCents = Number((newPurchase.amount || '').replace(/\D/g, ""));
+                                                        const instCents = Math.round(totalCents / inst);
+                                                        const newInstAmount = instCents > 0 ? formatCurrencyInput(String(instCents)) : newPurchase.installmentAmount;
+                                                        setNewPurchase({ ...newPurchase, amountMode: 'installment', installmentAmount: newInstAmount });
+                                                    }}
                                                     data-testid="button-credit-amountmode-installment"
                                                 >
                                                     Parcela
