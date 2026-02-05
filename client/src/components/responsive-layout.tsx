@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { navItems } from "@/lib/mock-data";
@@ -125,7 +125,16 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 export function ResponsiveLayout({ children, showNav = true }: ResponsiveLayoutProps) {
   const [location] = useLocation();
   const isMobile = useIsMobile();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    // Load from localStorage, default to collapsed (true)
+    const saved = localStorage.getItem('sidebarCollapsed');
+    return saved !== null ? saved === 'true' : true;
+  });
+  
+  // Persist sidebar state to localStorage
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
   
   const isFullScreen = location === "/permissions" || location === "/voice-entry" || location === "/photo-entry";
   const shouldShowNav = showNav && !isFullScreen;
