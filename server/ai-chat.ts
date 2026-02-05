@@ -28,6 +28,17 @@ interface FinancialContext {
     date: string;
     installments: number;
   }>;
+  subscriptions: Array<{
+    name: string;
+    price: string;
+    date: string;
+    category: string;
+  }>;
+  vehicles: Array<{
+    name: string;
+    plate: string;
+    expenses: Array<{ name: string; due: string; value: number; status: string }>;
+  }>;
   totalBalance: number;
   monthlyIncome: number;
   monthlyExpenses: number;
@@ -35,10 +46,12 @@ interface FinancialContext {
 }
 
 async function getFinancialContext(userId: string): Promise<FinancialContext> {
-  const [accounts, transactions, creditCards] = await Promise.all([
+  const [accounts, transactions, creditCards, subscriptions, vehicles] = await Promise.all([
     storage.getAccounts(userId),
     storage.getTransactions(userId),
     storage.getCreditCards(userId),
+    storage.getSubscriptions(userId),
+    storage.getVehicles(userId),
   ]);
 
   // Buscar compras de cada cartão de crédito
@@ -56,6 +69,13 @@ async function getFinancialContext(userId: string): Promise<FinancialContext> {
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
+
+  // Pegar transações dos últimos 3 meses
+  const threeMonthsAgo = new Date(currentYear, currentMonth - 2, 1);
+  const recentTransactions = transactions.filter(t => {
+    const d = new Date(t.date);
+    return d >= threeMonthsAgo;
+  });
 
   const monthlyTransactions = transactions.filter(t => {
     const d = new Date(t.date);
@@ -77,6 +97,12 @@ async function getFinancialContext(userId: string): Promise<FinancialContext> {
   });
   const monthlyCardSpending = monthlyCardPurchases.reduce((sum, p) => sum + parseFloat(p.totalAmount), 0);
 
+  // Pegar compras de cartão dos últimos 3 meses
+  const recentCardPurchases = allCreditPurchases.filter(p => {
+    const d = new Date(p.purchaseDate);
+    return d >= threeMonthsAgo;
+  });
+
   const totalBalance = accounts.reduce((sum, a) => sum + parseFloat(a.balance), 0);
 
   return {
@@ -85,7 +111,7 @@ async function getFinancialContext(userId: string): Promise<FinancialContext> {
       type: a.type,
       balance: a.balance,
     })),
-    recentTransactions: transactions.slice(0, 15).map(t => ({
+    recentTransactions: recentTransactions.slice(0, 50).map(t => ({
       description: t.description,
       amount: t.amount,
       type: t.type,
@@ -98,13 +124,24 @@ async function getFinancialContext(userId: string): Promise<FinancialContext> {
       closingDay: c.closingDay,
       dueDay: c.dueDay,
     })),
-    creditPurchases: allCreditPurchases.slice(0, 20).map(p => ({
+    creditPurchases: recentCardPurchases.slice(0, 50).map(p => ({
       description: p.description,
       totalAmount: p.totalAmount,
       cardName: p.cardName,
       category: p.category,
       date: new Date(p.purchaseDate).toLocaleDateString('pt-BR'),
       installments: p.installments,
+    })),
+    subscriptions: subscriptions.map(s => ({
+      name: s.name,
+      price: s.price,
+      date: s.date,
+      category: s.category,
+    })),
+    vehicles: vehicles.map(v => ({
+      name: v.name,
+      plate: v.plate,
+      expenses: v.expenses || [],
     })),
     totalBalance,
     monthlyIncome,
@@ -144,6 +181,21 @@ ${context.creditPurchases.length > 0
 
 TRANSAÇÕES RECENTES (dinheiro/débito):
 ${context.recentTransactions.length > 0 ? context.recentTransactions.map(t => `- ${t.date}: ${t.description} - R$ ${t.amount} (${t.type === 'income' ? 'Receita' : 'Despesa'} - ${t.category})`).join('\n') : 'Nenhuma transação'}
+
+ASSINATURAS E SERVIÇOS RECORRENTES:
+${context.subscriptions.length > 0 
+  ? context.subscriptions.map(s => `- ${s.name}: R$ ${s.price}/mês (${s.category}) - todo dia ${s.date}`).join('\n')
+  : 'Nenhuma assinatura cadastrada'}
+
+VEÍCULOS E DESPESAS:
+${context.vehicles.length > 0 
+  ? context.vehicles.map(v => {
+      const expensesStr = v.expenses.length > 0 
+        ? v.expenses.map(e => `  - ${e.name}: R$ ${e.value} vence ${e.due} (${e.status})`).join('\n')
+        : '  Sem despesas cadastradas';
+      return `- ${v.name} (${v.plate}):\n${expensesStr}`;
+    }).join('\n')
+  : 'Nenhum veículo cadastrado'}
 
 REGRAS IMPORTANTES:
 1. VOCÊ TEM ACESSO aos dados acima. Não diga que não tem acesso!
