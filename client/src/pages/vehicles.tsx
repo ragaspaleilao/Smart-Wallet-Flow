@@ -13,7 +13,7 @@ import { Plus, Car, Calendar, FileText, Wrench, Shield, ChevronDown, ChevronUp, 
 import { useFinancialStore, Transaction } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { format, addMonths, isBefore, startOfDay, parseISO } from "date-fns";
-import { useVehicles, useCreateVehicle, useUpdateVehicle, useDeleteVehicle, useAccounts, useTransactions, useCreateTransaction, useDeleteTransaction } from "@/hooks/use-api";
+import { useVehicles, useCreateVehicle, useUpdateVehicle, useDeleteVehicle, useAccounts, useTransactions, useCreateTransaction, useDeleteTransaction, useUpdateTransaction } from "@/hooks/use-api";
 
 interface Vehicle {
   id: string;
@@ -70,6 +70,22 @@ export default function Vehicles() {
 
   // Expanded groups state
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  
+  // Edit group state
+  const [editGroupOpen, setEditGroupOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<{
+    vehicleId: string;
+    groupName: string;
+    expenseType: string;
+    totalAmount: number;
+    installments: number;
+    transactionIds: string[];
+  } | null>(null);
+  const [editGroupType, setEditGroupType] = useState("");
+  const [editGroupAmount, setEditGroupAmount] = useState("");
+  const [editGroupInstallments, setEditGroupInstallments] = useState(1);
+  
+  const updateTransactionMutation = useUpdateTransaction();
 
   const toggleGroup = (groupId: string) => {
     setExpandedGroups(prev => ({
@@ -139,6 +155,89 @@ export default function Vehicles() {
             await deleteTransactionMutation.mutateAsync(tx.id);
           }
           toast({ title: "Despesa completa removida!" });
+      }
+  };
+
+  const handleOpenEditGroup = (vehicleId: string, groupName: string, items: Transaction[]) => {
+      const vehicle = vehicles.find(v => v.id === vehicleId);
+      const totalAmount = items.reduce((sum, t) => sum + t.amount, 0);
+      const expenseType = groupName.replace(` - ${vehicle?.name}`, "").replace(/\s\(\d+\/\d+\)$/, "");
+      
+      setEditingGroup({
+          vehicleId,
+          groupName,
+          expenseType,
+          totalAmount,
+          installments: items.length,
+          transactionIds: items.map(t => t.id)
+      });
+      setEditGroupType(expenseType);
+      setEditGroupAmount(formatCurrency(String(Math.round(totalAmount * 100))));
+      setEditGroupInstallments(items.length);
+      setEditGroupOpen(true);
+  };
+
+  const handleSaveEditGroup = async () => {
+      if (!editingGroup) return;
+      
+      const numericAmount = Number(editGroupAmount.replace(/\D/g, "")) / 100;
+      const vehicle = vehicles.find(v => v.id === editingGroup.vehicleId);
+      const installmentValue = numericAmount / editGroupInstallments;
+      
+      try {
+          // If number of installments changed, need to delete and recreate
+          if (editGroupInstallments !== editingGroup.installments) {
+              // Delete existing transactions
+              for (const txId of editingGroup.transactionIds) {
+                  await deleteTransactionMutation.mutateAsync(txId);
+              }
+              
+              // Get first transaction date as base
+              const firstTx = transactions.find(t => t.id === editingGroup.transactionIds[0]);
+              const baseDate = firstTx ? new Date(firstTx.date) : new Date();
+              const firstAccountId = firstTx?.accountId || accounts[0]?.id;
+              
+              // Create new transactions with new installment count
+              for (let i = 0; i < editGroupInstallments; i++) {
+                  const newDate = new Date(baseDate);
+                  newDate.setMonth(baseDate.getMonth() + i);
+                  
+                  await createTransactionMutation.mutateAsync({
+                      amount: String(installmentValue),
+                      type: 'expense',
+                      category: 'Transporte',
+                      description: editGroupInstallments > 1 
+                          ? `${editGroupType} - ${vehicle?.name} (${i + 1}/${editGroupInstallments})`
+                          : `${editGroupType} - ${vehicle?.name}`,
+                      source: 'manual',
+                      isPersonal: true,
+                      accountId: firstAccountId,
+                      status: 'pending',
+                      date: newDate.toISOString(),
+                      vehicleId: editingGroup.vehicleId
+                  });
+              }
+          } else {
+              // Just update existing transactions with new values
+              for (let i = 0; i < editingGroup.transactionIds.length; i++) {
+                  const txId = editingGroup.transactionIds[i];
+                  await updateTransactionMutation.mutateAsync({
+                      id: txId,
+                      data: {
+                          amount: String(installmentValue),
+                          description: editGroupInstallments > 1 
+                              ? `${editGroupType} - ${vehicle?.name} (${i + 1}/${editGroupInstallments})`
+                              : `${editGroupType} - ${vehicle?.name}`,
+                      }
+                  });
+              }
+          }
+          
+          toast({ title: "Despesa atualizada!" });
+          setEditGroupOpen(false);
+          setEditingGroup(null);
+      } catch (error) {
+          toast({ title: "Erro ao atualizar despesa", variant: "destructive" });
       }
   };
 
@@ -376,6 +475,63 @@ export default function Vehicles() {
                 </div>
             </DialogContent>
           </Dialog>
+
+          {/* Edit Group Dialog */}
+          <Dialog open={editGroupOpen} onOpenChange={setEditGroupOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Editar Despesa Programada</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label>Tipo de Despesa</Label>
+                        <Select value={editGroupType} onValueChange={setEditGroupType}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="IPVA">IPVA</SelectItem>
+                                <SelectItem value="Seguro">Seguro</SelectItem>
+                                <SelectItem value="Manutenção">Manutenção</SelectItem>
+                                <SelectItem value="Licenciamento">Licenciamento</SelectItem>
+                                <SelectItem value="Revisão">Revisão</SelectItem>
+                                <SelectItem value="Multa">Multa</SelectItem>
+                                <SelectItem value="Outros">Outros</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                        <Label>Valor Total</Label>
+                        <Input 
+                            placeholder="R$ 0,00"
+                            value={editGroupAmount}
+                            onChange={(e) => setEditGroupAmount(formatCurrency(e.target.value))}
+                        />
+                    </div>
+                    
+                    <div className="space-y-2">
+                        <Label>Número de Parcelas</Label>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" onClick={() => setEditGroupInstallments(Math.max(1, editGroupInstallments - 1))}>-</Button>
+                            <div className="flex-1 h-10 flex items-center justify-center border rounded-md font-bold">
+                                {editGroupInstallments}x
+                            </div>
+                            <Button variant="outline" size="icon" onClick={() => setEditGroupInstallments(Math.min(24, editGroupInstallments + 1))}>+</Button>
+                        </div>
+                        {editGroupInstallments > 1 && (
+                            <p className="text-xs text-gray-500">
+                                Valor por parcela: {globalFormatCurrency(Number(editGroupAmount.replace(/\D/g, "")) / 100 / editGroupInstallments)}
+                            </p>
+                        )}
+                    </div>
+                    
+                    <Button className="w-full mt-4" onClick={handleSaveEditGroup}>
+                        Salvar Alterações
+                    </Button>
+                </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="space-y-6">
@@ -495,6 +651,17 @@ export default function Vehicles() {
                                     <span className="font-bold text-sm block">{globalFormatCurrency(totalAmount)}</span>
                                     <span className="text-[10px] text-gray-400">Total</span>
                                 </div>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 text-gray-400 hover:text-primary hover:bg-primary/10"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenEditGroup(car.id, groupName, items);
+                                    }}
+                                >
+                                    <Edit2 className="w-4 h-4" />
+                                </Button>
                                 <Button 
                                     variant="ghost" 
                                     size="icon" 
