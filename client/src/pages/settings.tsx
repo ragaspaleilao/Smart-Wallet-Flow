@@ -10,12 +10,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ShareButton } from "@/components/share-button";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/hooks/use-theme";
 import { getUserId } from "@/lib/api";
 
 export default function Settings() { 
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isDark, setDarkMode } = useTheme();
 
   const resetMutation = useMutation({
     mutationFn: async () => {
@@ -133,7 +135,11 @@ export default function Settings() {
                 <Moon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                 <span className="font-medium">Modo Escuro</span>
               </div>
-              <Switch />
+              <Switch 
+                checked={isDark} 
+                onCheckedChange={setDarkMode}
+                data-testid="switch-dark-mode"
+              />
             </div>
 
             <div className="flex items-center justify-between">
