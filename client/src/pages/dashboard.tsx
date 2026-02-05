@@ -9,6 +9,7 @@ import { format, isBefore, startOfDay, startOfMonth, endOfMonth, subMonths, star
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 import { useState, useMemo, useEffect } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 import { ShareButton } from "@/components/share-button";
 import { useAuth } from "@/hooks/use-auth";
@@ -60,6 +61,7 @@ export default function Dashboard() {
   
   const [photoScannerOpen, setPhotoScannerOpen] = useState(false);
   const [voiceRecorderOpen, setVoiceRecorderOpen] = useState(false);
+  const [accountsSheetOpen, setAccountsSheetOpen] = useState(false);
   
   const createTransactionMutation = useCreateTransaction();
   const createCreditPurchaseMutation = useCreateCreditPurchase();
@@ -204,18 +206,93 @@ export default function Dashboard() {
         {/* Header / Balance */}
         <div className="space-y-6">
           <div className="flex justify-between items-start">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Saldo disponível (Pessoal)</p>
-                 <div className="flex items-center gap-1 bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full animate-in fade-in zoom-in">
-                    <Flame className="w-3 h-3 text-orange-500 fill-orange-500" />
-                    <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">3 Dias</span>
-                 </div>
-              </div>
-              <h1 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mt-1">
-                {formatCurrency(personalBalance)}
-              </h1>
-            </div>
+            <Sheet open={accountsSheetOpen} onOpenChange={setAccountsSheetOpen}>
+              <SheetTrigger asChild>
+                <div className="cursor-pointer hover:opacity-80 transition-opacity">
+                  <div className="flex items-center gap-2 mb-1">
+                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Saldo disponível (Pessoal)</p>
+                     <div className="flex items-center gap-1 bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full animate-in fade-in zoom-in">
+                        <Flame className="w-3 h-3 text-orange-500 fill-orange-500" />
+                        <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">3 Dias</span>
+                     </div>
+                     <ChevronDown className="w-4 h-4 text-gray-400" />
+                  </div>
+                  <h1 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mt-1">
+                    {formatCurrency(personalBalance)}
+                  </h1>
+                </div>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="rounded-t-3xl max-h-[70vh]">
+                <SheetHeader>
+                  <SheetTitle className="text-left">Minhas Contas</SheetTitle>
+                </SheetHeader>
+                <div className="mt-4 space-y-3 overflow-y-auto max-h-[50vh]">
+                  {accounts.filter(a => a.type !== 'investment').map((account) => {
+                    // Calculate dynamic balance for each account
+                    const accountIncome = allTransactions
+                      .filter(t => t.accountId === account.id && t.type === 'income' && t.status === 'paid')
+                      .reduce((sum, t) => sum + t.amount, 0);
+                    const accountExpenses = allTransactions
+                      .filter(t => t.accountId === account.id && t.type === 'expense' && t.status === 'paid')
+                      .reduce((sum, t) => sum + t.amount, 0);
+                    const accountBalance = account.initialBalance + accountIncome - accountExpenses;
+                    
+                    const typeLabels: Record<string, string> = {
+                      bank: 'Conta Bancária',
+                      wallet: 'Carteira',
+                      cash: 'Dinheiro',
+                      investment: 'Investimento'
+                    };
+                    
+                    const typeIcons: Record<string, string> = {
+                      bank: '🏦',
+                      wallet: '👛',
+                      cash: '💵',
+                      investment: '📈'
+                    };
+                    
+                    return (
+                      <div 
+                        key={account.id} 
+                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-zinc-900 rounded-xl"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center text-xl">
+                            {typeIcons[account.type] || '💰'}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900 dark:text-white">{account.name}</p>
+                            <p className="text-xs text-gray-500">{typeLabels[account.type] || account.type}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-bold ${accountBalance >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                            {formatCurrency(accountBalance)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {accounts.filter(a => a.type !== 'investment').length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Wallet className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>Nenhuma conta cadastrada</p>
+                      <Link href="/accounts">
+                        <Button variant="link" className="text-primary">Adicionar conta</Button>
+                      </Link>
+                    </div>
+                  )}
+                  
+                  <div className="border-t pt-4 mt-4">
+                    <div className="flex justify-between items-center">
+                      <p className="font-semibold text-gray-700 dark:text-gray-300">Total Disponível</p>
+                      <p className="text-xl font-bold text-primary">{formatCurrency(personalBalance)}</p>
+                    </div>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
             <div className="flex gap-2">
                 <Link href="/settings">
                     <Button variant="outline" size="icon" className="h-10 w-10 rounded-full border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
