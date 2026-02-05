@@ -698,25 +698,25 @@ export default function CreditCards() {
 
   const getInvoiceMonthDate = (purchaseDate: Date, closingDay: number) => {
     // Regra do ciclo de fatura:
-    // Ex: fechamento dia 03, vencimento dia 10
-    // - Compras de 04/01 até 03/02 -> fatura de FEVEREIRO (fecha 03/02, vence 10/02)
-    // - Compras de 04/02 até 03/03 -> fatura de MARÇO (fecha 03/03, vence 10/03)
+    // A fatura é nomeada pela COMPETÊNCIA (mês principal das compras).
+    // Ex: fechamento dia 03, vencimento dia 07
+    // - Compras de 04/01 até 03/02 -> fatura de JANEIRO (fecha 03/02, vence 07/02)
+    // - Compras de 04/02 até 03/03 -> fatura de FEVEREIRO (fecha 03/03, vence 07/03)
     // 
-    // A fatura é nomeada pelo mês em que FECHA, não pelo mês das compras.
-    // Compra feita DEPOIS do fechamento vai para a fatura do PRÓXIMO mês.
-    // Compra feita ATÉ o fechamento vai para a fatura do MÊS ATUAL.
+    // Compra feita DEPOIS do fechamento vai para a fatura do MÊS ATUAL.
+    // Compra feita ATÉ o fechamento vai para a fatura do MÊS ANTERIOR.
 
     const d = new Date(purchaseDate);
 
-    // Se a compra foi feita ATÉ o dia de fechamento (inclusive), ela pertence à fatura do mês atual.
-    // Ex: compra dia 02/02 com fechamento dia 03 -> fatura de fevereiro (fecha 03/02)
-    if (d.getDate() <= closingDay) {
+    // Se a compra foi feita DEPOIS do dia de fechamento, pertence à fatura do mês atual.
+    // Ex: compra dia 04/02 com fechamento dia 03 -> fatura de fevereiro (fecha 03/03)
+    if (d.getDate() > closingDay) {
       return d;
     }
 
-    // Se foi DEPOIS do fechamento, pertence à fatura do PRÓXIMO MÊS.
-    // Ex: compra dia 04/02 com fechamento dia 03 -> fatura de março (fecha 03/03)
-    return addMonths(d, 1);
+    // Se foi ATÉ o fechamento, pertence à fatura do MÊS ANTERIOR.
+    // Ex: compra dia 02/02 com fechamento dia 03 -> fatura de janeiro (fecha 03/02)
+    return addMonths(d, -1);
   };
 
   const getInvoiceStatus = (card: CreditCard, month: Date) => {
@@ -793,12 +793,12 @@ export default function CreditCards() {
     if (!selectedCard) return new Date();
     const now = new Date();
 
-    // A fatura "atual" é aquela que está aberta para receber compras.
-    // Se hoje > fechamento, a fatura atual é a do PRÓXIMO mês (ainda está aberta).
-    // Se hoje <= fechamento, a fatura atual é a do MÊS ATUAL (ainda está aberta).
-    // Ex: fechamento dia 03, hoje dia 05/02 -> fatura atual é MARÇO (fecha 03/03)
-    // Ex: fechamento dia 03, hoje dia 02/02 -> fatura atual é FEVEREIRO (fecha 03/02)
-    const baseCompetence = now.getDate() <= selectedCard.closingDay ? now : addMonths(now, 1);
+    // A fatura é nomeada pela COMPETÊNCIA (mês das compras).
+    // Se hoje > fechamento, a fatura atual é do MÊS ATUAL (fechou no mês passado, vence no próximo).
+    // Se hoje <= fechamento, a fatura atual é do MÊS ANTERIOR (ainda está aberta para receber compras).
+    // Ex: fechamento dia 03, hoje dia 05/02 -> fatura atual é FEVEREIRO (fecha 03/03, vence 07/03)
+    // Ex: fechamento dia 03, hoje dia 02/02 -> fatura atual é JANEIRO (fecha 03/02, vence 07/02)
+    const baseCompetence = now.getDate() > selectedCard.closingDay ? now : addMonths(now, -1);
     return new Date(baseCompetence.getFullYear(), baseCompetence.getMonth(), 1);
   }, [selectedCard]);
 
