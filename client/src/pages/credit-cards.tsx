@@ -697,21 +697,22 @@ export default function CreditCards() {
   // --- Helper Functions ---
 
   const getInvoiceMonthDate = (purchaseDate: Date, closingDay: number) => {
-    // Regra do ciclo conforme você descreveu:
-    // Ex: fechamento dia 03
-    // - De 04/01 até 03/02 -> competência de JANEIRO
-    // - De 04/02 até 03/03 -> competência de FEVEREIRO
-    // Ou seja: a compra entra na competência do mês ANTERIOR ao mês em que ocorre o fechamento.
+    // Regra do ciclo de fatura:
+    // Ex: fechamento dia 03, vencimento dia 07
+    // - Compras de 04/01 até 03/02 -> fatura de FEVEREIRO (vence 07/02)
+    // - Compras de 04/02 até 03/03 -> fatura de MARÇO (vence 07/03)
+    // Ou seja: a compra entra na fatura do MÊS DA PRÓPRIA COMPRA se feita até o fechamento,
+    // ou na fatura do PRÓXIMO MÊS se feita depois do fechamento.
 
     const d = new Date(purchaseDate);
 
-    // Se a compra foi feita ATÉ o dia de fechamento (inclusive), ela pertence ao mês anterior.
+    // Se a compra foi feita ATÉ o dia de fechamento (inclusive), ela pertence à fatura do mês atual.
     if (d.getDate() <= closingDay) {
-      return addMonths(d, -1);
+      return d;
     }
 
-    // Se foi depois do fechamento, pertence ao mês da própria compra.
-    return d;
+    // Se foi depois do fechamento, pertence à fatura do próximo mês.
+    return addMonths(d, 1);
   };
 
   const getInvoiceStatus = (card: CreditCard, month: Date) => {
