@@ -454,6 +454,30 @@ export class DbStorage implements IStorage {
   }
 
   async deleteSubscription(id: string, userId: string): Promise<boolean> {
+    // First get the subscription to know its name
+    const subscription = await this.db.select().from(schema.subscriptions)
+      .where(and(eq(schema.subscriptions.id, id), eq(schema.subscriptions.userId, userId)));
+    
+    if (subscription.length === 0) return false;
+    
+    const subscriptionName = subscription[0].name;
+    const searchPattern = `${subscriptionName} (Assinatura)`;
+    
+    // Delete associated credit purchases with matching description
+    await this.db.delete(schema.creditPurchases)
+      .where(and(
+        eq(schema.creditPurchases.userId, userId),
+        eq(schema.creditPurchases.description, searchPattern)
+      ));
+    
+    // Delete associated transactions with matching description
+    await this.db.delete(schema.transactions)
+      .where(and(
+        eq(schema.transactions.userId, userId),
+        eq(schema.transactions.description, searchPattern)
+      ));
+    
+    // Finally delete the subscription
     const result = await this.db.delete(schema.subscriptions)
       .where(and(eq(schema.subscriptions.id, id), eq(schema.subscriptions.userId, userId)))
       .returning();
