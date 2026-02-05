@@ -113,10 +113,10 @@ async function buildCompleteContext(userId: string): Promise<string> {
     context += `\n📌 ${card.name}\n`;
     context += `   Limite: R$ ${card.creditLimit} | Fecha dia ${card.closingDay} | Vence dia ${card.dueDay}\n`;
     
-    // Calculate invoices for past 2 months + current + future 12 months
+    // Calculate invoices for current + future 12 months only (ignore past invoices)
     const invoiceMonths: { month: Date; total: number; items: string[] }[] = [];
     
-    for (let offset = -2; offset <= 12; offset++) {
+    for (let offset = 0; offset <= 12; offset++) {
       const targetMonth = addMonths(currentInvoiceMonth, offset);
       let total = annualFee;
       const items: string[] = [];
