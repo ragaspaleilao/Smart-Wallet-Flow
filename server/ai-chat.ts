@@ -223,12 +223,11 @@ ${context.upcomingExpenses.length > 0
   : 'Nenhum pagamento agendado'}
 
 REGRAS:
-1. Seja SIMPLES e DIRETO. Nada de análises complexas.
-2. Responda o que foi perguntado, sem inventar problemas.
-3. NUNCA diga que uma assinatura está atrasada se ela é paga no cartão de crédito.
-4. Use emojis com moderação.
-5. Respostas curtas - máximo 200 palavras.
-6. Foque no que o usuário perguntou.`;
+1. Seja SIMPLES e DIRETO.
+2. Respostas CURTAS - máximo 150 palavras.
+3. SEMPRE termine suas frases. NUNCA corte no meio.
+4. Use listas curtas (máximo 5 itens).
+5. Foque no que o usuário perguntou.`;
 
   const fullPrompt = `${systemPrompt}
 
@@ -247,8 +246,8 @@ Responda de forma simples e direta:`;
         parts: [{ text: fullPrompt }] 
       }],
       config: {
-        temperature: 0.5,
-        maxOutputTokens: 2000,
+        temperature: 0.3,
+        maxOutputTokens: 8192,
       }
     });
 
