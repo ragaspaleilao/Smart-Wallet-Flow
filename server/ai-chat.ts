@@ -39,6 +39,13 @@ interface FinancialContext {
     plate: string;
     expenses: Array<{ name: string; due: string; value: number; status: string }>;
   }>;
+  vehicleExpenses: Array<{
+    vehicleName: string;
+    description: string;
+    amount: string;
+    date: string;
+    status: string;
+  }>;
   totalBalance: number;
   monthlyIncome: number;
   monthlyExpenses: number;
@@ -70,11 +77,20 @@ async function getFinancialContext(userId: string): Promise<FinancialContext> {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  // Pegar transações dos últimos 3 meses
+  // Pegar TODAS as transações (passadas e futuras) para dar contexto completo
+  // Ordenar por data
+  const sortedTransactions = [...transactions].sort((a, b) => 
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+  
+  // Separar transações de veículos (despesas parceladas como IPVA, Seguro)
+  const vehicleTransactions = transactions.filter(t => t.vehicleId);
+  
+  // Transações regulares (últimos 3 meses)
   const threeMonthsAgo = new Date(currentYear, currentMonth - 2, 1);
   const recentTransactions = transactions.filter(t => {
     const d = new Date(t.date);
-    return d >= threeMonthsAgo;
+    return d >= threeMonthsAgo && !t.vehicleId;
   });
 
   const monthlyTransactions = transactions.filter(t => {
@@ -143,6 +159,16 @@ async function getFinancialContext(userId: string): Promise<FinancialContext> {
       plate: v.plate,
       expenses: v.expenses || [],
     })),
+    vehicleExpenses: vehicleTransactions.map(t => {
+      const vehicle = vehicles.find(v => v.id === t.vehicleId);
+      return {
+        vehicleName: vehicle?.name || 'Veículo',
+        description: t.description,
+        amount: t.amount,
+        date: new Date(t.date).toLocaleDateString('pt-BR'),
+        status: t.status || 'pending',
+      };
+    }),
     totalBalance,
     monthlyIncome,
     monthlyExpenses,
@@ -187,15 +213,15 @@ ${context.subscriptions.length > 0
   ? context.subscriptions.map(s => `- ${s.name}: R$ ${s.price}/mês (${s.category}) - todo dia ${s.date}`).join('\n')
   : 'Nenhuma assinatura cadastrada'}
 
-VEÍCULOS E DESPESAS:
+VEÍCULOS CADASTRADOS:
 ${context.vehicles.length > 0 
-  ? context.vehicles.map(v => {
-      const expensesStr = v.expenses.length > 0 
-        ? v.expenses.map(e => `  - ${e.name}: R$ ${e.value} vence ${e.due} (${e.status})`).join('\n')
-        : '  Sem despesas cadastradas';
-      return `- ${v.name} (${v.plate}):\n${expensesStr}`;
-    }).join('\n')
+  ? context.vehicles.map(v => `- ${v.name} (${v.plate})`).join('\n')
   : 'Nenhum veículo cadastrado'}
+
+DESPESAS DE VEÍCULOS (IPVA, Seguro, Licenciamento, etc - todas as parcelas):
+${context.vehicleExpenses.length > 0
+  ? context.vehicleExpenses.map(e => `- ${e.date}: ${e.description} - R$ ${e.amount} (${e.status === 'paid' ? 'PAGO' : 'PENDENTE'})`).join('\n')
+  : 'Nenhuma despesa de veículo cadastrada'}
 
 REGRAS IMPORTANTES:
 1. VOCÊ TEM ACESSO aos dados acima. Não diga que não tem acesso!
