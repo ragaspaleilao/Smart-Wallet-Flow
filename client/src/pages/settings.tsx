@@ -142,14 +142,7 @@ export default function Settings() {
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Shield className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                <span className="font-medium">Usar Biometria</span>
-              </div>
-              <Switch defaultChecked />
-            </div>
-
+            
             <Link href="/backup">
               <div className="flex items-center justify-between py-2 cursor-pointer group">
                   <div className="flex items-center gap-3">
