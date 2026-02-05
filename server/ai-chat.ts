@@ -6,20 +6,26 @@ const client = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
 });
 
-interface CardSummary {
+interface InvoiceSummary {
+  month: string;
+  year: number;
+  total: number;
+  dueDate: string;
+}
+
+interface CardWithInvoices {
   name: string;
   creditLimit: string;
   closingDay: number;
   dueDay: number;
-  currentInvoiceTotal: number;
-  currentInvoiceItems: string[];
-  currentInvoiceMonth: string;
+  currentInvoice: { month: string; total: number; dueDate: string };
+  futureInvoices: InvoiceSummary[];
 }
 
 interface FinancialContext {
   accounts: Array<{ name: string; type: string; balance: string }>;
   totalBalance: number;
-  cardSummaries: CardSummary[];
+  cards: CardWithInvoices[];
   subscriptions: Array<{
     name: string;
     price: string;
@@ -30,125 +36,141 @@ interface FinancialContext {
     description: string;
     amount: string;
     date: string;
-    status: string;
   }>;
+  totalFutureCardExpenses: number;
+  totalFutureOtherExpenses: number;
 }
 
-// Helper: determine invoice competence month for a purchase
+const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
 function getInvoiceCompetenceMonth(purchaseDate: Date, closingDay: number): Date {
-  // If purchase was made AFTER closing day, it belongs to current month's invoice
-  // If purchase was made ON or BEFORE closing day, it belongs to previous month's invoice
   if (purchaseDate.getDate() > closingDay) {
     return new Date(purchaseDate.getFullYear(), purchaseDate.getMonth(), 1);
   }
   return addMonths(new Date(purchaseDate.getFullYear(), purchaseDate.getMonth(), 1), -1);
 }
 
-// Helper: get current invoice competence month based on today
 function getCurrentInvoiceMonth(closingDay: number): Date {
   const now = new Date();
-  // If today > closing day, current invoice is for CURRENT month (closes next month)
-  // If today <= closing day, current invoice is for PREVIOUS month (closes this month)
   if (now.getDate() > closingDay) {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   }
   return addMonths(new Date(now.getFullYear(), now.getMonth(), 1), -1);
 }
 
+function calculateInvoiceForMonth(
+  purchases: any[], 
+  closingDay: number, 
+  dueDay: number,
+  targetMonth: Date,
+  annualFee: number = 0
+): number {
+  let total = 0;
+  
+  for (const purchase of purchases) {
+    if (purchase.status !== 'active') continue;
+    
+    const purchaseDate = new Date(purchase.purchaseDate);
+    const firstInstallmentMonth = getInvoiceCompetenceMonth(purchaseDate, closingDay);
+    
+    for (let i = 0; i < purchase.installments; i++) {
+      const installmentMonth = addMonths(firstInstallmentMonth, i);
+      
+      if (installmentMonth.getMonth() === targetMonth.getMonth() && 
+          installmentMonth.getFullYear() === targetMonth.getFullYear()) {
+        total += parseFloat(purchase.installmentValue);
+      }
+    }
+  }
+  
+  if (annualFee > 0) {
+    total += annualFee / 12;
+  }
+  
+  return total;
+}
+
 async function getFinancialContext(userId: string): Promise<FinancialContext> {
-  const [accounts, transactions, creditCards, subscriptions, vehicles] = await Promise.all([
+  const [accounts, transactions, creditCards, subscriptions] = await Promise.all([
     storage.getAccounts(userId),
     storage.getTransactions(userId),
     storage.getCreditCards(userId),
     storage.getSubscriptions(userId),
-    storage.getVehicles(userId),
   ]);
 
   const now = new Date();
   const totalBalance = accounts.reduce((sum, a) => sum + parseFloat(a.balance), 0);
 
-  // Build card summaries with current invoice totals
-  const cardSummaries: CardSummary[] = [];
+  const cards: CardWithInvoices[] = [];
+  let totalFutureCardExpenses = 0;
   
   for (const card of creditCards) {
     const purchases = await storage.getCreditPurchases(userId, card.id);
     const currentInvoiceMonth = getCurrentInvoiceMonth(card.closingDay);
+    const annualFee = card.hasAnnualFee && card.annualFeeValue ? parseFloat(card.annualFeeValue) : 0;
     
-    let invoiceTotal = 0;
-    const invoiceItems: string[] = [];
+    // Current invoice
+    const currentTotal = calculateInvoiceForMonth(purchases, card.closingDay, card.dueDay, currentInvoiceMonth, annualFee);
+    const currentDueMonth = addMonths(currentInvoiceMonth, 1);
+    const currentDueDate = `${card.dueDay}/${String(currentDueMonth.getMonth() + 1).padStart(2, '0')}/${currentDueMonth.getFullYear()}`;
     
-    for (const purchase of purchases) {
-      if (purchase.status !== 'active') continue;
+    // Future invoices (next 12 months)
+    const futureInvoices: InvoiceSummary[] = [];
+    for (let i = 1; i <= 12; i++) {
+      const futureMonth = addMonths(currentInvoiceMonth, i);
+      const futureTotal = calculateInvoiceForMonth(purchases, card.closingDay, card.dueDay, futureMonth, annualFee);
       
-      const purchaseDate = new Date(purchase.purchaseDate);
-      const firstInstallmentMonth = getInvoiceCompetenceMonth(purchaseDate, card.closingDay);
-      
-      // Check each installment
-      for (let i = 0; i < purchase.installments; i++) {
-        const installmentMonth = addMonths(firstInstallmentMonth, i);
-        
-        if (installmentMonth.getMonth() === currentInvoiceMonth.getMonth() && 
-            installmentMonth.getFullYear() === currentInvoiceMonth.getFullYear()) {
-          const value = parseFloat(purchase.installmentValue);
-          invoiceTotal += value;
-          
-          const installmentLabel = purchase.installments > 1 
-            ? ` (${i + 1}/${purchase.installments})`
-            : '';
-          invoiceItems.push(`${purchase.description}${installmentLabel}: R$ ${value.toFixed(2)}`);
-        }
+      if (futureTotal > 0) {
+        const dueMonth = addMonths(futureMonth, 1);
+        futureInvoices.push({
+          month: monthNames[futureMonth.getMonth()],
+          year: futureMonth.getFullYear(),
+          total: futureTotal,
+          dueDate: `${card.dueDay}/${String(dueMonth.getMonth() + 1).padStart(2, '0')}/${dueMonth.getFullYear()}`,
+        });
+        totalFutureCardExpenses += futureTotal;
       }
     }
     
-    // Add annual fee if applicable
-    if (card.hasAnnualFee && card.annualFeeValue) {
-      const feeValue = parseFloat(card.annualFeeValue) / 12;
-      invoiceTotal += feeValue;
-      invoiceItems.push(`Anuidade: R$ ${feeValue.toFixed(2)}`);
-    }
-
-    const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
-                        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-    
-    cardSummaries.push({
+    cards.push({
       name: card.name,
       creditLimit: card.creditLimit,
       closingDay: card.closingDay,
       dueDay: card.dueDay,
-      currentInvoiceTotal: invoiceTotal,
-      currentInvoiceItems: invoiceItems.slice(0, 10), // Limit to 10 items
-      currentInvoiceMonth: monthNames[currentInvoiceMonth.getMonth()],
+      currentInvoice: {
+        month: monthNames[currentInvoiceMonth.getMonth()],
+        total: currentTotal,
+        dueDate: currentDueDate,
+      },
+      futureInvoices,
     });
+    
+    totalFutureCardExpenses += currentTotal;
   }
 
-  // Get upcoming expenses (next 30 days, excluding vehicle expenses)
-  const thirtyDaysFromNow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30);
+  // Upcoming expenses (all future, not just 30 days)
   const upcomingExpenses = transactions
     .filter(t => {
       const d = new Date(t.date);
-      return t.type === 'expense' && !t.vehicleId && d >= now && d <= thirtyDaysFromNow;
+      return t.type === 'expense' && d >= now;
     })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 20)
     .map(t => ({
       description: t.description,
       amount: t.amount,
       date: new Date(t.date).toLocaleDateString('pt-BR'),
-      status: t.status || 'pending',
-    }))
-    .slice(0, 10);
+    }));
 
-  // Build subscription info
+  const totalFutureOtherExpenses = transactions
+    .filter(t => t.type === 'expense' && new Date(t.date) >= now)
+    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+  // Subscriptions
   const subscriptionsList = subscriptions.map(s => {
     const creditCard = creditCards.find(c => c.id === s.creditCardId);
-    let paymentInfo = '';
-    if (creditCard) {
-      paymentInfo = `Cartão ${creditCard.name}`;
-    } else if (s.paymentMethod === 'debit') {
-      paymentInfo = 'Débito';
-    } else if (s.paymentMethod === 'pix') {
-      paymentInfo = 'PIX';
-    } else {
-      paymentInfo = s.paymentMethod || 'Não definido';
-    }
+    let paymentInfo = creditCard ? `Cartão ${creditCard.name}` : (s.paymentMethod || 'Não definido');
     
     return {
       name: s.name,
@@ -159,15 +181,13 @@ async function getFinancialContext(userId: string): Promise<FinancialContext> {
   });
 
   return {
-    accounts: accounts.map(a => ({
-      name: a.name,
-      type: a.type,
-      balance: a.balance,
-    })),
+    accounts: accounts.map(a => ({ name: a.name, type: a.type, balance: a.balance })),
     totalBalance,
-    cardSummaries,
+    cards,
     subscriptions: subscriptionsList,
     upcomingExpenses,
+    totalFutureCardExpenses,
+    totalFutureOtherExpenses,
   };
 }
 
@@ -186,48 +206,50 @@ export async function processAiChat(
     day: 'numeric' 
   });
 
-  // Build cards section
-  const cardsSection = context.cardSummaries.length > 0 
-    ? context.cardSummaries.map(card => {
-        const itemsList = card.currentInvoiceItems.length > 0 
-          ? card.currentInvoiceItems.map(item => `    - ${item}`).join('\n')
-          : '    (Nenhum lançamento)';
-        
-        return `📌 ${card.name}
-   Fatura ${card.currentInvoiceMonth}: R$ ${card.currentInvoiceTotal.toFixed(2)}
-   Fecha dia ${card.closingDay}, vence dia ${card.dueDay}
-   Limite: R$ ${card.creditLimit}
-   Lançamentos:
-${itemsList}`;
-      }).join('\n\n')
-    : 'Nenhum cartão cadastrado';
+  // Build cards section with current and future invoices
+  const cardsSection = context.cards.map(card => {
+    const futureList = card.futureInvoices.length > 0 
+      ? card.futureInvoices.map(inv => `    ${inv.month}/${inv.year}: R$ ${inv.total.toFixed(2)} (vence ${inv.dueDate})`).join('\n')
+      : '    (Sem parcelas futuras)';
+    
+    return `📌 ${card.name}
+   Fatura Atual (${card.currentInvoice.month}): R$ ${card.currentInvoice.total.toFixed(2)} - vence ${card.currentInvoice.dueDate}
+   Faturas Futuras (próximos 12 meses):
+${futureList}`;
+  }).join('\n\n');
 
-  const systemPrompt = `Você é um assistente financeiro simples e direto do app "Xô Preguiça".
+  const systemPrompt = `Você é o Mentor Financeiro do app "Xô Preguiça". Você tem ACESSO COMPLETO aos dados do usuário.
 
 📅 HOJE: ${formattedToday}
 
 💰 SALDO DISPONÍVEL: R$ ${context.totalBalance.toFixed(2)}
 ${context.accounts.map(a => `  - ${a.name}: R$ ${a.balance}`).join('\n')}
 
-💳 CARTÕES DE CRÉDITO (FATURAS ATUAIS):
+💳 CARTÕES DE CRÉDITO (COM FATURAS FUTURAS):
 ${cardsSection}
 
-📱 ASSINATURAS RECORRENTES:
+📊 TOTAIS PROJETADOS:
+- Total de todas as faturas de cartão (atual + futuras): R$ ${context.totalFutureCardExpenses.toFixed(2)}
+- Total de outras despesas agendadas: R$ ${context.totalFutureOtherExpenses.toFixed(2)}
+- TOTAL GERAL DE COMPROMISSOS: R$ ${(context.totalFutureCardExpenses + context.totalFutureOtherExpenses).toFixed(2)}
+
+📆 PRÓXIMAS DESPESAS AGENDADAS (débito/pix):
+${context.upcomingExpenses.length > 0 
+  ? context.upcomingExpenses.slice(0, 10).map(e => `- ${e.date}: ${e.description} - R$ ${e.amount}`).join('\n')
+  : 'Nenhuma despesa agendada'}
+
+📱 ASSINATURAS:
 ${context.subscriptions.length > 0 
   ? context.subscriptions.map(s => `- ${s.name}: R$ ${s.price}/mês (dia ${s.billingDay}) - ${s.paymentInfo}`).join('\n')
   : 'Nenhuma assinatura'}
 
-📆 PRÓXIMOS PAGAMENTOS (30 dias):
-${context.upcomingExpenses.length > 0 
-  ? context.upcomingExpenses.map(e => `- ${e.date}: ${e.description} - R$ ${e.amount}`).join('\n')
-  : 'Nenhum pagamento agendado'}
-
-REGRAS:
-1. Seja SIMPLES e DIRETO.
-2. Respostas CURTAS - máximo 150 palavras.
-3. SEMPRE termine suas frases. NUNCA corte no meio.
-4. Use listas curtas (máximo 5 itens).
-5. Foque no que o usuário perguntou.`;
+INSTRUÇÕES:
+1. Você TEM ACESSO a todos os dados acima, incluindo FATURAS FUTURAS de cada cartão.
+2. Quando o usuário perguntar sobre projeção futura, USE os dados de "Faturas Futuras" de cada cartão.
+3. Para calcular saldo futuro: Saldo Atual - Total de Compromissos até a data solicitada.
+4. Seja detalhado quando o usuário pedir projeções ou análises.
+5. Cite os valores específicos das faturas futuras quando relevante.
+6. SEMPRE complete suas respostas. NUNCA corte no meio.`;
 
   const fullPrompt = `${systemPrompt}
 
@@ -236,7 +258,7 @@ ${conversationHistory.slice(-4).map(msg => `${msg.role === 'user' ? 'Usuário' :
 
 Usuário: ${message}
 
-Responda de forma simples e direta:`;
+Responda de forma completa e detalhada:`;
 
   try {
     const result = await client.models.generateContent({
@@ -246,7 +268,7 @@ Responda de forma simples e direta:`;
         parts: [{ text: fullPrompt }] 
       }],
       config: {
-        temperature: 0.3,
+        temperature: 0.4,
         maxOutputTokens: 8192,
       }
     });
