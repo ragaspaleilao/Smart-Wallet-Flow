@@ -274,13 +274,25 @@ export async function registerRoutes(
   app.patch('/api/credit-purchases/:id', authMiddleware, async (req: AuthRequest, res) => {
     try {
       const id = String(req.params.id);
-      const purchase = await storage.updateCreditPurchase(id, req.userId!, req.body);
+      // Sanitize the input - remove fields that shouldn't be updated directly
+      const { id: _id, userId: _userId, createdAt: _createdAt, updatedAt: _updatedAt, ...updates } = req.body;
+      
+      // Ensure numeric fields are strings for decimal columns
+      if (updates.totalAmount !== undefined) {
+        updates.totalAmount = String(updates.totalAmount);
+      }
+      if (updates.installmentValue !== undefined) {
+        updates.installmentValue = String(updates.installmentValue);
+      }
+      
+      const purchase = await storage.updateCreditPurchase(id, req.userId!, updates);
       if (!purchase) {
         return res.status(404).json({ error: 'Credit purchase not found' });
       }
       res.json(purchase);
-    } catch (error) {
-      res.status(400).json({ error: 'Failed to update credit purchase' });
+    } catch (error: any) {
+      console.error('Update credit purchase error:', error);
+      res.status(400).json({ error: 'Failed to update credit purchase', details: error.message });
     }
   });
 
