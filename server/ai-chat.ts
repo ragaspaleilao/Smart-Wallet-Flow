@@ -227,10 +227,11 @@ REGRAS IMPORTANTES:
 1. VOCÊ TEM ACESSO aos dados acima. Não diga que não tem acesso!
 2. Quando o usuário perguntar sobre compras no cartão, consulte a lista "COMPRAS RECENTES NO CARTÃO".
 3. Se houver gastos parcelados, lembre-o do comprometimento dos próximos meses.
-4. Sempre dê respostas completas, não corte no meio da frase.
+4. CRÍTICO: SEMPRE complete suas respostas! NUNCA pare no meio de uma frase ou lista.
 5. Se o gasto for grande, pergunte sobre outras prioridades.
+6. Mantenha respostas objetivas - máximo 400 palavras por resposta.
 
-Responda sempre em Português do Brasil de forma amigável, como se fosse um chat de WhatsApp. Sempre termine suas frases completas.`;
+Responda sempre em Português do Brasil de forma amigável, como se fosse um chat de WhatsApp. SEMPRE termine suas frases e listas completamente - nunca deixe uma resposta pela metade.`;
 
   const fullPrompt = `${systemPrompt}
 
@@ -250,7 +251,7 @@ Mentor:`;
       }],
       config: {
         temperature: 0.7,
-        maxOutputTokens: 2000,
+        maxOutputTokens: 4000,
       }
     });
 
