@@ -36,7 +36,7 @@ const parseDateSafe = (dateStr: string): Date => {
   const dateOnly = dateStr.slice(0, 10);
   return parseISO(`${dateOnly}T12:00:00`);
 };
-import { useCreditCards, useCreditPurchases, useCreditPayments, useCreateCreditCard, useCreateCreditPurchase, useUpdateCreditPurchase, useCreateCreditPayment, useDeleteCreditCard, useDeleteCreditPurchase, useAccounts, useUpdateCreditCard } from "@/hooks/use-api";
+import { useCreditCards, useCreditPurchases, useCreditPayments, useCreateCreditCard, useCreateCreditPurchase, useUpdateCreditPurchase, useCreateCreditPayment, useDeleteCreditCard, useDeleteCreditPurchase, useAccounts, useUpdateCreditCard, useSubscriptions } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
 import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
@@ -490,6 +490,7 @@ export default function CreditCards() {
   const { data: apiCreditPurchases = [], isSuccess: purchasesSuccess } = useCreditPurchases();
   const { data: apiCreditPayments = [], isSuccess: paymentsSuccess } = useCreditPayments();
   const { data: apiAccounts = [], isSuccess: accountsSuccess } = useAccounts();
+  const { data: apiSubscriptions = [], isSuccess: subscriptionsSuccess } = useSubscriptions();
   
   const createCreditCardMutation = useCreateCreditCard();
   const updateCreditCardMutation = useUpdateCreditCard();
@@ -755,6 +756,44 @@ export default function CreditCards() {
             currentInstallmentMonth = addMonths(currentInstallmentMonth, 1);
         }
     });
+
+    // Add subscriptions linked to this card
+    apiSubscriptions
+      .filter(sub => sub.creditCardId === cardId)
+      .forEach(sub => {
+        // Subscription billing day
+        const billingDay = parseInt(sub.date) || 1;
+        const subAmount = typeof sub.price === 'string' ? parseFloat(sub.price) : sub.price;
+        
+        // Determine which invoice month this subscription falls into
+        // Create a date for this month's billing
+        const billingDate = new Date(targetYear, targetMonth, billingDay);
+        const subInvoiceMonth = getInvoiceMonthDate(billingDate, card.closingDay);
+        
+        // Check if this subscription billing falls into the target invoice month
+        if (subInvoiceMonth.getMonth() === targetMonth && subInvoiceMonth.getFullYear() === targetYear) {
+          const subPurchase: CreditPurchase = {
+            id: `sub-${sub.id}-${targetMonth}-${targetYear}`,
+            creditCardId: cardId,
+            description: sub.name,
+            totalAmount: subAmount,
+            installments: 1,
+            installmentValue: subAmount,
+            category: sub.category || 'Serviços',
+            purchaseDate: `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(billingDay).padStart(2, '0')}`,
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+
+          items.push({
+            purchase: subPurchase,
+            installment: 1,
+            value: subAmount,
+            date: subPurchase.purchaseDate
+          });
+        }
+      });
 
     // Add Annual Fee if applicable (monthly charge, invoice-only)
     if (card.hasAnnualFee && card.annualFeeValue && card.annualFeeValue > 0) {
