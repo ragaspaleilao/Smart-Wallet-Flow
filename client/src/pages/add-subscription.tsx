@@ -83,14 +83,32 @@ export default function AddSubscription() {
       if (!formData.isTrial) {
           const start = startOfDay(new Date());
           const day = Math.max(1, Math.min(31, billingDay || 1));
+          const now = new Date();
+          const cardForPosting = creditCards.find(c => c.id === formData.creditCardId);
+          
+          // Determine if we should include this month's billing
+          // For credit cards: include if the billing day has passed but invoice hasn't closed yet
+          // Invoice closes on closingDay of next month, so if today > closingDay, current invoice is for current month
+          const shouldIncludeCurrentMonth = (() => {
+              if (formData.paymentMethod !== 'credit' || !cardForPosting) {
+                  // For non-credit payments, only include if billing day hasn't passed
+                  return day >= now.getDate();
+              }
+              // For credit cards: if billing day passed but we're after closing day,
+              // this month's charge still goes to current invoice (which closes next month)
+              const closingDay = cardForPosting.closingDay;
+              if (day >= now.getDate()) return true; // billing day hasn't passed yet
+              // Billing day has passed - check if invoice is still open
+              // If today > closingDay, current month's invoice is open (closes next month on closingDay)
+              return now.getDate() > closingDay;
+          })();
+          
           const firstOccurrence = (() => {
               const thisMonth = setDate(start, day);
-              if (thisMonth >= start) return thisMonth;
+              if (shouldIncludeCurrentMonth) return thisMonth;
               return setDate(addMonths(start, 1), day);
           })();
 
-          const now = new Date();
-          const cardForPosting = creditCards.find(c => c.id === formData.creditCardId);
           const isCardCycleStillOpen = (() => {
               if (!cardForPosting) return false;
               const closesNextMonth = cardForPosting.closingDay <= now.getDate();
