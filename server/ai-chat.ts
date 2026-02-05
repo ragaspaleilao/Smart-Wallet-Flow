@@ -33,6 +33,8 @@ interface FinancialContext {
     price: string;
     date: string;
     category: string;
+    paymentMethod: string;
+    creditCardName?: string;
   }>;
   vehicles: Array<{
     name: string;
@@ -64,7 +66,7 @@ async function getFinancialContext(userId: string): Promise<FinancialContext> {
   // Buscar compras de cada cartão de crédito
   const allCreditPurchases = [];
   for (const card of creditCards) {
-    const purchases = await storage.getCreditPurchases(card.id);
+    const purchases = await storage.getCreditPurchases(userId, card.id);
     for (const p of purchases) {
       allCreditPurchases.push({
         ...p,
@@ -148,12 +150,17 @@ async function getFinancialContext(userId: string): Promise<FinancialContext> {
       date: new Date(p.purchaseDate).toLocaleDateString('pt-BR'),
       installments: p.installments,
     })),
-    subscriptions: subscriptions.map(s => ({
-      name: s.name,
-      price: s.price,
-      date: s.date,
-      category: s.category,
-    })),
+    subscriptions: subscriptions.map(s => {
+      const creditCard = creditCards.find(c => c.id === s.creditCardId);
+      return {
+        name: s.name,
+        price: s.price,
+        date: s.date,
+        category: s.category,
+        paymentMethod: s.paymentMethod || 'pix',
+        creditCardName: creditCard?.name,
+      };
+    }),
     vehicles: vehicles.map(v => ({
       name: v.name,
       plate: v.plate,
@@ -226,8 +233,20 @@ ${context.recentTransactions.length > 0 ? context.recentTransactions.map(t => `-
 
 ASSINATURAS E SERVIÇOS RECORRENTES:
 ${context.subscriptions.length > 0 
-  ? context.subscriptions.map(s => `- ${s.name}: R$ ${s.price}/mês (${s.category}) - todo dia ${s.date}`).join('\n')
+  ? context.subscriptions.map(s => {
+      const pagamento = s.creditCardName 
+        ? `pago no cartão ${s.creditCardName}` 
+        : s.paymentMethod === 'debit' ? 'débito automático' 
+        : s.paymentMethod === 'pix' ? 'PIX' 
+        : s.paymentMethod;
+      return `- ${s.name}: R$ ${s.price}/mês (${s.category}) - todo dia ${s.date} - ${pagamento}`;
+    }).join('\n')
   : 'Nenhuma assinatura cadastrada'}
+
+SOBRE ASSINATURAS EM CARTÃO DE CRÉDITO:
+- Assinaturas pagas em cartão de crédito NÃO estão atrasadas se o vencimento passou
+- Elas serão cobradas na próxima fatura do cartão
+- O pagamento ocorre quando o usuário paga a fatura do cartão, não no dia do vencimento da assinatura
 
 VEÍCULOS CADASTRADOS:
 ${context.vehicles.length > 0 
