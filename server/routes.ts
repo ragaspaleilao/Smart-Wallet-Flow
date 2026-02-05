@@ -285,6 +285,11 @@ export async function registerRoutes(
         updates.installmentValue = String(updates.installmentValue);
       }
       
+      // Convert date string to Date object
+      if (updates.purchaseDate !== undefined) {
+        updates.purchaseDate = new Date(updates.purchaseDate);
+      }
+      
       const purchase = await storage.updateCreditPurchase(id, req.userId!, updates);
       if (!purchase) {
         return res.status(404).json({ error: 'Credit purchase not found' });
