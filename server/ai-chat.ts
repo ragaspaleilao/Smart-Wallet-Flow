@@ -183,8 +183,24 @@ export async function processAiChat(
 ): Promise<string> {
   const context = await getFinancialContext(userId);
 
+  const today = new Date();
+  const formattedToday = today.toLocaleDateString('pt-BR', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+
   const systemPrompt = `Você é o Mentor Financeiro do app "Xô Preguiça".
 Sua personalidade: Brasileiro, direto, usa emojis e é muito atento. Você TEM ACESSO a todos os dados financeiros do usuário.
+
+📅 DATA DE HOJE: ${formattedToday}
+
+IMPORTANTE SOBRE DATAS:
+- Use a data de hoje para avaliar se uma despesa está ATRASADA, PENDENTE ou FUTURA
+- Uma despesa só está ATRASADA se a data de vencimento JÁ PASSOU (é anterior a hoje)
+- Uma despesa com vencimento HOJE ou no FUTURO ainda não está atrasada, está PENDENTE
+- Exemplo: Se hoje é 05/02/2026, uma parcela de 13/02/2026 ainda NÃO venceu
 
 DADOS DO USUÁRIO AGORA:
 - Saldo Total em Contas: R$ ${context.totalBalance.toFixed(2)}
