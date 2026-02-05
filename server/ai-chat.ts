@@ -1,57 +1,58 @@
 import { GoogleGenAI } from "@google/genai";
 import { storage } from "./storage";
+import { addMonths } from "date-fns";
 
 const client = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
 });
 
+interface CardSummary {
+  name: string;
+  creditLimit: string;
+  closingDay: number;
+  dueDay: number;
+  currentInvoiceTotal: number;
+  currentInvoiceItems: string[];
+  currentInvoiceMonth: string;
+}
+
 interface FinancialContext {
   accounts: Array<{ name: string; type: string; balance: string }>;
-  recentTransactions: Array<{ 
-    description: string; 
-    amount: string; 
-    type: string; 
-    category: string; 
-    date: string 
-  }>;
-  creditCards: Array<{ 
-    name: string; 
-    creditLimit: string; 
-    closingDay: number; 
-    dueDay: number 
-  }>;
-  creditPurchases: Array<{
-    description: string;
-    totalAmount: string;
-    cardName: string;
-    category: string;
-    date: string;
-    installments: number;
-  }>;
+  totalBalance: number;
+  cardSummaries: CardSummary[];
   subscriptions: Array<{
     name: string;
     price: string;
-    date: string;
-    category: string;
-    paymentMethod: string;
-    creditCardName?: string;
+    billingDay: string;
+    paymentInfo: string;
   }>;
-  vehicles: Array<{
-    name: string;
-    plate: string;
-    expenses: Array<{ name: string; due: string; value: number; status: string }>;
-  }>;
-  vehicleExpenses: Array<{
-    vehicleName: string;
+  upcomingExpenses: Array<{
     description: string;
     amount: string;
     date: string;
     status: string;
   }>;
-  totalBalance: number;
-  monthlyIncome: number;
-  monthlyExpenses: number;
-  monthlyCardSpending: number;
+}
+
+// Helper: determine invoice competence month for a purchase
+function getInvoiceCompetenceMonth(purchaseDate: Date, closingDay: number): Date {
+  // If purchase was made AFTER closing day, it belongs to current month's invoice
+  // If purchase was made ON or BEFORE closing day, it belongs to previous month's invoice
+  if (purchaseDate.getDate() > closingDay) {
+    return new Date(purchaseDate.getFullYear(), purchaseDate.getMonth(), 1);
+  }
+  return addMonths(new Date(purchaseDate.getFullYear(), purchaseDate.getMonth(), 1), -1);
+}
+
+// Helper: get current invoice competence month based on today
+function getCurrentInvoiceMonth(closingDay: number): Date {
+  const now = new Date();
+  // If today > closing day, current invoice is for CURRENT month (closes next month)
+  // If today <= closing day, current invoice is for PREVIOUS month (closes this month)
+  if (now.getDate() > closingDay) {
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  return addMonths(new Date(now.getFullYear(), now.getMonth(), 1), -1);
 }
 
 async function getFinancialContext(userId: string): Promise<FinancialContext> {
@@ -63,65 +64,99 @@ async function getFinancialContext(userId: string): Promise<FinancialContext> {
     storage.getVehicles(userId),
   ]);
 
-  // Buscar compras de cada cartão de crédito
-  const allCreditPurchases = [];
+  const now = new Date();
+  const totalBalance = accounts.reduce((sum, a) => sum + parseFloat(a.balance), 0);
+
+  // Build card summaries with current invoice totals
+  const cardSummaries: CardSummary[] = [];
+  
   for (const card of creditCards) {
     const purchases = await storage.getCreditPurchases(userId, card.id);
-    for (const p of purchases) {
-      allCreditPurchases.push({
-        ...p,
-        cardName: card.name,
-      });
+    const currentInvoiceMonth = getCurrentInvoiceMonth(card.closingDay);
+    
+    let invoiceTotal = 0;
+    const invoiceItems: string[] = [];
+    
+    for (const purchase of purchases) {
+      if (purchase.status !== 'active') continue;
+      
+      const purchaseDate = new Date(purchase.purchaseDate);
+      const firstInstallmentMonth = getInvoiceCompetenceMonth(purchaseDate, card.closingDay);
+      
+      // Check each installment
+      for (let i = 0; i < purchase.installments; i++) {
+        const installmentMonth = addMonths(firstInstallmentMonth, i);
+        
+        if (installmentMonth.getMonth() === currentInvoiceMonth.getMonth() && 
+            installmentMonth.getFullYear() === currentInvoiceMonth.getFullYear()) {
+          const value = parseFloat(purchase.installmentValue);
+          invoiceTotal += value;
+          
+          const installmentLabel = purchase.installments > 1 
+            ? ` (${i + 1}/${purchase.installments})`
+            : '';
+          invoiceItems.push(`${purchase.description}${installmentLabel}: R$ ${value.toFixed(2)}`);
+        }
+      }
     }
+    
+    // Add annual fee if applicable
+    if (card.hasAnnualFee && card.annualFeeValue) {
+      const feeValue = parseFloat(card.annualFeeValue) / 12;
+      invoiceTotal += feeValue;
+      invoiceItems.push(`Anuidade: R$ ${feeValue.toFixed(2)}`);
+    }
+
+    const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    
+    cardSummaries.push({
+      name: card.name,
+      creditLimit: card.creditLimit,
+      closingDay: card.closingDay,
+      dueDay: card.dueDay,
+      currentInvoiceTotal: invoiceTotal,
+      currentInvoiceItems: invoiceItems.slice(0, 10), // Limit to 10 items
+      currentInvoiceMonth: monthNames[currentInvoiceMonth.getMonth()],
+    });
   }
 
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
+  // Get upcoming expenses (next 30 days, excluding vehicle expenses)
+  const thirtyDaysFromNow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30);
+  const upcomingExpenses = transactions
+    .filter(t => {
+      const d = new Date(t.date);
+      return t.type === 'expense' && !t.vehicleId && d >= now && d <= thirtyDaysFromNow;
+    })
+    .map(t => ({
+      description: t.description,
+      amount: t.amount,
+      date: new Date(t.date).toLocaleDateString('pt-BR'),
+      status: t.status || 'pending',
+    }))
+    .slice(0, 10);
 
-  // Pegar TODAS as transações (passadas e futuras) para dar contexto completo
-  // Ordenar por data
-  const sortedTransactions = [...transactions].sort((a, b) => 
-    new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
-  
-  // Separar transações de veículos (despesas parceladas como IPVA, Seguro)
-  const vehicleTransactions = transactions.filter(t => t.vehicleId);
-  
-  // Transações regulares (últimos 3 meses)
-  const threeMonthsAgo = new Date(currentYear, currentMonth - 2, 1);
-  const recentTransactions = transactions.filter(t => {
-    const d = new Date(t.date);
-    return d >= threeMonthsAgo && !t.vehicleId;
+  // Build subscription info
+  const subscriptionsList = subscriptions.map(s => {
+    const creditCard = creditCards.find(c => c.id === s.creditCardId);
+    let paymentInfo = '';
+    if (creditCard) {
+      paymentInfo = `Cartão ${creditCard.name}`;
+    } else if (s.paymentMethod === 'debit') {
+      paymentInfo = 'Débito';
+    } else if (s.paymentMethod === 'pix') {
+      paymentInfo = 'PIX';
+    } else {
+      paymentInfo = s.paymentMethod || 'Não definido';
+    }
+    
+    return {
+      name: s.name,
+      price: s.price,
+      billingDay: s.date,
+      paymentInfo,
+    };
   });
-
-  const monthlyTransactions = transactions.filter(t => {
-    const d = new Date(t.date);
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  });
-
-  const monthlyIncome = monthlyTransactions
-    .filter(t => t.type === 'income')
-    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-
-  const monthlyExpenses = monthlyTransactions
-    .filter(t => t.type === 'expense')
-    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-
-  // Calcular gastos no cartão neste mês
-  const monthlyCardPurchases = allCreditPurchases.filter(p => {
-    const d = new Date(p.purchaseDate);
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  });
-  const monthlyCardSpending = monthlyCardPurchases.reduce((sum, p) => sum + parseFloat(p.totalAmount), 0);
-
-  // Pegar compras de cartão dos últimos 3 meses
-  const recentCardPurchases = allCreditPurchases.filter(p => {
-    const d = new Date(p.purchaseDate);
-    return d >= threeMonthsAgo;
-  });
-
-  const totalBalance = accounts.reduce((sum, a) => sum + parseFloat(a.balance), 0);
 
   return {
     accounts: accounts.map(a => ({
@@ -129,57 +164,10 @@ async function getFinancialContext(userId: string): Promise<FinancialContext> {
       type: a.type,
       balance: a.balance,
     })),
-    recentTransactions: recentTransactions.slice(0, 50).map(t => ({
-      description: t.description,
-      amount: t.amount,
-      type: t.type,
-      category: t.category,
-      date: new Date(t.date).toLocaleDateString('pt-BR'),
-    })),
-    creditCards: creditCards.map(c => ({
-      name: c.name,
-      creditLimit: c.creditLimit,
-      closingDay: c.closingDay,
-      dueDay: c.dueDay,
-    })),
-    creditPurchases: recentCardPurchases.slice(0, 50).map(p => ({
-      description: p.description,
-      totalAmount: p.totalAmount,
-      cardName: p.cardName,
-      category: p.category,
-      date: new Date(p.purchaseDate).toLocaleDateString('pt-BR'),
-      installments: p.installments,
-    })),
-    subscriptions: subscriptions.map(s => {
-      const creditCard = creditCards.find(c => c.id === s.creditCardId);
-      return {
-        name: s.name,
-        price: s.price,
-        date: s.date,
-        category: s.category,
-        paymentMethod: s.paymentMethod || 'pix',
-        creditCardName: creditCard?.name,
-      };
-    }),
-    vehicles: vehicles.map(v => ({
-      name: v.name,
-      plate: v.plate,
-      expenses: v.expenses || [],
-    })),
-    vehicleExpenses: vehicleTransactions.map(t => {
-      const vehicle = vehicles.find(v => v.id === t.vehicleId);
-      return {
-        vehicleName: vehicle?.name || 'Veículo',
-        description: t.description,
-        amount: t.amount,
-        date: new Date(t.date).toLocaleDateString('pt-BR'),
-        status: t.status || 'pending',
-      };
-    }),
     totalBalance,
-    monthlyIncome,
-    monthlyExpenses,
-    monthlyCardSpending,
+    cardSummaries,
+    subscriptions: subscriptionsList,
+    upcomingExpenses,
   };
 }
 
@@ -198,84 +186,58 @@ export async function processAiChat(
     day: 'numeric' 
   });
 
-  const systemPrompt = `Você é o Mentor Financeiro do app "Xô Preguiça".
-Sua personalidade: Brasileiro, direto, usa emojis e é muito atento. Você TEM ACESSO a todos os dados financeiros do usuário.
+  // Build cards section
+  const cardsSection = context.cardSummaries.length > 0 
+    ? context.cardSummaries.map(card => {
+        const itemsList = card.currentInvoiceItems.length > 0 
+          ? card.currentInvoiceItems.map(item => `    - ${item}`).join('\n')
+          : '    (Nenhum lançamento)';
+        
+        return `📌 ${card.name}
+   Fatura ${card.currentInvoiceMonth}: R$ ${card.currentInvoiceTotal.toFixed(2)}
+   Fecha dia ${card.closingDay}, vence dia ${card.dueDay}
+   Limite: R$ ${card.creditLimit}
+   Lançamentos:
+${itemsList}`;
+      }).join('\n\n')
+    : 'Nenhum cartão cadastrado';
 
-📅 DATA DE HOJE: ${formattedToday}
+  const systemPrompt = `Você é um assistente financeiro simples e direto do app "Xô Preguiça".
 
-IMPORTANTE SOBRE DATAS:
-- Use a data de hoje para avaliar se uma despesa está ATRASADA, PENDENTE ou FUTURA
-- Uma despesa só está ATRASADA se a data de vencimento JÁ PASSOU (é anterior a hoje)
-- Uma despesa com vencimento HOJE ou no FUTURO ainda não está atrasada, está PENDENTE
-- Exemplo: Se hoje é 05/02/2026, uma parcela de 13/02/2026 ainda NÃO venceu
+📅 HOJE: ${formattedToday}
 
-DADOS DO USUÁRIO AGORA:
-- Saldo Total em Contas: R$ ${context.totalBalance.toFixed(2)}
-- Gasto no Mês (dinheiro/débito): R$ ${context.monthlyExpenses.toFixed(2)}
-- Gasto no Mês (cartão crédito): R$ ${context.monthlyCardSpending.toFixed(2)}
-- Renda no Mês: R$ ${context.monthlyIncome.toFixed(2)}
+💰 SALDO DISPONÍVEL: R$ ${context.totalBalance.toFixed(2)}
+${context.accounts.map(a => `  - ${a.name}: R$ ${a.balance}`).join('\n')}
 
-CONTAS:
-${context.accounts.length > 0 ? context.accounts.map(a => `- ${a.name} (${a.type}): R$ ${a.balance}`).join('\n') : 'Nenhuma conta cadastrada'}
+💳 CARTÕES DE CRÉDITO (FATURAS ATUAIS):
+${cardsSection}
 
-CARTÕES DE CRÉDITO:
-${context.creditCards.length > 0 
-  ? context.creditCards.map(c => `- ${c.name}: Limite R$ ${c.creditLimit}, fecha dia ${c.closingDay}, vence dia ${c.dueDay}`).join('\n')
-  : 'Nenhum cartão cadastrado'}
-
-COMPRAS RECENTES NO CARTÃO:
-${context.creditPurchases.length > 0
-  ? context.creditPurchases.map(p => `- ${p.date}: ${p.description} - R$ ${p.totalAmount} no ${p.cardName} (${p.category})${p.installments > 1 ? ` - ${p.installments}x parcelas` : ''}`).join('\n')
-  : 'Nenhuma compra no cartão'}
-
-TRANSAÇÕES RECENTES (dinheiro/débito):
-${context.recentTransactions.length > 0 ? context.recentTransactions.map(t => `- ${t.date}: ${t.description} - R$ ${t.amount} (${t.type === 'income' ? 'Receita' : 'Despesa'} - ${t.category})`).join('\n') : 'Nenhuma transação'}
-
-ASSINATURAS E SERVIÇOS RECORRENTES:
+📱 ASSINATURAS RECORRENTES:
 ${context.subscriptions.length > 0 
-  ? context.subscriptions.map(s => {
-      const pagamento = s.creditCardName 
-        ? `pago no cartão ${s.creditCardName}` 
-        : s.paymentMethod === 'debit' ? 'débito automático' 
-        : s.paymentMethod === 'pix' ? 'PIX' 
-        : s.paymentMethod;
-      return `- ${s.name}: R$ ${s.price}/mês (${s.category}) - todo dia ${s.date} - ${pagamento}`;
-    }).join('\n')
-  : 'Nenhuma assinatura cadastrada'}
+  ? context.subscriptions.map(s => `- ${s.name}: R$ ${s.price}/mês (dia ${s.billingDay}) - ${s.paymentInfo}`).join('\n')
+  : 'Nenhuma assinatura'}
 
-SOBRE ASSINATURAS EM CARTÃO DE CRÉDITO:
-- Assinaturas pagas em cartão de crédito NÃO estão atrasadas se o vencimento passou
-- Elas serão cobradas na próxima fatura do cartão
-- O pagamento ocorre quando o usuário paga a fatura do cartão, não no dia do vencimento da assinatura
+📆 PRÓXIMOS PAGAMENTOS (30 dias):
+${context.upcomingExpenses.length > 0 
+  ? context.upcomingExpenses.map(e => `- ${e.date}: ${e.description} - R$ ${e.amount}`).join('\n')
+  : 'Nenhum pagamento agendado'}
 
-VEÍCULOS CADASTRADOS:
-${context.vehicles.length > 0 
-  ? context.vehicles.map(v => `- ${v.name} (${v.plate})`).join('\n')
-  : 'Nenhum veículo cadastrado'}
-
-DESPESAS DE VEÍCULOS (IPVA, Seguro, Licenciamento, etc - todas as parcelas):
-${context.vehicleExpenses.length > 0
-  ? context.vehicleExpenses.map(e => `- ${e.date}: ${e.description} - R$ ${e.amount} (${e.status === 'paid' ? 'PAGO' : 'PENDENTE'})`).join('\n')
-  : 'Nenhuma despesa de veículo cadastrada'}
-
-REGRAS IMPORTANTES:
-1. VOCÊ TEM ACESSO aos dados acima. Não diga que não tem acesso!
-2. Quando o usuário perguntar sobre compras no cartão, consulte a lista "COMPRAS RECENTES NO CARTÃO".
-3. Se houver gastos parcelados, lembre-o do comprometimento dos próximos meses.
-4. CRÍTICO: SEMPRE complete suas respostas! NUNCA pare no meio de uma frase ou lista.
-5. Se o gasto for grande, pergunte sobre outras prioridades.
-6. Mantenha respostas objetivas - máximo 400 palavras por resposta.
-
-Responda sempre em Português do Brasil de forma amigável, como se fosse um chat de WhatsApp. SEMPRE termine suas frases e listas completamente - nunca deixe uma resposta pela metade.`;
+REGRAS:
+1. Seja SIMPLES e DIRETO. Nada de análises complexas.
+2. Responda o que foi perguntado, sem inventar problemas.
+3. NUNCA diga que uma assinatura está atrasada se ela é paga no cartão de crédito.
+4. Use emojis com moderação.
+5. Respostas curtas - máximo 200 palavras.
+6. Foque no que o usuário perguntou.`;
 
   const fullPrompt = `${systemPrompt}
 
-HISTÓRICO DA CONVERSA:
-${conversationHistory.map(msg => `${msg.role === 'user' ? 'Usuário' : 'Mentor'}: ${msg.content}`).join('\n')}
+HISTÓRICO:
+${conversationHistory.slice(-4).map(msg => `${msg.role === 'user' ? 'Usuário' : 'Você'}: ${msg.content}`).join('\n')}
 
 Usuário: ${message}
 
-Mentor:`;
+Responda de forma simples e direta:`;
 
   try {
     const result = await client.models.generateContent({
@@ -285,8 +247,8 @@ Mentor:`;
         parts: [{ text: fullPrompt }] 
       }],
       config: {
-        temperature: 0.7,
-        maxOutputTokens: 4000,
+        temperature: 0.5,
+        maxOutputTokens: 1000,
       }
     });
 
@@ -296,7 +258,7 @@ Mentor:`;
     console.error("Erro detalhado da IA:", error);
     
     if (error.message?.includes('not found')) {
-      return "⚠️ Erro de configuração: Modelo não encontrado. Verifique se o nome do modelo está correto.";
+      return "⚠️ Erro de configuração: Modelo não encontrado.";
     }
     
     if (error.status === 429) {
