@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { extractTransactionFromImage, transcribeVoiceCommand } from "./ocr";
 import { processAiChat } from "./ai-chat";
+import { checkConnection, getCalendarList, createAllDayEvent, listEvents, getUserEmail } from "./google-calendar";
 import {
   insertAccountSchema,
   insertTransactionSchema,
@@ -687,6 +688,118 @@ export async function registerRoutes(
     } catch (error) {
       console.error('Reset data error:', error);
       res.status(500).json({ error: 'Failed to reset data' });
+    }
+  });
+
+  // ===== GOOGLE CALENDAR ROUTES =====
+
+  app.get('/api/calendar/status', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const isConnected = await checkConnection();
+      const email = isConnected ? await getUserEmail() : null;
+      res.json({ isConnected, email });
+    } catch (error) {
+      res.json({ isConnected: false, email: null });
+    }
+  });
+
+  app.get('/api/calendar/calendars', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const calendars = await getCalendarList();
+      res.json(calendars);
+    } catch (error) {
+      console.error('Calendar list error:', error);
+      res.status(500).json({ error: 'Failed to fetch calendars' });
+    }
+  });
+
+  app.get('/api/calendar/events', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { calendarId, timeMin, timeMax } = req.query;
+      const events = await listEvents(
+        calendarId as string || 'primary',
+        timeMin ? new Date(timeMin as string) : undefined,
+        timeMax ? new Date(timeMax as string) : undefined
+      );
+      res.json(events);
+    } catch (error) {
+      console.error('Calendar events error:', error);
+      res.status(500).json({ error: 'Failed to fetch events' });
+    }
+  });
+
+  app.post('/api/calendar/sync-transactions', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { calendarId, categories } = req.body;
+      const transactions = await storage.getTransactions(req.userId!);
+      
+      const now = new Date();
+      const futureTransactions = transactions.filter(t => {
+        const date = new Date(t.date);
+        return date >= now && (categories?.length === 0 || categories?.includes(t.category));
+      });
+
+      const results = [];
+      for (const t of futureTransactions) {
+        try {
+          const event = await createAllDayEvent(calendarId || 'primary', {
+            summary: `💰 ${t.type === 'expense' ? '📤' : '📥'} ${t.description}`,
+            description: `Valor: R$ ${t.amount}\nCategoria: ${t.category}\nTipo: ${t.type === 'expense' ? 'Despesa' : 'Receita'}`,
+            date: new Date(t.date),
+            colorId: t.type === 'expense' ? '11' : '10', // Red for expense, green for income
+          });
+          results.push({ transactionId: t.id, eventId: event.id, success: true });
+        } catch (e: any) {
+          results.push({ transactionId: t.id, success: false, error: e.message });
+        }
+      }
+
+      res.json({ 
+        synced: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length,
+        results 
+      });
+    } catch (error) {
+      console.error('Sync transactions error:', error);
+      res.status(500).json({ error: 'Failed to sync transactions' });
+    }
+  });
+
+  app.post('/api/calendar/sync-credit-cards', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { calendarId } = req.body;
+      const creditCards = await storage.getCreditCards(req.userId!);
+      
+      const results = [];
+      const now = new Date();
+      
+      for (const card of creditCards) {
+        for (let i = 0; i < 6; i++) {
+          const dueDate = new Date(now.getFullYear(), now.getMonth() + i, card.dueDay);
+          if (dueDate > now) {
+            try {
+              const event = await createAllDayEvent(calendarId || 'primary', {
+                summary: `💳 Vencimento: ${card.name}`,
+                description: `Cartão de crédito ${card.name}\nLimite: R$ ${card.creditLimit}`,
+                date: dueDate,
+                colorId: '6', // Orange
+              });
+              results.push({ cardId: card.id, month: i, eventId: event.id, success: true });
+            } catch (e: any) {
+              results.push({ cardId: card.id, month: i, success: false, error: e.message });
+            }
+          }
+        }
+      }
+
+      res.json({ 
+        synced: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length,
+        results 
+      });
+    } catch (error) {
+      console.error('Sync credit cards error:', error);
+      res.status(500).json({ error: 'Failed to sync credit cards' });
     }
   });
 

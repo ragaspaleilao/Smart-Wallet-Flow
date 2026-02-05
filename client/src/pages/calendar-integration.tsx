@@ -2,224 +2,296 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
-import { useFinancialStore, Category } from "@/lib/store";
-import { ArrowLeft, Calendar, CheckCircle2, ChevronRight, Clock, RefreshCw, Settings2, Trash2, AlertTriangle, Lock } from "lucide-react";
+import { ArrowLeft, Calendar, CheckCircle2, ChevronRight, Clock, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
 import { Link } from "wouter";
-import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getUserId } from "@/lib/api";
+
+const categories = [
+  'Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Educação', 
+  'Lazer', 'Compras', 'Serviços', 'Outros'
+];
 
 export default function CalendarIntegration() {
-  const { calendarSettings, calendarEvents, updateCalendarSettings, connectCalendar, disconnectCalendar } = useFinancialStore();
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCalendarId, setSelectedCalendarId] = useState<string>('primary');
+  const [syncCreditCards, setSyncCreditCards] = useState(true);
+  const [syncTransactions, setSyncTransactions] = useState(true);
 
-  const handleConnect = () => {
-    // Simulate OAuth flow
-    toast({ title: "Conectando ao Google Agenda...", description: "Aguarde um momento." });
-    setTimeout(() => {
-        connectCalendar();
-        toast({ title: "Conectado com sucesso!", description: "Seus eventos estão sendo sincronizados." });
-    }, 1500);
-  };
+  const { data: status, isLoading: statusLoading, refetch: refetchStatus } = useQuery({
+    queryKey: ['calendar-status'],
+    queryFn: async () => {
+      const userId = getUserId();
+      const res = await fetch('/api/calendar/status', {
+        headers: { 'x-user-id': userId || '' }
+      });
+      return res.json();
+    },
+  });
 
-  const handleDisconnect = () => {
-    if (confirm("Tem certeza que deseja desconectar? Isso removerá a sincronização futura.")) {
-        disconnectCalendar();
-        toast({ title: "Desconectado", description: "A integração com o Google Agenda foi removida." });
+  const { data: calendars = [], isLoading: calendarsLoading } = useQuery({
+    queryKey: ['calendar-list'],
+    queryFn: async () => {
+      const userId = getUserId();
+      const res = await fetch('/api/calendar/calendars', {
+        headers: { 'x-user-id': userId || '' }
+      });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: status?.isConnected,
+  });
+
+  const syncTransactionsMutation = useMutation({
+    mutationFn: async () => {
+      const userId = getUserId();
+      const res = await fetch('/api/calendar/sync-transactions', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': userId || '' 
+        },
+        body: JSON.stringify({
+          calendarId: selectedCalendarId,
+          categories: selectedCategories,
+        }),
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Transações sincronizadas!", 
+        description: `${data.synced} eventos criados no seu calendário.` 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Erro ao sincronizar", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const syncCreditCardsMutation = useMutation({
+    mutationFn: async () => {
+      const userId = getUserId();
+      const res = await fetch('/api/calendar/sync-credit-cards', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': userId || '' 
+        },
+        body: JSON.stringify({
+          calendarId: selectedCalendarId,
+        }),
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Cartões sincronizados!", 
+        description: `${data.synced} vencimentos adicionados ao calendário.` 
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Erro ao sincronizar cartões", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleSync = async () => {
+    if (syncTransactions) {
+      await syncTransactionsMutation.mutateAsync();
+    }
+    if (syncCreditCards) {
+      await syncCreditCardsMutation.mutateAsync();
     }
   };
 
-  const toggleCategory = (category: Category) => {
-    const current = calendarSettings.syncCategories;
-    if (current.includes(category)) {
-        updateCalendarSettings({ syncCategories: current.filter(c => c !== category) });
+  const toggleCategory = (category: string) => {
+    if (selectedCategories.includes(category)) {
+      setSelectedCategories(prev => prev.filter(c => c !== category));
     } else {
-        updateCalendarSettings({ syncCategories: [...current, category] });
+      setSelectedCategories(prev => [...prev, category]);
     }
   };
+
+  const isSyncing = syncTransactionsMutation.isPending || syncCreditCardsMutation.isPending;
 
   return (
     <MobileLayout showNav={false}>
       <div className="bg-white dark:bg-zinc-950 min-h-screen pb-20">
         {/* Header */}
         <div className="bg-blue-600 p-6 text-white pb-12 rounded-b-3xl relative overflow-hidden">
-             {/* Decorative Background */}
-             <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 -translate-y-1/2 translate-x-1/2"></div>
-             <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 translate-y-1/2 -translate-x-1/2"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 -translate-y-1/2 translate-x-1/2"></div>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 translate-y-1/2 -translate-x-1/2"></div>
 
-            <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-6">
-                    <Link href="/settings">
-                        <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
-                            <ArrowLeft className="w-6 h-6" />
-                        </Button>
-                    </Link>
-                    <h1 className="text-lg font-bold">Agenda Financeira</h1>
-                </div>
-
-                <div className="flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-                        <Calendar className="w-8 h-8 text-blue-600" />
-                    </div>
-                    <h2 className="text-2xl font-bold mb-2">Google Agenda</h2>
-                    <p className="text-blue-100 text-sm max-w-[280px]">
-                        Sincronize suas contas e vencimentos automaticamente com seu calendário.
-                    </p>
-                </div>
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-6">
+              <Link href="/settings">
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
+                  <ArrowLeft className="w-6 h-6" />
+                </Button>
+              </Link>
+              <h1 className="text-lg font-bold">Agenda Financeira</h1>
             </div>
+
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+                <Calendar className="w-8 h-8 text-blue-600" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Google Agenda</h2>
+              <p className="text-blue-100 text-sm max-w-[280px]">
+                Sincronize suas contas e vencimentos automaticamente com seu calendário.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="px-6 -mt-8 relative z-20 space-y-6">
             
-            {/* Connection Status Card */}
-            <Card className="p-5 border-none shadow-lg">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full ${calendarSettings.isConnected ? 'bg-green-500' : 'bg-gray-300'}`} />
-                        <span className="font-semibold text-gray-900 dark:text-white">
-                            {calendarSettings.isConnected ? 'Conectado' : 'Desconectado'}
-                        </span>
-                    </div>
-                    {calendarSettings.isConnected && (
-                        <Badge variant="outline" className="text-green-600 bg-green-50 border-green-200">
-                            Sincronizando
-                        </Badge>
-                    )}
-                </div>
-
-                {!calendarSettings.isConnected ? (
-                    <Button onClick={handleConnect} className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2 h-12 text-base font-semibold">
-                        <Calendar className="w-5 h-5" />
-                        Conectar Google Agenda
-                    </Button>
+          {/* Connection Status Card */}
+          <Card className="p-5 border-none shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                {statusLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
                 ) : (
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between bg-gray-50 dark:bg-zinc-900 p-3 rounded-xl border border-gray-100 dark:border-zinc-800">
-                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 text-xs font-bold">
-                                    G
-                                </div>
-                                <div className="text-sm">
-                                    <p className="font-bold text-gray-900 dark:text-white">joao.silva@gmail.com</p>
-                                    <p className="text-gray-500 text-xs">Conta principal</p>
-                                </div>
-                             </div>
-                             <Button variant="ghost" size="icon" onClick={handleDisconnect} className="text-red-500 hover:bg-red-50">
-                                <Trash2 className="w-4 h-4" />
-                             </Button>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                            <Label className="text-gray-600">Sincronização Automática</Label>
-                            <Switch 
-                                checked={calendarSettings.isEnabled} 
-                                onCheckedChange={(c) => updateCalendarSettings({ isEnabled: c })} 
-                            />
-                        </div>
-                    </div>
+                  <div className={`w-3 h-3 rounded-full ${status?.isConnected ? 'bg-green-500' : 'bg-gray-300'}`} />
                 )}
-            </Card>
-
-            {calendarSettings.isConnected && (
-                <>
-                    {/* Settings Section */}
-                    <div className="space-y-4">
-                        <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <Settings2 className="w-5 h-5 text-gray-500" />
-                            Configurações
-                        </h3>
-
-                        <Card className="p-4 border border-gray-100 dark:border-zinc-800 shadow-sm">
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label>Lembretes</Label>
-                                    <Select 
-                                        value={calendarSettings.reminderDaysBefore.toString()} 
-                                        onValueChange={(v) => updateCalendarSettings({ reminderDaysBefore: parseInt(v) })}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Selecione" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="1">1 dia antes</SelectItem>
-                                            <SelectItem value="2">2 dias antes</SelectItem>
-                                            <SelectItem value="3">3 dias antes</SelectItem>
-                                            <SelectItem value="7">1 semana antes</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Categorias para Sincronizar</Label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {useFinancialStore.getState().transactionCategories.map((cat) => (
-                                            <Badge 
-                                                key={cat}
-                                                variant={calendarSettings.syncCategories.includes(cat as Category) ? "default" : "outline"}
-                                                className={`cursor-pointer ${calendarSettings.syncCategories.includes(cat as Category) ? 'bg-blue-600 hover:bg-blue-700' : 'hover:bg-gray-100'}`}
-                                                onClick={() => toggleCategory(cat as Category)}
-                                                data-testid={`badge-sync-category-${cat}`}
-                                            >
-                                                {cat}
-                                            </Badge>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </Card>
-                    </div>
-
-                    {/* Events List */}
-                    <div className="space-y-4">
-                        <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <RefreshCw className="w-5 h-5 text-gray-500" />
-                            Eventos Sincronizados
-                        </h3>
-
-                        <div className="space-y-3">
-                            {calendarEvents.length === 0 ? (
-                                <p className="text-center text-gray-500 py-4 text-sm">Nenhum evento futuro encontrado.</p>
-                            ) : (
-                                calendarEvents.map((event) => (
-                                    <div key={event.id} className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 shadow-sm">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-gray-50 dark:bg-zinc-800 text-gray-500`}>
-                                                <Calendar className="w-5 h-5" />
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-gray-900 dark:text-white text-sm">{event.title}</p>
-                                                <p className="text-xs text-gray-500">
-                                                    {format(new Date(event.date), "dd/MM • HH:mm")}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <span className={`font-bold text-sm ${event.type === 'income' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
-                                                {event.type === 'income' ? '+' : '-'} R$ {event.amount.toFixed(2)}
-                                            </span>
-                                            <div className="flex justify-end mt-1">
-                                                <Badge variant="outline" className="text-[10px] px-1.5 h-4 border-green-200 text-green-700 bg-green-50 flex items-center gap-1">
-                                                    <CheckCircle2 className="w-2 h-2" />
-                                                    Sincronizado
-                                                </Badge>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </>
-            )}
-
-            <div className="mt-8 p-4 bg-yellow-50 dark:bg-yellow-900/10 rounded-xl border border-yellow-100 dark:border-yellow-900/30 flex gap-3">
-                <Lock className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-yellow-800 dark:text-yellow-300 leading-relaxed">
-                    <span className="font-bold">Privacidade:</span> Nós apenas adicionamos eventos ao seu calendário. Não lemos ou acessamos seus outros compromissos pessoais.
-                </p>
+                <span className="font-semibold text-gray-900 dark:text-white">
+                  {statusLoading ? 'Verificando...' : status?.isConnected ? 'Conectado' : 'Não conectado'}
+                </span>
+              </div>
+              {status?.isConnected && (
+                <Badge variant="secondary" className="bg-green-100 text-green-700">
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                  Ativo
+                </Badge>
+              )}
             </div>
 
+            {status?.isConnected && status?.email && (
+              <p className="text-sm text-gray-500 mb-4">
+                Conta: {status.email}
+              </p>
+            )}
+
+            {!status?.isConnected && !statusLoading && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                <div className="flex gap-3">
+                  <AlertTriangle className="w-5 h-5 text-yellow-600 shrink-0" />
+                  <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                    <p className="font-medium mb-1">Conexão necessária</p>
+                    <p>A integração com Google Calendar precisa ser configurada pelo administrador do app.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {status?.isConnected && (
+            <>
+              {/* Calendar Selection */}
+              <Card className="p-5 border-none shadow-lg">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Calendário</h3>
+                
+                <Select value={selectedCalendarId} onValueChange={setSelectedCalendarId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o calendário" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="primary">Calendário Principal</SelectItem>
+                    {calendars.map((cal: any) => (
+                      <SelectItem key={cal.id} value={cal.id}>
+                        {cal.summary}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Card>
+
+              {/* Sync Options */}
+              <Card className="p-5 border-none shadow-lg space-y-4">
+                <h3 className="font-semibold text-gray-900 dark:text-white">O que sincronizar</h3>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-5 h-5 text-gray-500" />
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">Transações Futuras</p>
+                      <p className="text-xs text-gray-500">Despesas e receitas programadas</p>
+                    </div>
+                  </div>
+                  <Switch checked={syncTransactions} onCheckedChange={setSyncTransactions} />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Calendar className="w-5 h-5 text-gray-500" />
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">Vencimentos de Cartão</p>
+                      <p className="text-xs text-gray-500">Próximos 6 meses</p>
+                    </div>
+                  </div>
+                  <Switch checked={syncCreditCards} onCheckedChange={setSyncCreditCards} />
+                </div>
+              </Card>
+
+              {/* Categories */}
+              {syncTransactions && (
+                <Card className="p-5 border-none shadow-lg">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Categorias a sincronizar</h3>
+                  <p className="text-xs text-gray-500 mb-3">Deixe vazio para sincronizar todas</p>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map(category => (
+                      <button
+                        key={category}
+                        onClick={() => toggleCategory(category)}
+                        className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                          selectedCategories.includes(category)
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300'
+                        }`}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* Sync Button */}
+              <Button 
+                onClick={handleSync}
+                disabled={isSyncing || (!syncTransactions && !syncCreditCards)}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2 h-12"
+              >
+                {isSyncing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Sincronizando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-5 h-5" />
+                    Sincronizar com Google Agenda
+                  </>
+                )}
+              </Button>
+
+              <p className="text-xs text-gray-500 text-center">
+                Os eventos serão criados no calendário selecionado com lembretes automáticos.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </MobileLayout>
