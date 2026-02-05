@@ -4,6 +4,51 @@ import { storage } from "./storage";
 import { extractTransactionFromImage, transcribeVoiceCommand } from "./ocr";
 import { processAiChat } from "./ai-chat";
 import { checkConnection, getCalendarList, createAllDayEvent, listEvents, getUserEmail } from "./google-calendar";
+import type { Transaction, CreditPurchase } from "@shared/schema";
+
+// Helper function to sync a transaction to Google Calendar (fire-and-forget)
+async function syncTransactionToCalendar(transaction: Transaction) {
+  try {
+    const isConnected = await checkConnection();
+    if (!isConnected) return;
+    
+    const transactionDate = new Date(transaction.date);
+    const now = new Date();
+    
+    // Only sync future transactions
+    if (transactionDate >= now) {
+      await createAllDayEvent('primary', {
+        summary: `💰 ${transaction.type === 'expense' ? '📤' : '📥'} ${transaction.description}`,
+        description: `Valor: R$ ${transaction.amount}\nCategoria: ${transaction.category}\nTipo: ${transaction.type === 'expense' ? 'Despesa' : 'Receita'}`,
+        date: transactionDate,
+        colorId: transaction.type === 'expense' ? '11' : '10',
+      });
+    }
+  } catch (error) {
+    // Silent fail - don't break the main operation
+    console.log('Calendar sync skipped:', error);
+  }
+}
+
+// Helper function to sync credit purchase to Google Calendar
+async function syncCreditPurchaseToCalendar(purchase: CreditPurchase) {
+  try {
+    const isConnected = await checkConnection();
+    if (!isConnected) return;
+    
+    const purchaseDate = new Date(purchase.purchaseDate);
+    
+    await createAllDayEvent('primary', {
+      summary: `💳 ${purchase.description}`,
+      description: `Valor: R$ ${purchase.totalAmount}\nCategoria: ${purchase.category}\nParcelas: ${purchase.installments}x`,
+      date: purchaseDate,
+      colorId: '6', // Orange for credit
+    });
+  } catch (error) {
+    console.log('Calendar sync skipped:', error);
+  }
+}
+
 import {
   insertAccountSchema,
   insertTransactionSchema,
@@ -111,6 +156,10 @@ export async function registerRoutes(
     try {
       const data = insertTransactionSchema.parse(req.body);
       const transaction = await storage.createTransaction(req.userId!, data);
+      
+      // Auto-sync to Google Calendar (fire-and-forget)
+      syncTransactionToCalendar(transaction);
+      
       res.status(201).json(transaction);
     } catch (error: any) {
       console.error('Transaction validation error:', error);
@@ -212,6 +261,10 @@ export async function registerRoutes(
     try {
       const data = insertCreditPurchaseSchema.parse(req.body);
       const purchase = await storage.createCreditPurchase(req.userId!, data);
+      
+      // Auto-sync to Google Calendar (fire-and-forget)
+      syncCreditPurchaseToCalendar(purchase);
+      
       res.status(201).json(purchase);
     } catch (error) {
       res.status(400).json({ error: 'Invalid credit purchase data' });
