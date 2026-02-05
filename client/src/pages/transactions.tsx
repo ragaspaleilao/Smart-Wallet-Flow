@@ -61,15 +61,16 @@ export default function Transactions() {
   const searchParams = new URLSearchParams(window.location.search);
   const initialType = searchParams.get('type') as 'all' | 'income' | 'expense' | null;
   const initialStatus = searchParams.get('status') as 'all' | 'pending' | 'paid' | 'overdue' | null;
+  const initialAccountId = searchParams.get('accountId');
   const initialKey = `${initialType || 'all'}-${initialStatus || 'all'}`;
 
   // Filter State
-  const [filterPeriod, setFilterPeriod] = useState<'all' | 'this-month' | 'next-month' | 'future' | 'custom'>(initialStatus === 'overdue' ? 'all' : 'this-month');
+  const [filterPeriod, setFilterPeriod] = useState<'all' | 'this-month' | 'next-month' | 'future' | 'custom'>(initialStatus === 'overdue' || initialAccountId ? 'all' : 'this-month');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>(initialType || 'all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'paid' | 'overdue'>(initialStatus || 'all');
   const [filtersNonce, setFiltersNonce] = useState(0);
   const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [filterAccount, setFilterAccount] = useState<string>('all');
+  const [filterAccount, setFilterAccount] = useState<string>(initialAccountId || 'all');
   const [customStart, setCustomStart] = useState(format(startOfDay(new Date()), 'yyyy-MM-dd'));
   const [customEnd, setCustomEnd] = useState(format(addMonths(new Date(), 1), 'yyyy-MM-dd'));
   const [showFilters, setShowFilters] = useState(false);
@@ -79,6 +80,7 @@ export default function Transactions() {
     const params = new URLSearchParams(window.location.search);
     const type = params.get('type');
     const status = params.get('status');
+    const accountId = params.get('accountId');
     
     if (type === 'income' || type === 'expense') {
         setFilterType(type);
@@ -86,11 +88,14 @@ export default function Transactions() {
     
     if (status === 'overdue' || status === 'pending' || status === 'paid') {
         setFilterStatus(status as any);
-        // If filtering by overdue, we usually want to see ALL overdue items regardless of period, 
-        // or at least not restricted to "this month" if the overdue item is old.
         if (status === 'overdue') {
             setFilterPeriod('all');
         }
+    }
+    
+    if (accountId) {
+        setFilterAccount(accountId);
+        setFilterPeriod('all'); // Show all transactions for this account
     }
   }, [location]);
 

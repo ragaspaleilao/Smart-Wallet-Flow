@@ -254,7 +254,11 @@ export default function Dashboard() {
                     return (
                       <div 
                         key={account.id} 
-                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-zinc-900 rounded-xl"
+                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-zinc-900 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                        onClick={() => {
+                          setAccountsSheetOpen(false);
+                          setLocation(`/transactions?accountId=${account.id}`);
+                        }}
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center text-xl">
@@ -265,10 +269,11 @@ export default function Dashboard() {
                             <p className="text-xs text-gray-500">{typeLabels[account.type] || account.type}</p>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="flex items-center gap-2">
                           <p className={`font-bold ${accountBalance >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                             {formatCurrency(accountBalance)}
                           </p>
+                          <ChevronDown className="w-4 h-4 text-gray-400 -rotate-90" />
                         </div>
                       </div>
                     );
