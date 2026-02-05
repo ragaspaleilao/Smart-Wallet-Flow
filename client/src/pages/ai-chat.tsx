@@ -2,7 +2,7 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Send, Sparkles, Bot, User, Loader2 } from "lucide-react";
+import { ArrowLeft, Send, Sparkles, Bot, User, Loader2, RotateCcw } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useRef, useEffect } from "react";
 import { getUserId } from "@/lib/api";
@@ -34,12 +34,67 @@ interface Message {
   timestamp: Date;
 }
 
+interface StoredChat {
+  messages: Message[];
+  lastActivity: number;
+}
+
+const CHAT_STORAGE_KEY = 'mentor-chat-history';
+const CHAT_TIMEOUT_MS = 60 * 60 * 1000; // 1 hora
+
+function loadChatFromStorage(): { messages: Message[]; hasStarted: boolean } {
+  try {
+    const stored = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!stored) return { messages: [], hasStarted: false };
+    
+    const data: StoredChat = JSON.parse(stored);
+    const now = Date.now();
+    
+    // Se passou mais de 1 hora, zerar conversa
+    if (now - data.lastActivity > CHAT_TIMEOUT_MS) {
+      localStorage.removeItem(CHAT_STORAGE_KEY);
+      return { messages: [], hasStarted: false };
+    }
+    
+    // Restaurar mensagens com timestamps como Date objects
+    const messages = data.messages.map(m => ({
+      ...m,
+      timestamp: new Date(m.timestamp)
+    }));
+    
+    return { messages, hasStarted: messages.length > 0 };
+  } catch {
+    return { messages: [], hasStarted: false };
+  }
+}
+
+function saveChatToStorage(messages: Message[]) {
+  const data: StoredChat = {
+    messages,
+    lastActivity: Date.now()
+  };
+  localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(data));
+}
+
 export default function AiChat() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const { messages } = loadChatFromStorage();
+    return messages;
+  });
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
+  const [hasStarted, setHasStarted] = useState(() => {
+    const { hasStarted } = loadChatFromStorage();
+    return hasStarted;
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Salvar mensagens no localStorage sempre que mudar
+  useEffect(() => {
+    if (messages.length > 0) {
+      saveChatToStorage(messages);
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -127,28 +182,47 @@ export default function AiChat() {
     await sendMessage(userMessage);
   };
 
+  const handleNewConversation = () => {
+    localStorage.removeItem(CHAT_STORAGE_KEY);
+    setMessages([]);
+    setHasStarted(false);
+  };
+
   return (
     <MobileLayout>
       <div className="flex flex-col h-full bg-gray-50 dark:bg-black">
         {/* Header */}
-        <div className="p-4 bg-white dark:bg-zinc-900 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3 sticky top-0 z-10 shadow-sm">
-           <Link href="/dashboard">
-             <Button variant="ghost" size="icon" className="-ml-2" data-testid="button-back">
-               <ArrowLeft className="w-6 h-6" />
-             </Button>
-           </Link>
+        <div className="p-4 bg-white dark:bg-zinc-900 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between sticky top-0 z-10 shadow-sm">
            <div className="flex items-center gap-3">
-             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center shadow-md">
-                <Sparkles className="w-5 h-5 text-white" />
-             </div>
-             <div>
-               <h1 className="font-bold text-gray-900 dark:text-white">Mentor IA</h1>
-               <p className="text-xs text-green-600 flex items-center gap-1">
-                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                 Online
-               </p>
+             <Link href="/dashboard">
+               <Button variant="ghost" size="icon" className="-ml-2" data-testid="button-back">
+                 <ArrowLeft className="w-6 h-6" />
+               </Button>
+             </Link>
+             <div className="flex items-center gap-3">
+               <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center shadow-md">
+                  <Sparkles className="w-5 h-5 text-white" />
+               </div>
+               <div>
+                 <h1 className="font-bold text-gray-900 dark:text-white">Mentor IA</h1>
+                 <p className="text-xs text-green-600 flex items-center gap-1">
+                   <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                   Online
+                 </p>
+               </div>
              </div>
            </div>
+           {hasStarted && (
+             <Button 
+               variant="ghost" 
+               size="icon" 
+               onClick={handleNewConversation}
+               title="Nova conversa"
+               data-testid="button-new-conversation"
+             >
+               <RotateCcw className="w-5 h-5 text-gray-500" />
+             </Button>
+           )}
         </div>
 
         {/* Chat Area */}
