@@ -226,7 +226,7 @@ export default function AiChat() {
         </div>
 
         {/* Chat Area */}
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        <ScrollArea className="flex-1 p-4 overflow-y-auto" ref={scrollRef}>
           {!hasStarted ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center px-4">
               <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center shadow-lg mb-6">

@@ -248,7 +248,7 @@ Responda de forma simples e direta:`;
       }],
       config: {
         temperature: 0.5,
-        maxOutputTokens: 1000,
+        maxOutputTokens: 2000,
       }
     });
 
