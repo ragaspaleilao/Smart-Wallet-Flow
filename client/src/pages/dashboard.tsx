@@ -572,9 +572,9 @@ export default function Dashboard() {
             await createTransactionMutation.mutateAsync({
               accountId: data.accountId,
               amount: String(data.amount),
-              type: 'expense',
+              type: data.type,
               category: data.category || 'Outros',
-              description: data.description || 'Compra via foto',
+              description: data.description || (data.type === 'income' ? 'Recebimento via foto' : 'Compra via foto'),
               date: dateStr,
               source: 'photo',
               isPersonal: true,

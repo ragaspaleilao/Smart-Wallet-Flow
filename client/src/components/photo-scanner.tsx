@@ -42,6 +42,7 @@ interface PhotoScannerProps {
     amount: number;
     description: string;
     category: string;
+    type: "income" | "expense";
     date: string;
     accountId: string;
     paymentMethod: string;
@@ -92,6 +93,7 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
   const [editDate, setEditDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [editAccountId, setEditAccountId] = useState("");
   const [editPaymentMethod, setEditPaymentMethod] = useState("pix");
+  const [editType, setEditType] = useState<"income" | "expense">("expense");
   const [isCredit, setIsCredit] = useState(false);
   const [editCardId, setEditCardId] = useState("");
 
@@ -144,6 +146,12 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
       });
       
       setResult(response);
+
+      if (response.rawText && /recebid[oa]|recebeu|cr[eé]dito recebido|pix recebido|transfer[eê]ncia recebida/i.test(response.rawText)) {
+        setEditType("income");
+      } else {
+        setEditType("expense");
+      }
       
       if (response.confidence > 0.5 && response.amount) {
         toast({ title: "Cupom lido com sucesso!" });
@@ -211,8 +219,9 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
     
     onTransactionExtracted({
       amount,
-      description: editDescription || "Compra via foto",
+      description: editDescription || (editType === "income" ? "Recebimento via foto" : "Compra via foto"),
       category: editCategory || "Outros",
+      type: editType,
       date: editDate,
       accountId: editAccountId,
       paymentMethod: editPaymentMethod,
@@ -230,6 +239,7 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
     setEditCategory("");
     setEditDate(format(new Date(), "yyyy-MM-dd"));
     setEditPaymentMethod("pix");
+    setEditType("expense");
     setIsCredit(false);
     setEditCardId("");
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -314,6 +324,28 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
               )}
               
               <div className="space-y-3">
+                <div>
+                  <Label className="text-xs">Tipo</Label>
+                  <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg">
+                    <button
+                      type="button"
+                      data-testid="button-type-income"
+                      className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${editType === 'income' ? 'bg-white dark:bg-zinc-700 shadow-sm text-green-600' : 'text-gray-500'}`}
+                      onClick={() => setEditType('income')}
+                    >
+                      Receita
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="button-type-expense"
+                      className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${editType === 'expense' ? 'bg-white dark:bg-zinc-700 shadow-sm text-red-600' : 'text-gray-500'}`}
+                      onClick={() => setEditType('expense')}
+                    >
+                      Despesa
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs">Valor (R$)</Label>
