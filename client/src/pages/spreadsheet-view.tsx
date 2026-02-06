@@ -1,5 +1,5 @@
 import { useFinancialStore, Transaction, Category, Account, Investment } from "@/lib/store";
-import { useAccounts as useApiAccounts, useTransactions as useApiTransactions, useUpdateTransaction as useApiUpdateTransaction } from "@/hooks/use-api";
+import { useAccounts as useApiAccounts, useTransactions as useApiTransactions, useUpdateTransaction as useApiUpdateTransaction, useCreditCards as useApiCreditCards, useCreditPurchases as useApiCreditPurchases, useCreditPayments as useApiCreditPayments } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -49,6 +49,9 @@ export default function SpreadsheetView() {
   
   const { data: apiAccounts = [], isSuccess: accountsSuccess } = useApiAccounts();
   const { data: apiTransactions = [], isSuccess: transactionsSuccess, refetch: refetchTransactions } = useApiTransactions();
+  const { data: apiCreditCards = [], isSuccess: creditCardsSuccess } = useApiCreditCards();
+  const { data: apiCreditPurchases = [], isSuccess: creditPurchasesSuccess } = useApiCreditPurchases();
+  const { data: apiCreditPayments = [], isSuccess: creditPaymentsSuccess } = useApiCreditPayments();
 
   const updateTransaction = useCallback((id: string, updates: Partial<Transaction>) => {
     storeUpdateTransaction(id, updates);
@@ -116,7 +119,49 @@ export default function SpreadsheetView() {
     });
   }, [rawAccounts, transactions]);
 
-  const { investments, creditCards, creditPurchases, creditPayments } = storeData;
+  const { investments } = storeData;
+
+  const creditCards = useMemo(() => {
+    if (creditCardsSuccess) {
+      return apiCreditCards.map(c => ({
+        ...c,
+        creditLimit: typeof c.creditLimit === 'string' ? parseFloat(c.creditLimit) : c.creditLimit,
+        annualFeeValue: c.annualFeeValue ? (typeof c.annualFeeValue === 'string' ? parseFloat(c.annualFeeValue) : c.annualFeeValue) : undefined,
+      }));
+    }
+    return storeData.creditCards;
+  }, [apiCreditCards, storeData.creditCards, creditCardsSuccess]);
+
+  const creditPurchases = useMemo(() => {
+    if (creditPurchasesSuccess) {
+      return apiCreditPurchases.map(p => ({
+        id: p.id,
+        creditCardId: p.creditCardId,
+        description: p.description,
+        totalAmount: typeof p.totalAmount === 'string' ? parseFloat(p.totalAmount) : p.totalAmount,
+        purchaseDate: p.purchaseDate,
+        installments: p.installments,
+        installmentValue: typeof p.installmentValue === 'string' ? parseFloat(p.installmentValue) : p.installmentValue,
+        category: (p.category ?? 'outros') as any,
+        status: (p.status === 'active' || p.status === 'partial_refund' || p.status === 'refunded')
+          ? p.status as "active" | "partial_refund" | "refunded"
+          : 'active',
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      }));
+    }
+    return storeData.creditPurchases;
+  }, [apiCreditPurchases, storeData.creditPurchases, creditPurchasesSuccess]);
+
+  const creditPayments = useMemo(() => {
+    if (creditPaymentsSuccess) {
+      return apiCreditPayments.map(p => ({
+        ...p,
+        amount: typeof p.amount === 'string' ? parseFloat(p.amount) : p.amount,
+      }));
+    }
+    return storeData.creditPayments;
+  }, [apiCreditPayments, storeData.creditPayments, creditPaymentsSuccess]);
   
   // View State
   const [activeTab, setActiveTab] = useState("transactions");
@@ -381,7 +426,7 @@ export default function SpreadsheetView() {
     });
 
     return data;
-  }, [transactions, projectionYear, context, creditCards, creditPurchases, accounts]);
+  }, [transactions, projectionYear, context, creditCards, creditPurchases, creditPayments, accounts]);
 
   // Consolidated Logic
   const consolidatedData = useMemo(() => {
