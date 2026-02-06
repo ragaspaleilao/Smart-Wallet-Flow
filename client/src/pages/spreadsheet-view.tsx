@@ -261,27 +261,30 @@ export default function SpreadsheetView() {
       accumulatedBalance: 0
     }));
 
-    // 1. Transactions Logic
-    // Projeção = somente transações PENDENTES (por data).
-    // Consolidado = somente transações PAGAS.
-    // Observação: pagamentos de fatura NÃO são ignorados aqui.
-    // Se existir um "Pagamento Fatura" pendente, ele deve entrar como despesa prevista.
     const today = startOfDay(new Date());
+
+    const paidPerMonth = months.map(() => ({ income: 0, expense: 0 }));
 
     transactions.filter(t => {
         const raw = String(t.date || '');
         const tDate = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
         const isContextMatch = context === "personal" ? t.isPersonal : !t.isPersonal;
         const isSameYear = tDate.getFullYear() === year;
-        const isPending = t.status === 'pending';
-        const isFutureOrToday = tDate >= today;
-        return isSameYear && isContextMatch && isPending && isFutureOrToday;
+        return isSameYear && isContextMatch;
     }).forEach(t => {
         const raw = String(t.date || '');
         const month = raw.length === 10 ? new Date(`${raw}T12:00:00`).getMonth() : new Date(raw).getMonth();
-        if (data[month]) {
-            if (t.type === 'income') data[month].income += t.amount;
-            else data[month].expense += t.amount;
+        if (!data[month]) return;
+
+        if (t.status === 'pending') {
+            const tDate = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
+            if (tDate >= today) {
+                if (t.type === 'income') data[month].income += t.amount;
+                else data[month].expense += t.amount;
+            }
+        } else if (t.status === 'paid') {
+            if (t.type === 'income') paidPerMonth[month].income += t.amount;
+            else paidPerMonth[month].expense += t.amount;
         }
     });
 
@@ -398,8 +401,6 @@ export default function SpreadsheetView() {
     // some purchases have purchaseDate stored as YYYY-MM-DD (local). Normalizing to midday
     // avoids timezone shifts that can drop items into the wrong month.
 
-    // Calculate balances + running cash (previous balance + result)
-    // Starting balance = current total balance minus all paid tx from selected year onwards (same approach used in Consolidated)
     const filteredAccounts = accounts.filter(a => context === "personal" ? a.isPersonal : !a.isPersonal);
     const currentTotalBalance = filteredAccounts.reduce((acc, curr) => acc + curr.balance, 0);
 
@@ -417,11 +418,12 @@ export default function SpreadsheetView() {
     });
 
     let running = initialBalance;
-    data.forEach(d => {
-      const result = d.income - d.expense - d.creditCardBill;
+    data.forEach((d, idx) => {
+      const paidResult = paidPerMonth[idx].income - paidPerMonth[idx].expense;
+      const pendingResult = d.income - d.expense - d.creditCardBill;
       d.previousBalance = running;
-      d.balance = result;
-      d.accumulatedBalance = running + result;
+      d.balance = pendingResult;
+      d.accumulatedBalance = running + paidResult + pendingResult;
       running = d.accumulatedBalance;
     });
 

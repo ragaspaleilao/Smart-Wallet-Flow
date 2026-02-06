@@ -353,6 +353,19 @@ export default function Analytics() {
 
       const invoiceMonthStart = startOfMonth(subMonths(today, 1));
 
+      const paidPerMonth = months.map(() => ({ income: 0, expense: 0 }));
+
+      combinedTransactions.forEach(t => {
+          const d = new Date(t.date);
+          const matchContext = (viewMode === 'personal' ? t.isPersonal : !t.isPersonal);
+          if (!matchContext || t.status !== 'paid') return;
+          if (d.getFullYear() !== year) return;
+          if (String(t.id || '').startsWith('virtual-') || t.accountId === 'virtual-card') return;
+          const m = d.getMonth();
+          if (t.type === 'income') paidPerMonth[m].income += t.amount;
+          else paidPerMonth[m].expense += t.amount;
+      });
+
       const monthsWithTotals = months.map((monthDate, index) => {
           const monthStart = startOfMonth(monthDate);
           const monthEnd = endOfMonth(monthDate);
@@ -361,27 +374,19 @@ export default function Analytics() {
           const monthTxs = combinedTransactions.filter(t => {
               const d = new Date(t.date);
               
-              // Base filters
               const matchContext = (viewMode === 'personal' ? t.isPersonal : !t.isPersonal);
               const isPending = t.status === 'pending';
               if (!matchContext || !isPending) return false;
 
-              // Date Logic
               if (isFirstMonth) {
-                  // First month (Current) includes:
-                  // 1. Transactions strictly within this month
-                  // 2. OVERDUE transactions from previous months (backlog)
                   const isInMonth = isWithinInterval(d, { start: monthStart, end: monthEnd });
                   const isOverdue = d < monthStart; 
                   return isInMonth || isOverdue;
               } else {
-                  // Future months: strict date match
                   return isWithinInterval(d, { start: monthStart, end: monthEnd });
               }
           });
 
-          // NOTE: In projection, "Outras Despesas" should reflect only what appears in the Extrato.
-          // So we exclude credit-card-originated items (virtual installments and annual fee virtuals).
           const monthTxsNonCard = monthTxs.filter(t => !String(t.id || '').startsWith('virtual-') && t.accountId !== 'virtual-card');
 
           const income = monthTxsNonCard.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
@@ -443,9 +448,10 @@ export default function Analytics() {
       });
 
       let running = yearStartingBalance;
-      return monthsWithTotals.map((m) => {
+      return monthsWithTotals.map((m, idx) => {
         const previousBalance = running;
-        running = running + m.balance;
+        const paidResult = paidPerMonth[idx].income - paidPerMonth[idx].expense;
+        running = running + paidResult + m.balance;
         return {
           ...m,
           previousBalance,
