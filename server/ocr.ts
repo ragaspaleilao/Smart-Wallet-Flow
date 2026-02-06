@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const MODELO_ECONOMICO = "gemini-2.0-flash";
 
 export interface OCRTransactionResult {
   amount: number | null;
@@ -17,69 +18,44 @@ export async function extractTransactionFromImage(
   mimeType: string = "image/jpeg"
 ): Promise<OCRTransactionResult> {
   try {
-    const prompt = `Você é um especialista em extrair informações de cupons fiscais, notas e recibos brasileiros.
+    const prompt = `Extraia os dados deste cupom fiscal para JSON puro.
+Categorias: Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Vestuário, Serviços, Investimento, Outros.
+Formato de data: YYYY-MM-DD.
 
-Analise esta imagem CUIDADOSAMENTE e extraia as seguintes informações:
-1. Valor total da compra (em reais)
-2. Nome do estabelecimento/loja
-3. Data da compra - LEIA ATENTAMENTE a data impressa no cupom. Formato brasileiro comum: DD/MM/AAAA ou DD/MMM/AAAA (ex: 04/FEV/2026 = 2026-02-04)
-4. Descrição resumida da compra
-5. Categoria sugerida (escolha uma: Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Vestuário, Serviços, Investimento, Outros)
-
-ATENÇÃO ESPECIAL PARA A DATA:
-- Leia EXATAMENTE o que está escrito no cupom
-- Formato de saída deve ser YYYY-MM-DD
-- Exemplos de conversão: 04/FEV/2026 → 2026-02-04, 15/01/2026 → 2026-01-15
-
-Responda APENAS com um JSON válido no formato:
+Responda APENAS o JSON:
 {
-  "amount": 123.45,
-  "merchant": "Nome da Loja",
-  "date": "2024-01-15",
-  "description": "Compra no supermercado",
-  "category": "Alimentação",
-  "confidence": 0.95,
-  "rawText": "Texto principal extraído da imagem"
-}
-
-Se não conseguir identificar algum campo, use null.
-O campo confidence deve ser um número entre 0 e 1 indicando sua confiança na extração.`;
+  "amount": 0.0,
+  "merchant": "Nome",
+  "date": "YYYY-MM-DD",
+  "description": "Resumo",
+  "category": "Categoria",
+  "confidence": 0.0,
+  "rawText": "texto extraído"
+}`;
 
     const contents = [
-      {
-        inlineData: {
-          data: imageBase64,
-          mimeType: mimeType,
-        },
-      },
-      prompt,
+      { inlineData: { data: imageBase64, mimeType } },
+      { text: prompt }
     ];
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: MODELO_ECONOMICO,
       contents: contents,
+      config: {
+        temperature: 0.1,
+        maxOutputTokens: 500,
+      }
     });
 
     const responseText = response.text || "{}";
-    
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in response");
-    }
+    
+    if (!jsonMatch) throw new Error("JSON não encontrado");
+    return JSON.parse(jsonMatch[0]) as OCRTransactionResult;
 
-    const result = JSON.parse(jsonMatch[0]) as OCRTransactionResult;
-    return result;
   } catch (error) {
-    console.error("OCR extraction error:", error);
-    return {
-      amount: null,
-      description: null,
-      category: null,
-      date: null,
-      merchant: null,
-      confidence: 0,
-      rawText: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-    };
+    console.error("Erro no OCR:", error);
+    return { amount: null, description: null, category: null, date: null, merchant: null, confidence: 0, rawText: "Erro na leitura" };
   }
 }
 
@@ -96,64 +72,38 @@ export async function transcribeVoiceCommand(
   };
 }> {
   try {
-    const prompt = `Você é um assistente financeiro que processa comandos de voz para registrar transações.
+    const prompt = `Transcreva o áudio e extraia a transação para JSON.
+Tipos: income (receita) ou expense (despesa).
+Categorias: Alimentação, Transporte, Moradia, Saúde, Lazer, Outros.
 
-Primeiro, transcreva o áudio.
-Depois, extraia as informações da transação:
-1. Valor (em reais)
-2. Descrição
-3. Categoria sugerida (Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Vestuário, Serviços, Investimento, Outros)
-4. Tipo (income = receita/entrada, expense = despesa/gasto)
-
-Exemplos de comandos:
-- "Gastei 50 reais no supermercado" → expense, 50, Alimentação
-- "Recebi 1500 de salário" → income, 1500, Outros
-- "Paguei 100 reais de luz" → expense, 100, Moradia
-
-Responda APENAS com JSON:
+Responda APENAS JSON:
 {
-  "text": "transcrição do áudio",
-  "transaction": {
-    "amount": 50.00,
-    "description": "Supermercado",
-    "category": "Alimentação",
-    "type": "expense"
-  }
+  "text": "transcrição",
+  "transaction": {"amount": 0.0, "description": "", "category": "", "type": "expense"}
 }`;
 
     const contents = [
-      {
-        inlineData: {
-          data: audioBase64,
-          mimeType: mimeType,
-        },
-      },
-      prompt,
+      { inlineData: { data: audioBase64, mimeType } },
+      { text: prompt }
     ];
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: MODELO_ECONOMICO,
       contents: contents,
+      config: {
+        temperature: 0.1,
+        maxOutputTokens: 400,
+      }
     });
 
     const responseText = response.text || "{}";
-    
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in response");
-    }
-
+    
+    if (!jsonMatch) throw new Error("JSON não encontrado");
     return JSON.parse(jsonMatch[0]);
+
   } catch (error) {
-    console.error("Voice transcription error:", error);
-    return {
-      text: `Erro: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
-      transaction: {
-        amount: null,
-        description: null,
-        category: null,
-        type: null,
-      },
-    };
+    console.error("Erro na Voz:", error);
+    return { text: "Erro ao ouvir", transaction: { amount: null, description: null, category: null, type: null } };
   }
 }
