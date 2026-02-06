@@ -70,7 +70,7 @@ export default function SpreadsheetView() {
     });
   }, [storeUpdateTransaction, apiUpdateMutation, refetchTransactions]);
 
-  const accounts: Account[] = useMemo(() => {
+  const rawAccounts: Account[] = useMemo(() => {
     if (accountsSuccess && apiAccounts.length > 0) {
       return apiAccounts.map(a => ({
         ...a,
@@ -100,6 +100,21 @@ export default function SpreadsheetView() {
     }
     return storeData.transactions;
   }, [apiTransactions, storeData.transactions, transactionsSuccess]);
+
+  const accounts: Account[] = useMemo(() => {
+    return rawAccounts.map(account => {
+      const accountTransactions = transactions.filter(t => 
+        t.accountId === account.id && t.status === 'paid'
+      );
+      const transactionTotal = accountTransactions.reduce((sum, t) => {
+        if (t.type === 'income') return sum + t.amount;
+        if (t.type === 'expense') return sum - t.amount;
+        return sum;
+      }, 0);
+      const calculatedBalance = (account.initialBalance || account.balance) + transactionTotal;
+      return { ...account, balance: calculatedBalance };
+    });
+  }, [rawAccounts, transactions]);
 
   const { investments, creditCards, creditPurchases, creditPayments } = storeData;
   
