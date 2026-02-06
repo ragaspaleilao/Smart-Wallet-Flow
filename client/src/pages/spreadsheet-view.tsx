@@ -608,8 +608,8 @@ export default function SpreadsheetView() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-        <div className="px-2 pt-2 border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/50">
-            <TabsList className="bg-transparent h-9 w-full justify-start p-0 gap-4">
+        <div className="px-2 pt-2 border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/50 overflow-x-auto scrollbar-hide">
+            <TabsList className="bg-transparent h-9 w-max justify-start p-0 gap-4 flex-nowrap">
                 <TabsTrigger 
                     value="transactions" 
                     className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-9 px-2 text-xs"
