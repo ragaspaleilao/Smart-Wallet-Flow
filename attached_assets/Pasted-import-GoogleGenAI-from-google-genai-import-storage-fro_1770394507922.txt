@@ -1,0 +1,77 @@
+import { GoogleGenAI } from "@google/genai";
+import { storage } from "./storage";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+const client = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY!,
+});
+
+async function buildCompleteContext(userId: string): Promise<string> {
+  const [accounts, transactions, goals] = await Promise.all([
+    storage.getAccounts(userId),
+    storage.getTransactions(userId),
+    storage.getGoals(userId),
+  ]);
+
+  const now = new Date();
+  const totalBalance = accounts.reduce((sum, a) => sum + parseFloat(a.balance), 0);
+
+  // INÍCIO DO CONTEXTO ECONÔMICO
+  let context = `💰 SALDO ATUAL: R$ ${totalBalance.toFixed(2)}\n`;
+  context += `CONTAS: ${accounts.map(a => `${a.name}: R$${a.balance}`).join(', ')}\n`;
+
+  // Pegamos apenas as últimas 5 transações para economizar tokens
+  const recentTransactions = transactions
+    .filter(t => new Date(t.date) < now)
+    .slice(-5);
+
+  context += `\n📅 ÚLTIMOS 5 GASTOS:\n`;
+  for (const t of recentTransactions) {
+    context += `- ${t.description}: R$ ${t.amount} (${t.category})\n`;
+  }
+
+  // Metas resumidas
+  context += `\n🎯 METAS: `;
+  context += goals.map(g => `${g.name} (${((parseFloat(g.current)/parseFloat(g.target))*100).toFixed(0)}%)`).join(', ');
+
+  return context;
+}
+
+export async function processAiChat(
+  userId: string,
+  message: string,
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
+): Promise<string> {
+  const context = await buildCompleteContext(userId);
+  const formattedToday = format(new Date(), "dd/MM/yyyy", { locale: ptBR });
+
+  // PROMPT OTIMIZADO PARA CUSTO BAIXO
+  const systemPrompt = `Você é o Mentor do app "Xô Preguiça". Seja curto, direto e use emojis.
+HOJE: ${formattedToday}
+
+${context}
+
+REGRAS:
+1. Responda em no máximo 3 parágrafos.
+2. Não repita dados financeiros se o usuário não perguntar.
+3. Se não tiver um dado, peça para o usuário cadastrar no app.`;
+
+  const fullPrompt = `${systemPrompt}\n\nHistórico (últimas 2): ${conversationHistory.slice(-2).map(m => m.content).join(' | ')}\nUsuário: ${message}`;
+
+  try {
+    const result = await client.models.generateContent({
+      model: "gemini-2.0-flash", // MODELO BARATO
+      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+      config: {
+        temperature: 0.5,
+        maxOutputTokens: 600, // RESPOSTA CURTA = MENOS CUSTO
+      }
+    });
+
+    return result.text || "Pode repetir? Tive um soluço técnico.";
+  } catch (error: any) {
+    console.error("Erro IA:", error);
+    return "Estou descansando um pouco. Tente novamente em instantes!";
+  }
+}
