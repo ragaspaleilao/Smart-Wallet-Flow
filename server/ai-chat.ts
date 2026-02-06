@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { storage } from "./storage";
-import { format } from "date-fns";
+import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const client = new GoogleGenAI({
@@ -8,26 +8,43 @@ const client = new GoogleGenAI({
 });
 
 async function buildCompleteContext(userId: string): Promise<string> {
-  const [accounts, transactions, goals] = await Promise.all([
+  const [accounts, transactions, goals, creditCards] = await Promise.all([
     storage.getAccounts(userId),
     storage.getTransactions(userId),
     storage.getGoals(userId),
+    storage.getCreditCards(userId),
   ]);
 
+  const now = new Date();
   const totalBalance = accounts.reduce((sum, a) => sum + parseFloat(a.balance), 0);
   
   let context = `💰 SALDO ATUAL: R$ ${totalBalance.toFixed(2)}\n`;
-  context += `CONTAS: ${accounts.map(a => `${a.name}: R$${a.balance}`).join(', ')}\n`;
-
-  const recentTransactions = transactions.slice(-8);
-  context += `\n📅 ÚLTIMAS MOVIMENTAÇÕES (Extrato):\n`;
-  for (const t of recentTransactions) {
-    const tipoLabel = t.type === 'income' ? '🟢 RECEBIMENTO' : '🔴 DESPESA';
-    context += `- ${tipoLabel}: ${t.description} (R$ ${t.amount})\n`;
+  
+  const recent = transactions.slice(-5);
+  context += `\n📅 ÚLTIMAS MOVIMENTAÇÕES:\n`;
+  for (const t of recent) {
+    const tipo = t.type === 'income' ? '🟢 RECEBIMENTO' : '🔴 DESPESA';
+    context += `- ${tipo}: ${t.description} (R$ ${t.amount})\n`;
   }
 
-  context += `\n🎯 METAS: `;
-  context += goals.map(g => `${g.name} (${((parseFloat(g.current)/parseFloat(g.target))*100).toFixed(0)}%)`).join(', ');
+  context += `\n💳 CARTÕES DE CRÉDITO:\n`;
+  for (const card of creditCards) {
+    const purchases = await storage.getCreditPurchases(userId, card.id);
+    let faturaAtual = 0;
+    let proximasFaturas = 0;
+
+    for (const p of purchases) {
+      if (p.status === 'active') {
+        faturaAtual += parseFloat(p.installmentValue);
+        if (p.installments > 1) proximasFaturas += parseFloat(p.installmentValue) * (p.installments - 1);
+      }
+    }
+
+    context += `- ${card.name}: Limite R$ ${card.creditLimit} | FATURA ATUAL: R$ ${faturaAtual.toFixed(2)} | Vence dia ${card.dueDay}\n`;
+    if (proximasFaturas > 0) context += `  (Atenção: Você tem R$ ${proximasFaturas.toFixed(2)} comprometidos em parcelas futuras neste cartão)\n`;
+  }
+
+  context += `\n🎯 METAS: ` + goals.map(g => `${g.name} (${((parseFloat(g.current)/parseFloat(g.target))*100).toFixed(0)}%)`).join(', ');
 
   return context;
 }
@@ -41,32 +58,27 @@ export async function processAiChat(
   const formattedToday = format(new Date(), "dd/MM/yyyy", { locale: ptBR });
 
   const systemPrompt = `Você é o Mentor Financeiro do app "Xô Preguiça". 
-Sua tarefa é analisar o extrato abaixo e responder ao usuário.
+Analise o saldo e as FATURAS DE CARTÃO abaixo.
 
 📅 HOJE: ${formattedToday}
 ${context}
 
-REGRAS CRÍTICAS:
-1. Diferencie 🟢 RECEBIMENTO (dinheiro entrando) de 🔴 DESPESA (dinheiro saindo).
-2. Se o usuário recebeu dinheiro (ex: Uber, Salário), parabenize. Não sugira economizar em algo que foi ganho.
-3. Responda de forma curta (máximo 3 parágrafos).
-4. Seja preciso com os valores apresentados no extrato acima.`;
+REGRAS:
+1. CARTÃO DE CRÉDITO: Se a fatura estiver alta em relação ao saldo, ALERTE o usuário. 
+2. Dê dicas práticas de como não cair na armadilha dos juros.
+3. Se houver parcelas futuras altas, avise que o orçamento dos próximos meses já está comprometido.
+4. Responda em até 3 parágrafos curtos e diretos.`;
 
-  const historyText = conversationHistory.slice(-3).map(m => `${m.role}: ${m.content}`).join('\n');
-  const fullPrompt = `${systemPrompt}\n\n${historyText}\nUsuário: ${message}`;
+  const historyText = conversationHistory.slice(-2).map(m => `${m.role}: ${m.content}`).join('\n');
 
   try {
     const result = await client.models.generateContent({
       model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-      config: {
-        temperature: 0.2,
-        maxOutputTokens: 800,
-      }
+      contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n${historyText}\nUsuário: ${message}` }] }],
+      config: { temperature: 0.3, maxOutputTokens: 1000 }
     });
-
-    return result.text || "Não consegui ler os dados agora. Pode repetir?";
-  } catch (error: any) {
-    return "Estou processando muitos dados. Tente em 1 minuto!";
+    return result.text || "Não consegui analisar agora.";
+  } catch (error) {
+    return "Erro ao processar sua análise financeira.";
   }
 }
