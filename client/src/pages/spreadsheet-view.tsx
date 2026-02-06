@@ -873,35 +873,33 @@ export default function SpreadsheetView() {
                  </div>
                  
                  {/* Footer Totals */}
-                 <div className="bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 p-3 shadow-lg z-20">
-                    <div className="flex justify-between items-center max-w-5xl mx-auto px-4">
-                        <div className="flex gap-8">
-                            <div className="flex flex-col">
-                                <span className="text-[10px] text-gray-500 uppercase font-semibold">Total Receitas</span>
-                                <span className="text-sm font-bold text-green-600">{formatCurrency(totals.income)}</span>
-                                <span className="text-[10px] text-green-600/70">A receber: {formatCurrency(totals.pendingIncome)}</span>
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-[10px] text-gray-500 uppercase font-semibold">Total Despesas</span>
-                                <span className="text-sm font-bold text-red-600">{formatCurrency(totals.expense)}</span>
-                                <span className="text-[10px] text-red-600/70">A pagar: {formatCurrency(totals.pendingExpense)}</span>
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-[10px] text-gray-500 uppercase font-semibold">Saldo do Período</span>
-                                <span className={`text-sm font-bold ${totals.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                                    {formatCurrency(totals.balance)}
-                                </span>
-                            </div>
+                 <div className="bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 p-2 sm:p-3 shadow-lg z-20">
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-between sm:items-center max-w-5xl mx-auto px-1 sm:px-4">
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase font-semibold truncate">Total Receitas</span>
+                            <span className="text-xs sm:text-sm font-bold text-green-600 truncate">{formatCurrency(totals.income)}</span>
+                            <span className="text-[9px] sm:text-[10px] text-green-600/70 truncate">A receber: {formatCurrency(totals.pendingIncome)}</span>
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase font-semibold truncate">Total Despesas</span>
+                            <span className="text-xs sm:text-sm font-bold text-red-600 truncate">{formatCurrency(totals.expense)}</span>
+                            <span className="text-[9px] sm:text-[10px] text-red-600/70 truncate">A pagar: {formatCurrency(totals.pendingExpense)}</span>
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase font-semibold truncate">Saldo do Período</span>
+                            <span className={`text-xs sm:text-sm font-bold truncate ${totals.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                {formatCurrency(totals.balance)}
+                            </span>
                         </div>
                         
-                        <div className="h-8 w-px bg-gray-200 dark:bg-zinc-700"></div>
+                        <div className="hidden sm:block h-8 w-px bg-gray-200 dark:bg-zinc-700"></div>
                         
-                        <div className="flex flex-col items-end">
-                            <span className="text-[10px] text-gray-500 uppercase font-semibold">Previsão de Caixa</span>
-                            <span className={`text-lg font-bold ${totals.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                        <div className="flex flex-col min-w-0 sm:items-end">
+                            <span className="text-[9px] sm:text-[10px] text-gray-500 uppercase font-semibold truncate">Previsão de Caixa</span>
+                            <span className={`text-sm sm:text-lg font-bold truncate ${totals.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
                                 {formatCurrency(totals.pendingIncome - totals.pendingExpense)}
                             </span>
-                            <span className="text-[10px] text-gray-400"> (Receber - Pagar)</span>
+                            <span className="text-[9px] sm:text-[10px] text-gray-400 truncate">(Receber - Pagar)</span>
                         </div>
                     </div>
                  </div>
