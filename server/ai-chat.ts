@@ -14,19 +14,16 @@ async function buildCompleteContext(userId: string): Promise<string> {
     storage.getGoals(userId),
   ]);
 
-  const now = new Date();
   const totalBalance = accounts.reduce((sum, a) => sum + parseFloat(a.balance), 0);
-
+  
   let context = `💰 SALDO ATUAL: R$ ${totalBalance.toFixed(2)}\n`;
   context += `CONTAS: ${accounts.map(a => `${a.name}: R$${a.balance}`).join(', ')}\n`;
 
-  const recentTransactions = transactions
-    .filter(t => new Date(t.date) < now)
-    .slice(-5);
-
-  context += `\n📅 ÚLTIMOS 5 GASTOS:\n`;
+  const recentTransactions = transactions.slice(-8);
+  context += `\n📅 ÚLTIMAS MOVIMENTAÇÕES (Extrato):\n`;
   for (const t of recentTransactions) {
-    context += `- ${t.description}: R$ ${t.amount} (${t.category})\n`;
+    const tipoLabel = t.type === 'income' ? '🟢 RECEBIMENTO' : '🔴 DESPESA';
+    context += `- ${tipoLabel}: ${t.description} (R$ ${t.amount})\n`;
   }
 
   context += `\n🎯 METAS: `;
@@ -43,31 +40,33 @@ export async function processAiChat(
   const context = await buildCompleteContext(userId);
   const formattedToday = format(new Date(), "dd/MM/yyyy", { locale: ptBR });
 
-  const systemPrompt = `Você é o Mentor do app "Xô Preguiça". Seja curto, direto e use emojis.
-HOJE: ${formattedToday}
+  const systemPrompt = `Você é o Mentor Financeiro do app "Xô Preguiça". 
+Sua tarefa é analisar o extrato abaixo e responder ao usuário.
 
+📅 HOJE: ${formattedToday}
 ${context}
 
-REGRAS:
-1. Responda em no máximo 3 parágrafos.
-2. Não repita dados financeiros se o usuário não perguntar.
-3. Se não tiver um dado, peça para o usuário cadastrar no app.`;
+REGRAS CRÍTICAS:
+1. Diferencie 🟢 RECEBIMENTO (dinheiro entrando) de 🔴 DESPESA (dinheiro saindo).
+2. Se o usuário recebeu dinheiro (ex: Uber, Salário), parabenize. Não sugira economizar em algo que foi ganho.
+3. Responda de forma curta (máximo 3 parágrafos).
+4. Seja preciso com os valores apresentados no extrato acima.`;
 
-  const fullPrompt = `${systemPrompt}\n\nHistórico (últimas 2): ${conversationHistory.slice(-2).map(m => m.content).join(' | ')}\nUsuário: ${message}`;
+  const historyText = conversationHistory.slice(-3).map(m => `${m.role}: ${m.content}`).join('\n');
+  const fullPrompt = `${systemPrompt}\n\n${historyText}\nUsuário: ${message}`;
 
   try {
     const result = await client.models.generateContent({
       model: "gemini-2.0-flash",
       contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
       config: {
-        temperature: 0.5,
-        maxOutputTokens: 600,
+        temperature: 0.2,
+        maxOutputTokens: 800,
       }
     });
 
-    return result.text || "Pode repetir? Tive um soluço técnico.";
+    return result.text || "Não consegui ler os dados agora. Pode repetir?";
   } catch (error: any) {
-    console.error("Erro IA:", error);
-    return "Estou descansando um pouco. Tente novamente em instantes!";
+    return "Estou processando muitos dados. Tente em 1 minuto!";
   }
 }
