@@ -473,7 +473,6 @@ export default function Analytics() {
       const monthsWithTotals = months.map(monthDate => {
           const monthStart = startOfMonth(monthDate);
           const monthEnd = endOfMonth(monthDate);
-          const competenceMonth = startOfMonth(monthDate);
           
           const monthTxs = transactions.filter(t => { 
               const d = new Date(t.date);
@@ -484,43 +483,13 @@ export default function Analytics() {
 
           const income = monthTxs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
           
-          const otherExpense = monthTxs
-             .filter(t => t.type === 'expense' && !t.description.toLowerCase().includes('pagamento fatura') && (t.category as string) !== 'Cartão de Crédito')
+          const creditCardExpense = monthTxs
+             .filter(t => t.description.toLowerCase().includes('fatura') || (t.category as string) === 'Cartão de Crédito')
              .reduce((sum, t) => sum + t.amount, 0);
 
-          let creditCardExpense = 0;
-          creditPurchases
-            .filter(p => p.status === 'active')
-            .forEach(purchase => {
-              const card = creditCards.find(c => c.id === purchase.creditCardId);
-              if (!card) return;
-
-              const pDate = (() => {
-                const raw = String(purchase.purchaseDate || '');
-                if (raw.length === 10) return new Date(`${raw}T12:00:00`);
-                return new Date(raw);
-              })();
-
-              const getInvoiceDate = (date: Date) => {
-                const d = new Date(date);
-                if (d.getDate() <= card.closingDay) return subMonths(d, 1);
-                return d;
-              };
-
-              let currentInvoiceDate = startOfMonth(getInvoiceDate(pDate));
-
-              for (let i = 1; i <= purchase.installments; i++) {
-                if (currentInvoiceDate.getFullYear() === year && isSameMonth(currentInvoiceDate, competenceMonth)) {
-                  creditCardExpense += purchase.installmentValue;
-                }
-                currentInvoiceDate = startOfMonth(addMonths(currentInvoiceDate, 1));
-              }
-            });
-
-          creditCards.forEach(card => {
-            if (!card.hasAnnualFee || !card.annualFeeValue || card.annualFeeValue <= 0) return;
-            creditCardExpense += card.annualFeeValue;
-          });
+          const otherExpense = monthTxs
+             .filter(t => t.type === 'expense' && !t.description.toLowerCase().includes('fatura') && (t.category as string) !== 'Cartão de Crédito')
+             .reduce((sum, t) => sum + t.amount, 0);
 
           return {
               date: monthDate,
