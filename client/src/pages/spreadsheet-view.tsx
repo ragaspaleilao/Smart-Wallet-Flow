@@ -1,5 +1,5 @@
 import { useFinancialStore, Transaction, Category, Account, Investment } from "@/lib/store";
-import { useAccounts as useApiAccounts, useTransactions as useApiTransactions } from "@/hooks/use-api";
+import { useAccounts as useApiAccounts, useTransactions as useApiTransactions, useUpdateTransaction as useApiUpdateTransaction } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -34,7 +34,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -44,10 +44,31 @@ import { AddTransactionSheet } from "@/components/add-transaction-sheet";
 
 export default function SpreadsheetView() {
   const storeData = useFinancialStore();
-  const { addTransaction, updateTransaction, removeTransaction, addAccount, updateAccountBalance, addInvestment } = storeData;
+  const { addTransaction, updateTransaction: storeUpdateTransaction, removeTransaction, addAccount, updateAccountBalance, addInvestment } = storeData;
+  const apiUpdateMutation = useApiUpdateTransaction();
   
   const { data: apiAccounts = [], isSuccess: accountsSuccess } = useApiAccounts();
-  const { data: apiTransactions = [], isSuccess: transactionsSuccess } = useApiTransactions();
+  const { data: apiTransactions = [], isSuccess: transactionsSuccess, refetch: refetchTransactions } = useApiTransactions();
+
+  const updateTransaction = useCallback((id: string, updates: Partial<Transaction>) => {
+    storeUpdateTransaction(id, updates);
+    const apiData: Record<string, any> = { ...updates };
+    if (apiData.amount !== undefined) {
+      apiData.amount = String(apiData.amount);
+    }
+    if (apiData.date !== undefined && apiData.date) {
+      const d = new Date(apiData.date);
+      if (!isNaN(d.getTime())) {
+        apiData.date = d.toISOString();
+      }
+    }
+    apiUpdateMutation.mutate({ id, data: apiData as any }, {
+      onError: () => {
+        toast({ title: "Erro ao salvar alteração", variant: "destructive" });
+        refetchTransactions();
+      }
+    });
+  }, [storeUpdateTransaction, apiUpdateMutation, refetchTransactions]);
 
   const accounts: Account[] = useMemo(() => {
     if (accountsSuccess && apiAccounts.length > 0) {
@@ -755,14 +776,13 @@ export default function SpreadsheetView() {
                                             value={row.category}
                                             onChange={(e) => updateTransaction(row.id, { category: e.target.value as Category })}
                                         >
-                                            <option value="Alimentação">Alimentação</option>
-                                            <option value="Transporte">Transporte</option>
-                                            <option value="Lazer">Lazer</option>
-                                            <option value="Moradia">Moradia</option>
-                                            <option value="Saúde">Saúde</option>
-                                            <option value="Educação">Educação</option>
-                                            <option value="Salário">Salário</option>
-                                            <option value="Outros">Outros</option>
+                                            {(() => {
+                                              const cats = storeData.transactionCategories || [];
+                                              const allCats = cats.includes(row.category) ? cats : [row.category, ...cats];
+                                              return allCats.map(cat => (
+                                                <option key={cat} value={cat}>{cat}</option>
+                                              ));
+                                            })()}
                                         </select>
                                     </TableCell>
                                     <TableCell className="p-0">
