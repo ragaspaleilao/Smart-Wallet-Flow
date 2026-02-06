@@ -170,12 +170,31 @@ export async function registerRoutes(
   app.patch('/api/transactions/:id', authMiddleware, async (req: AuthRequest, res) => {
     try {
       const id = String(req.params.id);
-      const transaction = await storage.updateTransaction(id, req.userId!, req.body);
+      const body = req.body;
+      const allowedFields = ['description', 'amount', 'category', 'type', 'accountId', 'date', 'status', 'paymentMethod', 'creditCardId', 'vehicleId', 'tags', 'notes', 'isPersonal'];
+      const updates: Record<string, any> = {};
+      for (const key of allowedFields) {
+        if (body[key] !== undefined) {
+          updates[key] = body[key];
+        }
+      }
+      if (updates.date) {
+        const parsed = new Date(updates.date);
+        if (isNaN(parsed.getTime())) {
+          return res.status(400).json({ error: 'Invalid date format' });
+        }
+        updates.date = parsed;
+      }
+      if (updates.amount !== undefined) {
+        updates.amount = String(updates.amount);
+      }
+      const transaction = await storage.updateTransaction(id, req.userId!, updates);
       if (!transaction) {
         return res.status(404).json({ error: 'Transaction not found' });
       }
       res.json(transaction);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Transaction update error:', error);
       res.status(400).json({ error: 'Failed to update transaction' });
     }
   });

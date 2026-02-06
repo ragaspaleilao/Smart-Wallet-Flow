@@ -232,8 +232,9 @@ export class DbStorage implements IStorage {
   }
 
   async updateTransaction(id: string, userId: string, updates: Partial<Transaction>): Promise<Transaction | undefined> {
+    const { id: _id, userId: _userId, createdAt: _createdAt, ...safeUpdates } = updates as any;
     const result = await this.db.update(schema.transactions)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...safeUpdates, updatedAt: new Date() })
       .where(and(eq(schema.transactions.id, id), eq(schema.transactions.userId, userId)))
       .returning();
     return result[0];
