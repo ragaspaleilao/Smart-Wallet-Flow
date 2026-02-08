@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { extractTransactionFromImage, transcribeVoiceCommand } from "./ocr";
+import { extractTransactionFromImage, extractMultipleTransactions, transcribeVoiceCommand } from "./ocr";
 import { processAiChat } from "./ai-chat";
 import { checkConnection, getCalendarList, createAllDayEvent, listEvents, getUserEmail } from "./google-calendar";
 import type { Transaction, CreditPurchase } from "@shared/schema";
@@ -731,6 +731,22 @@ export async function registerRoutes(
     }
   });
   
+  app.post('/api/ocr-batch', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { image, mimeType } = req.body;
+      
+      if (!image) {
+        return res.status(400).json({ error: 'Image data is required' });
+      }
+      
+      const result = await extractMultipleTransactions(image, mimeType || 'image/jpeg');
+      res.json(result);
+    } catch (error) {
+      console.error('OCR batch error:', error);
+      res.status(500).json({ error: 'Failed to process image' });
+    }
+  });
+
   app.post('/api/voice', authMiddleware, async (req: AuthRequest, res) => {
     try {
       const { audio, mimeType } = req.body;

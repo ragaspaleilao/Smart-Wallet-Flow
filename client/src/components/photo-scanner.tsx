@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Camera, X, Loader2, Check, ImageIcon, Wallet, CreditCard, Banknote, ArrowRightLeft } from "lucide-react";
+import { Camera, X, Loader2, Check, ImageIcon, Wallet, CreditCard, Banknote, ArrowRightLeft, FileText, CheckSquare, Square, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,28 @@ interface OCRResult {
   category: string | null;
   date: string | null;
   merchant: string | null;
+  confidence: number;
+  rawText: string;
+}
+
+interface BatchTransaction {
+  amount: number;
+  description: string;
+  category: string;
+  date: string;
+  type: "income" | "expense";
+  selected: boolean;
+}
+
+interface BatchResult {
+  transactions: Array<{
+    amount: number;
+    description: string;
+    category: string;
+    date: string;
+    type: "income" | "expense";
+  }>;
+  totalFound: number;
   confidence: number;
   rawText: string;
 }
@@ -80,10 +102,17 @@ const PAYMENT_METHODS = [
   { value: "transfer", label: "Transferência", icon: ArrowRightLeft },
 ];
 
+type ScanMode = "single" | "batch";
+
 export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], onTransactionExtracted, onCreditPurchaseExtracted }: PhotoScannerProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [result, setResult] = useState<OCRResult | null>(null);
+  const [scanMode, setScanMode] = useState<ScanMode>("single");
+  const [batchTransactions, setBatchTransactions] = useState<BatchTransaction[]>([]);
+  const [batchProcessed, setBatchProcessed] = useState(false);
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [savingBatch, setSavingBatch] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -97,7 +126,9 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
   const [isCredit, setIsCredit] = useState(false);
   const [editCardId, setEditCardId] = useState("");
 
-  // Use shared categories from store
+  const [batchAccountId, setBatchAccountId] = useState("");
+  const [batchPaymentMethod, setBatchPaymentMethod] = useState("pix");
+
   const storeCategories = useFinancialStore((s) => s.transactionCategories);
   const categories = useMemo(() => {
     const combined = [...(storeCategories || []), ...DEFAULT_CATEGORIES];
@@ -109,7 +140,10 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
     if (accounts && accounts.length > 0 && !editAccountId) {
       setEditAccountId(accounts[0].id);
     }
-  }, [accounts, editAccountId]);
+    if (accounts && accounts.length > 0 && !batchAccountId) {
+      setBatchAccountId(accounts[0].id);
+    }
+  }, [accounts, editAccountId, batchAccountId]);
 
   useEffect(() => {
     if (creditCards && creditCards.length > 0 && !editCardId) {
@@ -124,7 +158,6 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
       setEditCategory(result.category || "Outros");
       if (result.date) {
         try {
-          // Add time to avoid timezone issues (date string without time is interpreted as UTC)
           const dateStr = result.date.includes('T') ? result.date : `${result.date}T12:00:00`;
           const parsedDate = new Date(dateStr);
           if (!isNaN(parsedDate.getTime())) {
@@ -169,6 +202,32 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
     }
   };
 
+  const processBatchImage = async (base64: string, mimeType: string) => {
+    setIsProcessing(true);
+    try {
+      const response = await apiClient<BatchResult>('/ocr-batch', {
+        method: 'POST',
+        body: JSON.stringify({ image: base64, mimeType }),
+      });
+      
+      if (response.transactions && response.transactions.length > 0) {
+        setBatchTransactions(response.transactions.map(t => ({ ...t, selected: true })));
+        setBatchProcessed(true);
+        toast({ title: `${response.transactions.length} transações encontradas!` });
+      } else {
+        toast({ 
+          title: "Nenhuma transação encontrada", 
+          description: "Tente com outra imagem ou use o modo cupom",
+          variant: "destructive" 
+        });
+      }
+    } catch (error) {
+      toast({ title: "Erro ao processar extrato", variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -179,9 +238,67 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
       setPreview(dataUrl);
       
       const base64 = dataUrl.split(',')[1];
-      await processImage(base64, file.type);
+      if (scanMode === "batch") {
+        await processBatchImage(base64, file.type);
+      } else {
+        await processImage(base64, file.type);
+      }
     };
     reader.readAsDataURL(file);
+  };
+
+  const toggleTransaction = (idx: number) => {
+    setBatchTransactions(prev => prev.map((t, i) => i === idx ? { ...t, selected: !t.selected } : t));
+  };
+
+  const toggleAll = () => {
+    const allSelected = batchTransactions.every(t => t.selected);
+    setBatchTransactions(prev => prev.map(t => ({ ...t, selected: !allSelected })));
+  };
+
+  const updateBatchTransaction = (idx: number, field: string, value: string) => {
+    setBatchTransactions(prev => prev.map((t, i) => {
+      if (i !== idx) return t;
+      if (field === 'amount') return { ...t, amount: parseFloat(value) || 0 };
+      if (field === 'type') return { ...t, type: value as "income" | "expense" };
+      return { ...t, [field]: value };
+    }));
+  };
+
+  const confirmBatchTransactions = async () => {
+    const selected = batchTransactions.filter(t => t.selected);
+    if (selected.length === 0) {
+      toast({ title: "Selecione ao menos uma transação", variant: "destructive" });
+      return;
+    }
+    if (!batchAccountId) {
+      toast({ title: "Selecione uma conta", variant: "destructive" });
+      return;
+    }
+
+    setSavingBatch(true);
+    let saved = 0;
+    for (const t of selected) {
+      try {
+        onTransactionExtracted({
+          amount: t.amount,
+          description: t.description,
+          category: t.category,
+          type: t.type,
+          date: t.date,
+          accountId: batchAccountId,
+          paymentMethod: batchPaymentMethod,
+        });
+        saved++;
+      } catch (err) {
+        console.error("Erro ao salvar transação:", err);
+      }
+    }
+
+    toast({ title: `${saved} transações salvas com sucesso!` });
+    setSavingBatch(false);
+    resetState();
+    onOpenChange(false);
   };
 
   const confirmTransaction = () => {
@@ -191,7 +308,6 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
       return;
     }
 
-    // Credit card purchase
     if (isCredit) {
       if (!editCardId) {
         toast({ title: "Selecione um cartão", variant: "destructive" });
@@ -211,7 +327,6 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
       }
     }
 
-    // Regular transaction
     if (!editAccountId) {
       toast({ title: "Selecione uma conta", variant: "destructive" });
       return;
@@ -234,6 +349,10 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
   const resetState = () => {
     setPreview(null);
     setResult(null);
+    setBatchTransactions([]);
+    setBatchProcessed(false);
+    setExpandedIdx(null);
+    setSavingBatch(false);
     setEditAmount("");
     setEditDescription("");
     setEditCategory("");
@@ -246,19 +365,47 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
+  const selectedCount = batchTransactions.filter(t => t.selected).length;
+  const selectedTotal = batchTransactions.filter(t => t.selected).reduce((sum, t) => {
+    return t.type === 'income' ? sum + t.amount : sum - t.amount;
+  }, 0);
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetState(); onOpenChange(o); }}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Camera className="w-5 h-5" />
-            Escanear Cupom
+            {scanMode === "batch" ? "Ler Extrato" : "Escanear Cupom"}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {!result ? (
+          {!result && !batchProcessed ? (
             <>
+              {!preview && !isProcessing && (
+                <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg mb-3">
+                  <button
+                    type="button"
+                    data-testid="button-mode-single"
+                    className={`flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1.5 ${scanMode === 'single' ? 'bg-white dark:bg-zinc-700 shadow-sm text-primary' : 'text-gray-500'}`}
+                    onClick={() => setScanMode('single')}
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    Cupom
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="button-mode-batch"
+                    className={`flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1.5 ${scanMode === 'batch' ? 'bg-white dark:bg-zinc-700 shadow-sm text-primary' : 'text-gray-500'}`}
+                    onClick={() => setScanMode('batch')}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    Extrato
+                  </button>
+                </div>
+              )}
+
               {preview && (
                 <div className="relative">
                   <img src={preview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
@@ -266,7 +413,9 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
                       <div className="text-center text-white">
                         <Loader2 className="w-10 h-10 animate-spin mx-auto mb-2" />
-                        <p className="text-sm">Processando com IA...</p>
+                        <p className="text-sm">
+                          {scanMode === "batch" ? "Lendo extrato com IA..." : "Processando com IA..."}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -314,9 +463,209 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
               )}
 
               <p className="text-center text-sm text-gray-500">
-                Tire uma foto do cupom fiscal ou nota para extrair os dados automaticamente
+                {scanMode === "batch" 
+                  ? "Tire uma foto do extrato bancário para importar várias transações de uma vez"
+                  : "Tire uma foto do cupom fiscal ou nota para extrair os dados automaticamente"
+                }
               </p>
             </>
+          ) : batchProcessed ? (
+            <div className="space-y-3">
+              {preview && (
+                <img src={preview} alt="Extrato" className="w-full h-24 object-cover rounded-lg opacity-70" />
+              )}
+
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">{batchTransactions.length} transações encontradas</span>
+                <Button variant="ghost" size="sm" onClick={toggleAll} data-testid="button-toggle-all">
+                  {batchTransactions.every(t => t.selected) ? (
+                    <><CheckSquare className="w-4 h-4 mr-1" /> Desmarcar todas</>
+                  ) : (
+                    <><Square className="w-4 h-4 mr-1" /> Selecionar todas</>
+                  )}
+                </Button>
+              </div>
+
+              <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+                {batchTransactions.map((t, idx) => (
+                  <div 
+                    key={idx} 
+                    className={`border rounded-lg p-3 transition-all ${t.selected ? 'border-primary/50 bg-primary/5' : 'border-gray-200 dark:border-zinc-700 opacity-60'}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleTransaction(idx)}
+                        data-testid={`button-toggle-transaction-${idx}`}
+                        className="shrink-0"
+                      >
+                        {t.selected ? (
+                          <CheckSquare className="w-5 h-5 text-primary" />
+                        ) : (
+                          <Square className="w-5 h-5 text-gray-400" />
+                        )}
+                      </button>
+                      
+                      <div className="flex-1 min-w-0" onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium truncate">{t.description}</span>
+                          <span className={`text-sm font-bold whitespace-nowrap ml-2 ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                            {t.type === 'income' ? '+' : '-'} R$ {t.amount.toFixed(2).replace('.', ',')}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                          <span>{t.date ? format(new Date(t.date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}</span>
+                          <span>•</span>
+                          <span>{t.category}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
+                        className="shrink-0 text-gray-400"
+                      >
+                        {expandedIdx === idx ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                    </div>
+
+                    {expandedIdx === idx && (
+                      <div className="mt-3 space-y-2 border-t pt-3">
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <Label className="text-xs">Tipo</Label>
+                            <Select value={t.type} onValueChange={(v) => updateBatchTransaction(idx, 'type', v)}>
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="income">Receita</SelectItem>
+                                <SelectItem value="expense">Despesa</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex-1">
+                            <Label className="text-xs">Valor</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={t.amount}
+                              onChange={(e) => updateBatchTransaction(idx, 'amount', e.target.value)}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Descrição</Label>
+                          <Input
+                            value={t.description}
+                            onChange={(e) => updateBatchTransaction(idx, 'description', e.target.value)}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <Label className="text-xs">Categoria</Label>
+                            <Select value={t.category} onValueChange={(v) => updateBatchTransaction(idx, 'category', v)}>
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {categories.map(cat => (
+                                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex-1">
+                            <Label className="text-xs">Data</Label>
+                            <Input
+                              type="date"
+                              value={t.date}
+                              onChange={(e) => updateBatchTransaction(idx, 'date', e.target.value)}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t pt-3 space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">{selectedCount} selecionadas</span>
+                  <span className={`font-bold ${selectedTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    Saldo: R$ {selectedTotal.toFixed(2).replace('.', ',')}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Conta destino</Label>
+                    <Select value={batchAccountId} onValueChange={setBatchAccountId}>
+                      <SelectTrigger data-testid="select-batch-account">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map(acc => (
+                          <SelectItem key={acc.id} value={acc.id}>
+                            <div className="flex items-center gap-2">
+                              <Wallet className="w-3 h-3" />
+                              {acc.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Forma de Pagamento</Label>
+                    <Select value={batchPaymentMethod} onValueChange={setBatchPaymentMethod}>
+                      <SelectTrigger data-testid="select-batch-payment">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_METHODS.filter(m => m.value !== 'credit').map(method => (
+                          <SelectItem key={method.value} value={method.value}>
+                            <div className="flex items-center gap-2">
+                              <method.icon className="w-3 h-3" />
+                              {method.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={resetState}
+                  data-testid="button-retry-batch"
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  Nova Foto
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={confirmBatchTransactions}
+                  disabled={savingBatch || selectedCount === 0}
+                  data-testid="button-confirm-batch"
+                >
+                  {savingBatch ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4 mr-1" />
+                  )}
+                  Salvar {selectedCount}
+                </Button>
+              </div>
+            </div>
           ) : (
             <div className="space-y-4">
               {preview && (
@@ -415,7 +764,6 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
                   </div>
                 </div>
 
-                {/* Toggle between Debit/Account and Credit Card */}
                 {creditCards.length > 0 && onCreditPurchaseExtracted && (
                   <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-zinc-900 rounded-lg">
                     <button

@@ -13,6 +13,19 @@ export interface OCRTransactionResult {
   rawText: string;
 }
 
+export interface OCRBatchResult {
+  transactions: Array<{
+    amount: number;
+    description: string;
+    category: string;
+    date: string;
+    type: "income" | "expense";
+  }>;
+  totalFound: number;
+  confidence: number;
+  rawText: string;
+}
+
 export async function extractTransactionFromImage(
   imageBase64: string,
   mimeType: string = "image/jpeg"
@@ -56,6 +69,72 @@ Responda APENAS o JSON:
   } catch (error) {
     console.error("Erro no OCR:", error);
     return { amount: null, description: null, category: null, date: null, merchant: null, confidence: 0, rawText: "Erro na leitura" };
+  }
+}
+
+export async function extractMultipleTransactions(
+  imageBase64: string,
+  mimeType: string = "image/jpeg"
+): Promise<OCRBatchResult> {
+  try {
+    const prompt = `Analise esta imagem de extrato bancário ou lista de transações.
+Extraia TODAS as transações visíveis na imagem.
+
+Para cada transação, identifique:
+- amount: valor numérico (sempre positivo, sem sinal)
+- description: descrição ou nome do pagador/recebedor
+- category: uma das categorias (Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Vestuário, Serviços, Investimento, Salário, Vendas, Outros)
+- date: data no formato YYYY-MM-DD
+- type: "income" se é entrada/crédito/recebimento (valores com +), "expense" se é saída/débito/pagamento (valores com -)
+
+Dicas para identificar o tipo:
+- Valores com "+" ou "crédito" ou "recebido" ou "transferência recebida" = income
+- Valores com "-" ou "débito" ou "pago" ou "pagamento" = expense
+- Pix recebido = income, Pix enviado = expense
+
+Responda APENAS o JSON:
+{
+  "transactions": [
+    {"amount": 0.00, "description": "Descrição", "category": "Categoria", "date": "YYYY-MM-DD", "type": "income"},
+    {"amount": 0.00, "description": "Descrição", "category": "Categoria", "date": "YYYY-MM-DD", "type": "expense"}
+  ],
+  "totalFound": 0,
+  "confidence": 0.0,
+  "rawText": "texto extraído resumido"
+}`;
+
+    const contents = [
+      { inlineData: { data: imageBase64, mimeType } },
+      { text: prompt }
+    ];
+
+    const response = await ai.models.generateContent({
+      model: MODELO_ECONOMICO,
+      contents: contents,
+      config: {
+        temperature: 0.1,
+        maxOutputTokens: 4000,
+      }
+    });
+
+    const responseText = response.text || "{}";
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    
+    if (!jsonMatch) throw new Error("JSON não encontrado");
+    const parsed = JSON.parse(jsonMatch[0]) as OCRBatchResult;
+    
+    if (!parsed.transactions || !Array.isArray(parsed.transactions)) {
+      throw new Error("Formato inválido");
+    }
+
+    parsed.transactions = parsed.transactions.filter(t => t.amount && t.amount > 0);
+    parsed.totalFound = parsed.transactions.length;
+    
+    return parsed;
+
+  } catch (error) {
+    console.error("Erro no OCR batch:", error);
+    return { transactions: [], totalFound: 0, confidence: 0, rawText: "Erro na leitura" };
   }
 }
 
