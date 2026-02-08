@@ -137,6 +137,7 @@ shared/
 - GET /api/logout - Logout and clear session
 - POST /api/ocr - Process receipt photos with Gemini AI (extracts amount, merchant, date, category)
 - POST /api/voice - Process voice commands with Gemini AI (transcribes and extracts transaction data)
+- POST /api/ocr-batch - Process bank statement photos to extract multiple transactions at once
 - POST /api/ai/chat - AI Mentor chat using Gemini 2.5 Flash
 
 ### Recent Bug Fixes (Feb 4, 2026)
