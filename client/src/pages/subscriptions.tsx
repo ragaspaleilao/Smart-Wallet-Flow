@@ -339,7 +339,7 @@ export default function Subscriptions() {
                 <div className="bg-gray-100 dark:bg-zinc-900 rounded-xl p-3 opacity-60 hover:opacity-100 transition-opacity cursor-default select-none scale-90 origin-bottom">
                      <div className="flex items-center gap-2 mb-1">
                         <div className="w-4 h-4 bg-gray-800 rounded flex items-center justify-center text-[8px] text-white font-bold">X</div>
-                        <span className="text-[10px] font-semibold text-gray-500 uppercase">Xô Preguiça • Agora</span>
+                        <span className="text-[10px] font-semibold text-gray-500 uppercase">Finanças Fácil • Agora</span>
                      </div>
                      <h4 className="font-bold text-sm text-gray-900 dark:text-white">⚠️ Alerta de Cobrança Amanhã</h4>
                      <p className="text-xs text-gray-600 dark:text-gray-400">Seu teste da Disney+ vence amanhã. Toque para cancelar agora e economizar {formatCurrency(33.90)}.</p>

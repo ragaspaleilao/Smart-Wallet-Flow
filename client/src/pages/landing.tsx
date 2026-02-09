@@ -17,11 +17,9 @@ export default function Landing() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-green-500 rounded-xl flex items-center justify-center">
-              <Wallet className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-green-500 bg-clip-text text-transparent">
-              Xo Preguica
+            <img src="/logo-financas-facil.jpg" alt="Finanças Fácil" className="w-10 h-10 rounded-xl object-cover" />
+            <span className="text-xl font-bold text-[#0a2540]">
+              Finanças Fácil
             </span>
           </div>
           <a href="/api/login">
@@ -155,7 +153,7 @@ export default function Landing() {
 
       <footer className="border-t py-8">
         <div className="max-w-6xl mx-auto px-4 text-center text-gray-500">
-          <p>&copy; 2026 Xo Preguica. Todos os direitos reservados.</p>
+          <p>&copy; 2026 Finanças Fácil. Todos os direitos reservados.</p>
         </div>
       </footer>
     </div>

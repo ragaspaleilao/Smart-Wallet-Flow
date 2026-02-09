@@ -1,4 +1,4 @@
-# Xô Preguiça - Personal Finance App
+# Finanças Fácil - Personal Finance App
 
 ## Overview
 

@@ -33,7 +33,7 @@ export function ShareButton({
   const qrRef = useRef<HTMLDivElement>(null);
   
   const shareUrl = customUrl || window.location.origin;
-  const shareTitle = customTitle || 'Xô Preguiça App';
+  const shareTitle = customTitle || 'Finanças Fácil';
   const shareMessage = customMessage || 'Gostei muito desse app para organizar minhas finanças. Baixa aqui 👇';
 
   const handleShare = async () => {
@@ -87,7 +87,7 @@ export function ShareButton({
       URL.revokeObjectURL(url);
 
       const link = document.createElement("a");
-      link.download = "xo-preguica-qrcode.png";
+      link.download = "financas-facil-qrcode.png";
       link.href = canvas.toDataURL("image/png");
       link.click();
       toast({ title: "QR Code baixado!" });

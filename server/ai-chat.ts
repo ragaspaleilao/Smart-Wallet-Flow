@@ -57,7 +57,7 @@ export async function processAiChat(
   const context = await buildCompleteContext(userId);
   const formattedToday = format(new Date(), "dd/MM/yyyy", { locale: ptBR });
 
-  const systemPrompt = `Você é o Mentor Financeiro do app "Xô Preguiça". 
+  const systemPrompt = `Você é o Mentor Financeiro do app "Finanças Fácil". 
 Analise o saldo e as FATURAS DE CARTÃO abaixo.
 
 📅 HOJE: ${formattedToday}

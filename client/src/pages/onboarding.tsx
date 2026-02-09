@@ -33,14 +33,14 @@ export default function Onboarding() {
           <div className="relative w-full aspect-square max-w-[280px]">
             <img 
               src={heroImage} 
-              alt="Xô Preguiça" 
+              alt="Finanças Fácil" 
               className="w-full h-full object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-500 rounded-3xl"
             />
           </div>
           
           <div className="space-y-4 text-center">
             <h1 className="text-4xl font-heading font-bold tracking-tight text-gray-900 dark:text-white leading-tight">
-              Xô Preguiça <br />
+              Finanças Fácil <br />
               <span className="text-2xl text-gray-500 font-normal">Orçamento Pessoal</span>
             </h1>
             <p className="text-lg text-gray-500 dark:text-gray-400 leading-relaxed">

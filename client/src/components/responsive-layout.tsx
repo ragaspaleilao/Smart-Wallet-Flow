@@ -42,13 +42,11 @@ function DesktopSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       <div className="p-4 border-b border-gray-200 dark:border-zinc-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-green-500 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Wallet className="w-6 h-6 text-white" />
-            </div>
+            <img src="/logo-financas-facil.jpg" alt="Finanças Fácil" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
             {!collapsed && (
               <div>
-                <h1 className="text-lg font-bold bg-gradient-to-r from-purple-600 to-green-500 bg-clip-text text-transparent">
-                  Xô Preguiça
+                <h1 className="text-lg font-bold text-[#0a2540] dark:text-white">
+                  Finanças Fácil
                 </h1>
                 <p className="text-xs text-gray-500">Finanças Pessoais</p>
               </div>
