@@ -365,26 +365,26 @@ export default function Dashboard() {
 
           <div className="flex space-x-4">
             <Link href={`/transactions?type=income`} className="flex-1" data-testid="link-dashboard-income">
-                <div className="bg-green-50 dark:bg-green-950/20 p-3 rounded-2xl flex items-center space-x-3 cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors" data-testid="card-dashboard-income">
-                <div className="bg-green-100 dark:bg-green-900/50 p-2 rounded-xl">
+                <div className="bg-gray-50 dark:bg-zinc-900 p-3 rounded-2xl flex items-center space-x-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors shadow-sm" data-testid="card-dashboard-income">
+                <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-xl">
                     <ArrowUp className="w-4 h-4 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                    <p className="text-xs text-green-600/80 dark:text-green-400/80 font-medium">Entradas</p>
-                    <p className="text-sm font-bold text-green-700 dark:text-green-300" data-testid="text-dashboard-income">{formatCurrency(personalIncome)}</p>
-                    <p className="text-[10px] text-green-700/70 dark:text-green-300/70" data-testid="text-dashboard-income-period">{periodLabel}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Entradas</p>
+                    <p className="text-sm font-bold text-green-600 dark:text-green-400" data-testid="text-dashboard-income">{formatCurrency(personalIncome)}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400" data-testid="text-dashboard-income-period">{periodLabel}</p>
                 </div>
                 </div>
             </Link>
             <Link href={`/transactions?type=expense`} className="flex-1" data-testid="link-dashboard-expense">
-                <div className="bg-red-50 dark:bg-red-950/20 p-3 rounded-2xl flex items-center space-x-3 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors" data-testid="card-dashboard-expense">
-                <div className="bg-red-100 dark:bg-red-900/50 p-2 rounded-xl">
+                <div className="bg-gray-50 dark:bg-zinc-900 p-3 rounded-2xl flex items-center space-x-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors shadow-sm" data-testid="card-dashboard-expense">
+                <div className="bg-red-100 dark:bg-red-900/30 p-2 rounded-xl">
                     <ArrowDown className="w-4 h-4 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                    <p className="text-xs text-red-600/80 dark:text-red-400/80 font-medium">Saídas</p>
-                    <p className="text-sm font-bold text-red-700 dark:text-red-300" data-testid="text-dashboard-expense">{formatCurrency(personalExpense)}</p>
-                    <p className="text-[10px] text-red-700/70 dark:text-red-300/70" data-testid="text-dashboard-expense-period">{periodLabel}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Saídas</p>
+                    <p className="text-sm font-bold text-red-600 dark:text-red-400" data-testid="text-dashboard-expense">{formatCurrency(personalExpense)}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400" data-testid="text-dashboard-expense-period">{periodLabel}</p>
                 </div>
                 </div>
             </Link>
