@@ -12,6 +12,7 @@ import {
   AlertCircle,
   ShoppingBag,
   Landmark,
+  ChevronLeft,
   ChevronRight,
   TrendingUp,
   Receipt,
@@ -1110,18 +1111,16 @@ export default function CreditCards() {
 
   const creditPayments = useFinancialStore((state) => state.creditPayments);
 
+  const [invoiceMonthOffset, setInvoiceMonthOffset] = useState(0);
+
   const baseInvoiceDate = useMemo(() => {
     if (!selectedCard) return new Date();
     const now = new Date();
 
-    // A fatura é nomeada pela COMPETÊNCIA (mês das compras).
-    // Se hoje > fechamento, a fatura atual é do MÊS ATUAL (fechou no mês passado, vence no próximo).
-    // Se hoje <= fechamento, a fatura atual é do MÊS ANTERIOR (ainda está aberta para receber compras).
-    // Ex: fechamento dia 03, hoje dia 05/02 -> fatura atual é FEVEREIRO (fecha 03/03, vence 07/03)
-    // Ex: fechamento dia 03, hoje dia 02/02 -> fatura atual é JANEIRO (fecha 03/02, vence 07/02)
     const baseCompetence = now.getDate() > selectedCard.closingDay ? now : addMonths(now, -1);
-    return new Date(baseCompetence.getFullYear(), baseCompetence.getMonth(), 1);
-  }, [selectedCard]);
+    const base = new Date(baseCompetence.getFullYear(), baseCompetence.getMonth(), 1);
+    return addMonths(base, invoiceMonthOffset);
+  }, [selectedCard, invoiceMonthOffset]);
 
   const invoicePaymentsTotalForDate = useMemo(() => {
     if (!selectedCard) return 0;
@@ -1616,7 +1615,7 @@ export default function CreditCards() {
                 {creditCards.map(card => (
                     <div 
                         key={card.id}
-                        onClick={() => setSelectedCardId(card.id)}
+                        onClick={() => { setSelectedCardId(card.id); setInvoiceMonthOffset(0); }}
                         className={`min-w-[280px] p-4 rounded-xl transition-all cursor-pointer border-2 ${
                             selectedCardId === card.id 
                             ? 'border-gray-900 dark:border-white shadow-lg scale-[1.02]' 
@@ -2304,13 +2303,38 @@ export default function CreditCards() {
                                     )}
 
                                     <div className="flex justify-between items-end mb-2">
-                                        <div>
-                                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                                                {format(currentInvoiceDate, 'MMMM', { locale: ptBR })}
-                                            </h3>
-                                            <p className="text-sm text-gray-500" data-testid="text-invoice-due">
-                                                Vence dia {selectedCard.dueDay}/{format(addMonths(currentInvoiceDate, 1), 'MM')} • Fecha dia {selectedCard.closingDay}
-                                            </p>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => setInvoiceMonthOffset(prev => prev - 1)}
+                                                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800"
+                                                data-testid="button-prev-invoice-month"
+                                            >
+                                                <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                                            </button>
+                                            <div>
+                                                <h3 className="text-lg font-bold text-gray-900 dark:text-white capitalize">
+                                                    {format(currentInvoiceDate, 'MMMM yyyy', { locale: ptBR })}
+                                                </h3>
+                                                <p className="text-sm text-gray-500" data-testid="text-invoice-due">
+                                                    Vence dia {selectedCard.dueDay}/{format(addMonths(currentInvoiceDate, 1), 'MM')} • Fecha dia {selectedCard.closingDay}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => setInvoiceMonthOffset(prev => prev + 1)}
+                                                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800"
+                                                data-testid="button-next-invoice-month"
+                                            >
+                                                <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                                            </button>
+                                            {invoiceMonthOffset !== 0 && (
+                                                <button
+                                                    onClick={() => setInvoiceMonthOffset(0)}
+                                                    className="text-xs text-blue-600 hover:text-blue-800 ml-1"
+                                                    data-testid="button-reset-invoice-month"
+                                                >
+                                                    Hoje
+                                                </button>
+                                            )}
                                         </div>
                                         <div className="text-right">
                                             <span className="text-sm text-gray-500 block">Total da Fatura</span>
