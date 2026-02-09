@@ -135,6 +135,17 @@ function ManageInlineCategories({
   );
 }
 
+interface InvoicePurchase {
+  description: string;
+  amount: number;
+  category: string;
+  date: string;
+  installments: number;
+  currentInstallment: number;
+  totalAmount: number;
+  selected: boolean;
+}
+
 function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: { 
   cardId: string; 
   onPurchaseCreated: () => void;
@@ -142,21 +153,29 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
 }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [scanMode, setScanMode] = useState<"receipt" | "invoice">("receipt");
   const [result, setResult] = useState<{ amount: number | null; description: string | null; category: string | null; date: string | null; merchant: string | null } | null>(null);
+  const [invoicePurchases, setInvoicePurchases] = useState<InvoicePurchase[]>([]);
+  const [invoiceProcessed, setInvoiceProcessed] = useState(false);
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [savingBatch, setSavingBatch] = useState(false);
   const [editAmount, setEditAmount] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editCategory, setEditCategory] = useState("Outros");
   const [editDate, setEditDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [editInstallments, setEditInstallments] = useState("1");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const processImage = async (base64: string, mimeType: string) => {
+  const CATEGORIES = ["Alimentação", "Transporte", "Moradia", "Saúde", "Educação", "Lazer", "Compras", "Vestuário", "Serviços", "Assinatura", "Outros"];
+
+  const processReceiptImage = async (base64: string, mimeType: string) => {
     setIsProcessing(true);
     try {
       const response = await fetch("/api/ocr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageData: base64, mimeType }),
+        body: JSON.stringify({ image: base64, mimeType }),
         credentials: "include"
       });
       if (response.ok) {
@@ -167,7 +186,8 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
         setEditCategory(data.category || "Outros");
         if (data.date) {
           try {
-            const parsedDate = new Date(data.date);
+            const dateStr = data.date.includes('T') ? data.date : `${data.date}T12:00:00`;
+            const parsedDate = new Date(dateStr);
             if (!isNaN(parsedDate.getTime())) {
               setEditDate(format(parsedDate, "yyyy-MM-dd"));
             }
@@ -183,6 +203,32 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
     }
   };
 
+  const processInvoiceImage = async (base64: string, mimeType: string) => {
+    setIsProcessing(true);
+    try {
+      const response = await fetch("/api/ocr-credit-invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64, mimeType }),
+        credentials: "include"
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.purchases && data.purchases.length > 0) {
+          setInvoicePurchases(data.purchases.map((p: any) => ({ ...p, selected: true })));
+          setInvoiceProcessed(true);
+          toast({ title: `${data.purchases.length} compras encontradas na fatura!` });
+        } else {
+          toast({ title: "Nenhuma compra encontrada", description: "Tente com outra imagem", variant: "destructive" });
+        }
+      }
+    } catch (error) {
+      toast({ title: "Erro ao processar fatura", variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -190,7 +236,11 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
     reader.onloadend = () => {
       const base64 = (reader.result as string).split(",")[1];
       setPreview(reader.result as string);
-      processImage(base64, file.type);
+      if (scanMode === "invoice") {
+        processInvoiceImage(base64, file.type);
+      } else {
+        processReceiptImage(base64, file.type);
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -222,15 +272,285 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
     });
   };
 
+  const togglePurchase = (idx: number) => {
+    setInvoicePurchases(prev => prev.map((p, i) => i === idx ? { ...p, selected: !p.selected } : p));
+  };
+
+  const toggleAllPurchases = () => {
+    const allSelected = invoicePurchases.every(p => p.selected);
+    setInvoicePurchases(prev => prev.map(p => ({ ...p, selected: !allSelected })));
+  };
+
+  const updateInvoicePurchase = (idx: number, field: string, value: string) => {
+    setInvoicePurchases(prev => prev.map((p, i) => {
+      if (i !== idx) return p;
+      if (field === 'amount') return { ...p, amount: parseFloat(value) || 0 };
+      if (field === 'installments') return { ...p, installments: parseInt(value) || 1 };
+      if (field === 'totalAmount') return { ...p, totalAmount: parseFloat(value) || 0 };
+      return { ...p, [field]: value };
+    }));
+  };
+
+  const confirmInvoicePurchases = async () => {
+    const selected = invoicePurchases.filter(p => p.selected);
+    if (selected.length === 0) {
+      toast({ title: "Selecione ao menos uma compra", variant: "destructive" });
+      return;
+    }
+
+    setSavingBatch(true);
+    let saved = 0;
+    let failed = 0;
+    
+    for (const p of selected) {
+      try {
+        const installments = p.installments || 1;
+        const installmentValue = p.amount;
+        const totalAmount = p.totalAmount && p.totalAmount >= p.amount 
+          ? p.totalAmount 
+          : installmentValue * installments;
+
+        await new Promise<void>((resolve, reject) => {
+          createPurchase.mutate({
+            creditCardId: cardId,
+            description: p.description,
+            totalAmount: String(totalAmount),
+            installments,
+            installmentValue: String(installmentValue),
+            purchaseDate: p.date,
+            category: p.category || "Outros"
+          }, {
+            onSuccess: () => { saved++; resolve(); },
+            onError: (error: any) => { failed++; reject(error); }
+          });
+        });
+      } catch (err) {
+        console.error("Erro ao salvar compra:", err);
+      }
+    }
+
+    if (failed > 0) {
+      toast({ title: `${saved} salvas, ${failed} falharam`, variant: "destructive" });
+    } else {
+      toast({ title: `${saved} compras lançadas no cartão!` });
+    }
+    setSavingBatch(false);
+    resetState();
+    onPurchaseCreated();
+  };
+
+  const resetState = () => {
+    setPreview(null);
+    setResult(null);
+    setInvoicePurchases([]);
+    setInvoiceProcessed(false);
+    setExpandedIdx(null);
+    setSavingBatch(false);
+    setEditAmount("");
+    setEditDescription("");
+    setEditCategory("Outros");
+    setEditDate(format(new Date(), "yyyy-MM-dd"));
+    setEditInstallments("1");
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+  };
+
+  const selectedCount = invoicePurchases.filter(p => p.selected).length;
+  const selectedTotal = invoicePurchases.filter(p => p.selected).reduce((sum, p) => sum + p.amount, 0);
+
   return (
     <div className="space-y-4">
-      {!preview ? (
+      {!preview && !invoiceProcessed ? (
         <div className="flex flex-col gap-3">
-          <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
-          <Button onClick={() => fileInputRef.current?.click()} className="w-full h-24 flex flex-col gap-2">
-            <Camera className="w-8 h-8" />
-            <span>Tirar Foto ou Selecionar</span>
-          </Button>
+          <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg">
+            <button
+              type="button"
+              data-testid="button-cc-mode-receipt"
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1.5 ${scanMode === 'receipt' ? 'bg-white dark:bg-zinc-700 shadow-sm text-primary' : 'text-gray-500'}`}
+              onClick={() => setScanMode('receipt')}
+            >
+              <Receipt className="w-3.5 h-3.5" />
+              Recibo
+            </button>
+            <button
+              type="button"
+              data-testid="button-cc-mode-invoice"
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1.5 ${scanMode === 'invoice' ? 'bg-white dark:bg-zinc-700 shadow-sm text-primary' : 'text-gray-500'}`}
+              onClick={() => setScanMode('invoice')}
+            >
+              <CreditCardIcon className="w-3.5 h-3.5" />
+              Fatura
+            </button>
+          </div>
+
+          <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileSelect} className="hidden" />
+          <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
+          
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="outline" className="h-24 flex flex-col gap-2" onClick={() => cameraInputRef.current?.click()} data-testid="button-cc-camera">
+              <Camera className="w-8 h-8 text-primary" />
+              <span className="text-xs">Tirar Foto</span>
+            </Button>
+            <Button variant="outline" className="h-24 flex flex-col gap-2" onClick={() => fileInputRef.current?.click()} data-testid="button-cc-gallery">
+              <Receipt className="w-8 h-8 text-primary" />
+              <span className="text-xs">Galeria</span>
+            </Button>
+          </div>
+          
+          <p className="text-center text-sm text-gray-500">
+            {scanMode === "invoice" 
+              ? "Tire uma foto da fatura do cartão para importar todas as compras, incluindo parceladas"
+              : "Tire uma foto do recibo ou cupom fiscal para lançar no cartão"
+            }
+          </p>
+        </div>
+      ) : invoiceProcessed ? (
+        <div className="space-y-3">
+          {preview && (
+            <img src={preview} alt="Fatura" className="w-full h-24 object-cover rounded-lg opacity-70" />
+          )}
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">{invoicePurchases.length} compras encontradas</span>
+            <Button variant="ghost" size="sm" onClick={toggleAllPurchases} data-testid="button-cc-toggle-all">
+              {invoicePurchases.every(p => p.selected) ? "Desmarcar todas" : "Selecionar todas"}
+            </Button>
+          </div>
+
+          <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
+            {invoicePurchases.map((p, idx) => (
+              <div 
+                key={idx} 
+                className={`border rounded-lg p-3 transition-all ${p.selected ? 'border-primary/50 bg-primary/5' : 'border-gray-200 dark:border-zinc-700 opacity-60'}`}
+              >
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => togglePurchase(idx)} className="shrink-0" data-testid={`button-cc-toggle-${idx}`}>
+                    {p.selected ? (
+                      <div className="w-5 h-5 bg-primary rounded flex items-center justify-center">
+                        <Check className="w-3 h-3 text-white" />
+                      </div>
+                    ) : (
+                      <div className="w-5 h-5 border-2 border-gray-300 rounded" />
+                    )}
+                  </button>
+                  
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium truncate">{p.description}</span>
+                      <span className="text-sm font-bold text-red-600 whitespace-nowrap ml-2">
+                        R$ {p.amount.toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                      <span>{p.date ? format(new Date(p.date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}</span>
+                      <span>•</span>
+                      <span>{p.category}</span>
+                      {p.installments > 1 && (
+                        <>
+                          <span>•</span>
+                          <span className="text-purple-600 dark:text-purple-400 font-medium">
+                            {p.currentInstallment}/{p.installments}x
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {expandedIdx === idx && (
+                  <div className="mt-3 space-y-2 border-t pt-3">
+                    <div>
+                      <Label className="text-xs">Descrição</Label>
+                      <Input
+                        value={p.description}
+                        onChange={(e) => updateInvoicePurchase(idx, 'description', e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Valor parcela</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={p.amount}
+                          onChange={(e) => updateInvoicePurchase(idx, 'amount', e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Valor total</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={p.totalAmount}
+                          onChange={(e) => updateInvoicePurchase(idx, 'totalAmount', e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <Label className="text-xs">Categoria</Label>
+                        <Select value={p.category} onValueChange={(v) => updateInvoicePurchase(idx, 'category', v)}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {CATEGORIES.map(cat => (
+                              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Parcelas</Label>
+                        <Select value={String(p.installments)} onValueChange={(v) => updateInvoicePurchase(idx, 'installments', v)}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {[1,2,3,4,5,6,7,8,9,10,11,12,18,24,36,48].map(n => (
+                              <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Data</Label>
+                        <Input
+                          type="date"
+                          value={p.date}
+                          onChange={(e) => updateInvoicePurchase(idx, 'date', e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t pt-3 space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">{selectedCount} selecionadas</span>
+              <span className="font-bold text-red-600">
+                Total: R$ {selectedTotal.toFixed(2).replace('.', ',')}
+              </span>
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={resetState} className="flex-1" data-testid="button-cc-retry">
+                Nova Foto
+              </Button>
+              <Button 
+                onClick={confirmInvoicePurchases} 
+                disabled={savingBatch || selectedCount === 0} 
+                className="flex-1"
+                data-testid="button-cc-confirm-batch"
+              >
+                {savingBatch ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Check className="w-4 h-4 mr-1" />}
+                Lançar {selectedCount}
+              </Button>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
@@ -238,7 +558,7 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
           {isProcessing ? (
             <div className="flex items-center justify-center gap-2 py-4">
               <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Processando imagem...</span>
+              <span>{scanMode === "invoice" ? "Lendo fatura com IA..." : "Processando imagem..."}</span>
             </div>
           ) : result ? (
             <div className="space-y-3">
@@ -256,7 +576,7 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
                   <Select value={editCategory} onValueChange={setEditCategory}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {["Alimentação", "Transporte", "Moradia", "Saúde", "Educação", "Lazer", "Compras", "Serviços", "Outros"].map(cat => (
+                      {CATEGORIES.map(cat => (
                         <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                       ))}
                     </SelectContent>
@@ -279,7 +599,7 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
                 <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => { setPreview(null); setResult(null); }} className="flex-1">Nova Foto</Button>
+                <Button variant="outline" onClick={resetState} className="flex-1">Nova Foto</Button>
                 <Button onClick={handleConfirm} disabled={createPurchase.isPending} className="flex-1">
                   {createPurchase.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
                   Confirmar
@@ -2167,11 +2487,11 @@ export default function CreditCards() {
 
         {/* Photo Scanner Dialog */}
         <Dialog open={isPhotoScannerOpen} onOpenChange={setIsPhotoScannerOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Escanear Recibo</DialogTitle>
+              <DialogTitle>Escanear Recibo / Fatura</DialogTitle>
               <DialogDescription>
-                Tire uma foto do recibo para lançar automaticamente no cartão {selectedCard?.name}
+                Leia um recibo individual ou importe toda a fatura do cartão {selectedCard?.name}
               </DialogDescription>
             </DialogHeader>
             <CreditCardPhotoScanner 

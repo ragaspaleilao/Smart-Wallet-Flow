@@ -138,6 +138,92 @@ Responda APENAS o JSON:
   }
 }
 
+export interface CreditCardInvoiceResult {
+  purchases: Array<{
+    description: string;
+    amount: number;
+    category: string;
+    date: string;
+    installments: number;
+    currentInstallment: number;
+    totalAmount: number;
+  }>;
+  totalFound: number;
+  invoiceTotal: number;
+  confidence: number;
+  rawText: string;
+}
+
+export async function extractCreditCardInvoice(
+  imageBase64: string,
+  mimeType: string = "image/jpeg"
+): Promise<CreditCardInvoiceResult> {
+  try {
+    const prompt = `Analise esta imagem de fatura de cartão de crédito.
+Extraia TODAS as compras/lançamentos visíveis na fatura.
+
+Para cada compra, identifique:
+- description: nome do estabelecimento ou descrição da compra
+- amount: valor cobrado nesta fatura (o valor da parcela, não o total)
+- category: uma das categorias (Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Vestuário, Compras, Serviços, Assinatura, Outros)
+- date: data da compra no formato YYYY-MM-DD
+- installments: número total de parcelas (1 se à vista)
+- currentInstallment: parcela atual (ex: se é "3/10", currentInstallment = 3)
+- totalAmount: valor total da compra (se parcelado, multiplique amount x installments restantes ou use o valor original se visível; se à vista, igual ao amount)
+
+Dicas para identificar parcelas:
+- Textos como "PARC 3/10", "3 de 10", "03/10", "parcela 3 de 10" indicam parcelamento
+- Se não houver indicação de parcela, considere installments = 1 e currentInstallment = 1
+- O valor mostrado na fatura é o valor da parcela (amount), não o total
+
+Responda APENAS o JSON:
+{
+  "purchases": [
+    {"description": "Loja X", "amount": 50.00, "category": "Compras", "date": "2026-01-15", "installments": 10, "currentInstallment": 3, "totalAmount": 500.00},
+    {"description": "Restaurante Y", "amount": 45.90, "category": "Alimentação", "date": "2026-01-20", "installments": 1, "currentInstallment": 1, "totalAmount": 45.90}
+  ],
+  "totalFound": 2,
+  "invoiceTotal": 95.90,
+  "confidence": 0.85,
+  "rawText": "texto extraído resumido"
+}`;
+
+    const contents = [
+      { inlineData: { data: imageBase64, mimeType } },
+      { text: prompt }
+    ];
+
+    const response = await ai.models.generateContent({
+      model: MODELO_ECONOMICO,
+      contents: contents,
+      config: {
+        temperature: 0.1,
+        maxOutputTokens: 6000,
+      }
+    });
+
+    const responseText = response.text || "{}";
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    
+    if (!jsonMatch) throw new Error("JSON não encontrado");
+    const parsed = JSON.parse(jsonMatch[0]) as CreditCardInvoiceResult;
+    
+    if (!parsed.purchases || !Array.isArray(parsed.purchases)) {
+      throw new Error("Formato inválido");
+    }
+
+    parsed.purchases = parsed.purchases.filter(p => p.amount && p.amount > 0);
+    parsed.totalFound = parsed.purchases.length;
+    parsed.invoiceTotal = parsed.purchases.reduce((sum, p) => sum + p.amount, 0);
+    
+    return parsed;
+
+  } catch (error) {
+    console.error("Erro no OCR fatura:", error);
+    return { purchases: [], totalFound: 0, invoiceTotal: 0, confidence: 0, rawText: "Erro na leitura" };
+  }
+}
+
 export async function transcribeVoiceCommand(
   audioBase64: string,
   mimeType: string = "audio/webm"
