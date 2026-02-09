@@ -1112,15 +1112,19 @@ export default function CreditCards() {
   const creditPayments = useFinancialStore((state) => state.creditPayments);
 
   const [invoiceMonthOffset, setInvoiceMonthOffset] = useState(0);
+  const [invoiceTargetDate, setInvoiceTargetDate] = useState<Date | null>(null);
 
-  const baseInvoiceDate = useMemo(() => {
+  const defaultBaseInvoiceDate = useMemo(() => {
     if (!selectedCard) return new Date();
     const now = new Date();
-
     const baseCompetence = now.getDate() > selectedCard.closingDay ? now : addMonths(now, -1);
-    const base = new Date(baseCompetence.getFullYear(), baseCompetence.getMonth(), 1);
-    return addMonths(base, invoiceMonthOffset);
-  }, [selectedCard, invoiceMonthOffset]);
+    return new Date(baseCompetence.getFullYear(), baseCompetence.getMonth(), 1);
+  }, [selectedCard]);
+
+  const baseInvoiceDate = useMemo(() => {
+    if (invoiceTargetDate) return invoiceTargetDate;
+    return addMonths(defaultBaseInvoiceDate, invoiceMonthOffset);
+  }, [defaultBaseInvoiceDate, invoiceMonthOffset, invoiceTargetDate]);
 
   const invoicePaymentsTotalForDate = useMemo(() => {
     if (!selectedCard) return 0;
@@ -1147,9 +1151,10 @@ export default function CreditCards() {
 
   const currentInvoiceDate = useMemo(() => {
     if (!selectedCard) return baseInvoiceDate;
+    if (invoiceMonthOffset !== 0 || invoiceTargetDate) return baseInvoiceDate;
     if (openInvoiceTotalForBaseDate > 0) return baseInvoiceDate;
     return addMonths(baseInvoiceDate, 1);
-  }, [selectedCard, baseInvoiceDate, openInvoiceTotalForBaseDate]);
+  }, [selectedCard, baseInvoiceDate, openInvoiceTotalForBaseDate, invoiceMonthOffset, invoiceTargetDate]);
 
   const invoiceItems = useMemo(() => {
     if (!selectedCardId) return [];
@@ -1615,7 +1620,7 @@ export default function CreditCards() {
                 {creditCards.map(card => (
                     <div 
                         key={card.id}
-                        onClick={() => { setSelectedCardId(card.id); setInvoiceMonthOffset(0); }}
+                        onClick={() => { setSelectedCardId(card.id); setInvoiceMonthOffset(0); setInvoiceTargetDate(null); }}
                         className={`min-w-[280px] p-4 rounded-xl transition-all cursor-pointer border-2 ${
                             selectedCardId === card.id 
                             ? 'border-gray-900 dark:border-white shadow-lg scale-[1.02]' 
@@ -2305,30 +2310,48 @@ export default function CreditCards() {
                                     <div className="flex justify-between items-end mb-2">
                                         <div className="flex items-center gap-2">
                                             <button
-                                                onClick={() => setInvoiceMonthOffset(prev => prev - 1)}
+                                                onClick={() => { setInvoiceTargetDate(null); setInvoiceMonthOffset(prev => prev - 1); }}
                                                 className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800"
                                                 data-testid="button-prev-invoice-month"
                                             >
                                                 <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                                             </button>
                                             <div>
-                                                <h3 className="text-lg font-bold text-gray-900 dark:text-white capitalize">
-                                                    {format(currentInvoiceDate, 'MMMM yyyy', { locale: ptBR })}
-                                                </h3>
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white capitalize">
+                                                        {format(currentInvoiceDate, 'MMMM yyyy', { locale: ptBR })}
+                                                    </h3>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="month"
+                                                            value={format(currentInvoiceDate, 'yyyy-MM')}
+                                                            onChange={(e) => {
+                                                                if (e.target.value) {
+                                                                    const [y, m] = e.target.value.split('-').map(Number);
+                                                                    setInvoiceMonthOffset(0);
+                                                                    setInvoiceTargetDate(new Date(y, m - 1, 1));
+                                                                }
+                                                            }}
+                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                            data-testid="input-invoice-month-picker"
+                                                        />
+                                                        <Calendar className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-pointer" />
+                                                    </div>
+                                                </div>
                                                 <p className="text-sm text-gray-500" data-testid="text-invoice-due">
                                                     Vence dia {selectedCard.dueDay}/{format(addMonths(currentInvoiceDate, 1), 'MM')} • Fecha dia {selectedCard.closingDay}
                                                 </p>
                                             </div>
                                             <button
-                                                onClick={() => setInvoiceMonthOffset(prev => prev + 1)}
+                                                onClick={() => { setInvoiceTargetDate(null); setInvoiceMonthOffset(prev => prev + 1); }}
                                                 className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800"
                                                 data-testid="button-next-invoice-month"
                                             >
                                                 <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                                             </button>
-                                            {invoiceMonthOffset !== 0 && (
+                                            {(invoiceMonthOffset !== 0 || invoiceTargetDate) && (
                                                 <button
-                                                    onClick={() => setInvoiceMonthOffset(0)}
+                                                    onClick={() => { setInvoiceMonthOffset(0); setInvoiceTargetDate(null); }}
                                                     className="text-xs text-blue-600 hover:text-blue-800 ml-1"
                                                     data-testid="button-reset-invoice-month"
                                                 >
