@@ -531,13 +531,13 @@ export default function Dashboard() {
             <h3 className="text-lg font-bold text-gray-900 dark:text-white">Últimos registros</h3>
           <div className="flex gap-2">
                 <Link href="/simulator">
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs bg-purple-50 dark:bg-purple-900/20 border-purple-200 hover:bg-purple-100 text-purple-700 dark:text-purple-300">
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-300">
                         <Calculator className="w-3.5 h-3.5" />
                         Simular Compra
                     </Button>
                 </Link>
                 <Link href="/spreadsheet">
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs bg-white dark:bg-zinc-900 border-green-200 hover:bg-green-50 text-green-700">
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-300">
                         <TableIcon className="w-3.5 h-3.5" />
                         Ver em Planilha
                     </Button>
