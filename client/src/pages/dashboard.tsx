@@ -603,23 +603,25 @@ export default function Dashboard() {
 
         {/* Recent Transactions */}
         <div className="space-y-4 pb-24">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Parcelamentos</h3>
-          <div className="flex gap-2">
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Parcelamentos</h3>
+              <Link href="/transactions">
+                <span className="text-sm font-medium text-primary hover:text-primary/80">Ver tudo</span>
+              </Link>
+            </div>
+            <div className="flex gap-2 overflow-x-auto">
                 <Link href="/simulator">
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-300">
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-300 whitespace-nowrap">
                         <Calculator className="w-3.5 h-3.5" />
                         Simular Compra
                     </Button>
                 </Link>
                 <Link href="/spreadsheet">
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-300">
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-300 whitespace-nowrap">
                         <TableIcon className="w-3.5 h-3.5" />
                         Ver em Planilha
                     </Button>
-                </Link>
-                <Link href="/transactions">
-                  <span className="text-sm font-medium text-primary hover:text-primary/80 pt-1.5">Ver tudo</span>
                 </Link>
             </div>
           </div>
