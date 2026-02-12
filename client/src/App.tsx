@@ -30,6 +30,7 @@ import Backup from "@/pages/backup";
 import CalendarIntegration from "@/pages/calendar-integration";
 import SpreadsheetView from "@/pages/spreadsheet-view";
 import CreditCards from "@/pages/credit-cards";
+import HelpSupport from "@/pages/help-support";
 import Subscriptions from "@/pages/subscriptions";
 import AddSubscription from "@/pages/add-subscription";
 import CancelSubscription from "@/pages/cancel-subscription";
@@ -87,6 +88,7 @@ function Router() {
       <Route path="/calendar-integration" component={CalendarIntegration} />
       <Route path="/spreadsheet" component={SpreadsheetView} />
       <Route path="/subscriptions" component={Subscriptions} />
+      <Route path="/help-support" component={HelpSupport} />
       <Route path="/add-subscription" component={AddSubscription} />
       <Route path="/cancel-subscription" component={CancelSubscription} />
 
