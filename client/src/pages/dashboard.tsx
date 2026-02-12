@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp, Zap, Flame, Car, Loader2 } from "lucide-react";
+import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp, Zap, Flame, Car, Loader2, CreditCard, Bell, Receipt, CalendarClock } from "lucide-react";
 import { useFinancialStore } from "@/lib/store";
 import { format, isBefore, startOfDay, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, parseISO, isWithinInterval, addDays } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 
 import { ShareButton } from "@/components/share-button";
 import { useAuth } from "@/hooks/use-auth";
-import { useAccounts, useTransactions, useCreateTransaction, useCreditCards, useCreateCreditPurchase } from "@/hooks/use-api";
+import { useAccounts, useTransactions, useCreateTransaction, useCreditCards, useCreateCreditPurchase, useSubscriptions } from "@/hooks/use-api";
 import { PhotoScanner } from "@/components/photo-scanner";
 import { VoiceRecorder } from "@/components/voice-recorder";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +25,7 @@ export default function Dashboard() {
   const { data: apiAccounts = [], isLoading: accountsLoading, isSuccess: accountsSuccess } = useAccounts();
   const { data: apiTransactions = [], isLoading: transactionsLoading, isSuccess: transactionsSuccess } = useTransactions();
   const { data: apiCreditCards = [] } = useCreditCards();
+  const { data: apiSubscriptions = [] } = useSubscriptions();
   
   const storeData = useFinancialStore();
   
@@ -153,6 +154,79 @@ export default function Dashboard() {
   );
   
   const overdueTotal = overdueTransactions.reduce((acc, curr) => acc + curr.amount, 0);
+
+  const upcomingDueItems = useMemo(() => {
+    const today = startOfDay(new Date());
+    const in7 = addDays(today, 7);
+    type DueItem = { id: string; type: 'transaction' | 'credit_card' | 'subscription'; title: string; subtitle: string; amount: number; dueDate: Date; link: string; icon: 'bill' | 'card' | 'subscription' };
+    const items: DueItem[] = [];
+
+    transactions.filter(t => t.status === 'pending').forEach(t => {
+      const d = new Date(t.date);
+      if (d >= today && d <= in7) {
+        items.push({
+          id: t.id,
+          type: 'transaction',
+          title: t.description,
+          subtitle: t.category || '',
+          amount: t.amount,
+          dueDate: d,
+          link: '/transactions',
+          icon: 'bill'
+        });
+      }
+    });
+
+    const parsedCreditCards = apiCreditCards.map(cc => ({
+      ...cc,
+      creditLimit: parseFloat(cc.creditLimit),
+    }));
+    parsedCreditCards.forEach(card => {
+      const now = new Date();
+      const dueDate = new Date(now.getFullYear(), now.getMonth(), card.dueDay);
+      if (dueDate < today) {
+        dueDate.setMonth(dueDate.getMonth() + 1);
+      }
+      if (dueDate >= today && dueDate <= in7) {
+        items.push({
+          id: `cc-${card.id}`,
+          type: 'credit_card',
+          title: `Fatura ${card.name}`,
+          subtitle: `Vence dia ${card.dueDay}`,
+          amount: 0,
+          dueDate,
+          link: '/credit-cards',
+          icon: 'card'
+        });
+      }
+    });
+
+    apiSubscriptions.forEach(sub => {
+      const billingDay = parseInt(String(sub.date || '1'));
+      if (!isNaN(billingDay)) {
+        const now = new Date();
+        const dueDate = new Date(now.getFullYear(), now.getMonth(), billingDay);
+        if (dueDate < today) {
+          dueDate.setMonth(dueDate.getMonth() + 1);
+        }
+        if (dueDate >= today && dueDate <= in7) {
+          items.push({
+            id: `sub-${sub.id}`,
+            type: 'subscription',
+            title: sub.name,
+            subtitle: `Dia ${billingDay}`,
+            amount: parseFloat(String(sub.price)),
+            dueDate,
+            link: '/subscriptions',
+            icon: 'subscription'
+          });
+        }
+      }
+    });
+
+    items.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    return items;
+  }, [transactions, apiCreditCards, apiSubscriptions]);
 
   // Grouping Logic for Installments (Recent Items)
   const recentTransactions = useMemo(() => {
@@ -503,26 +577,41 @@ export default function Dashboard() {
             </Link>
         )}
 
-        {/* IPVA alert (only when there is an IPVA pending within 7 days) */}
-        {transactions.some(t => {
-          const desc = String(t.description || '').toLowerCase();
-          if (!desc.includes('ipva')) return false;
-          if (t.status === 'paid') return false;
-          const d = new Date(t.date);
-          const today = startOfDay(new Date());
-          const in7 = addDays(today, 7);
-          return d >= today && d <= in7;
-        }) && (
-          <Link href="/vehicles">
-            <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 rounded-2xl p-4 flex items-start gap-3 cursor-pointer hover:bg-orange-100/60 dark:hover:bg-orange-900/20 transition-colors">
-              <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
-              <div>
-                <h4 className="font-semibold text-sm text-orange-700 dark:text-orange-400">Atenção: IPVA vencendo</h4>
-                <p className="text-xs text-orange-600/80 dark:text-orange-400/80 mt-1">Você tem um IPVA a vencer nos próximos 7 dias.</p>
-                <p className="text-[10px] font-medium text-orange-700/80 dark:text-orange-300/80 mt-2">Ver detalhes</p>
-              </div>
+        {upcomingDueItems.length > 0 && (
+          <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-2xl p-4" data-testid="section-upcoming-dues">
+            <div className="flex items-center gap-2 mb-3">
+              <CalendarClock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              <h4 className="font-semibold text-sm text-amber-800 dark:text-amber-300">Vencimentos da Semana</h4>
+              <span className="ml-auto text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">{upcomingDueItems.length}</span>
             </div>
-          </Link>
+            <div className="space-y-2">
+              {upcomingDueItems.map(item => (
+                <Link key={item.id} href={item.link}>
+                  <div className="flex items-center gap-3 p-2.5 bg-white/70 dark:bg-zinc-900/50 rounded-xl hover:bg-white dark:hover:bg-zinc-800/50 transition-colors cursor-pointer" data-testid={`row-due-item-${item.id}`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                      item.icon === 'card' ? 'bg-purple-100 dark:bg-purple-900/30' :
+                      item.icon === 'subscription' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                      'bg-orange-100 dark:bg-orange-900/30'
+                    }`}>
+                      {item.icon === 'card' && <CreditCard className="w-4 h-4 text-purple-600 dark:text-purple-400" />}
+                      {item.icon === 'subscription' && <Bell className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
+                      {item.icon === 'bill' && <Receipt className="w-4 h-4 text-orange-600 dark:text-orange-400" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{item.title}</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">{item.subtitle}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      {item.amount > 0 && (
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatCurrency(item.amount)}</p>
+                      )}
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">{format(item.dueDate, 'dd/MM')}</p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Recent Transactions */}
