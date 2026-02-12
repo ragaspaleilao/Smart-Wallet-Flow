@@ -228,12 +228,9 @@ export default function Dashboard() {
     return items;
   }, [transactions, apiCreditCards, apiSubscriptions]);
 
-  // Grouping Logic for Installments (Recent Items)
-  const recentTransactions = useMemo(() => {
+  const installmentGroups = useMemo(() => {
       const groups: Record<string, typeof transactions> = {};
-      const standalone: typeof transactions = [];
       
-      // Identify installments pattern: "Description (X/Y)"
       const installmentRegex = /^(.*) \((\d+)\/(\d+)\)$/;
 
       transactions.forEach(tx => {
@@ -246,31 +243,22 @@ export default function Dashboard() {
               
               if (!groups[key]) groups[key] = [];
               groups[key].push(tx);
-          } else {
-              standalone.push(tx);
           }
       });
 
       type TransactionItem = typeof transactions[number];
-      const finallist: (TransactionItem | { isGroup: true, items: TransactionItem[], key: string })[] = [];
-      
-      finallist.push(...standalone);
+      const finallist: { isGroup: true, items: TransactionItem[], key: string }[] = [];
 
       Object.entries(groups).forEach(([key, items]) => {
-          if (items.length > 1) {
-              items.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-              finallist.push({ isGroup: true, items, key });
-          } else {
-              finallist.push(...items);
-          }
+          items.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          finallist.push({ isGroup: true, items, key });
       });
 
-      // Sort by newest date and take top 5
       return finallist.sort((a, b) => {
-          const dateA = new Date('isGroup' in a ? a.items[0].date : a.date).getTime();
-          const dateB = new Date('isGroup' in b ? b.items[0].date : b.date).getTime();
+          const dateA = new Date(a.items[0].date).getTime();
+          const dateB = new Date(b.items[0].date).getTime();
           return dateB - dateA;
-      }).slice(0, 5);
+      });
   }, [transactions]);
 
   return (
@@ -617,7 +605,7 @@ export default function Dashboard() {
         {/* Recent Transactions */}
         <div className="space-y-4 pb-24">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Últimos registros</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Parcelamentos</h3>
           <div className="flex gap-2">
                 <Link href="/simulator">
                     <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-300">
@@ -638,13 +626,15 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-3">
-            {recentTransactions.map((item, idx) => {
-               if ('isGroup' in item) {
-                   return <DashboardGroupedTransactionItem key={`group-${item.key}-${idx}`} group={item as any} />;
-               } else {
-                   return <DashboardTransactionItem key={item.id} tx={item} />;
-               }
-            })}
+            {installmentGroups.length === 0 ? (
+              <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+                <p className="text-sm">Nenhum parcelamento encontrado</p>
+              </div>
+            ) : (
+              installmentGroups.map((group, idx) => (
+                <DashboardGroupedTransactionItem key={`group-${group.key}-${idx}`} group={group as any} />
+              ))
+            )}
           </div>
         </div>
       </div>
