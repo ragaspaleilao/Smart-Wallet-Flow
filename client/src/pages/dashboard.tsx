@@ -768,11 +768,14 @@ function DashboardGroupedTransactionItem({ group }: { group: { isGroup: true, it
     const baseDesc = match ? match[1] : firstItem.description;
     const totalInstallments = match ? match[3] : '?';
     
-    // Summary values
-    const totalAmount = group.items.reduce((acc, curr) => acc + curr.amount, 0);
     const paidCount = group.items.filter(i => i.status === 'paid').length;
     const totalCount = group.items.length;
-    const isOverdue = group.items.some(i => i.status === 'pending' && isBefore(new Date(i.date), startOfDay(new Date())));
+    const pendingItems = group.items.filter(i => i.status !== 'paid');
+    const pendingAmount = pendingItems.reduce((acc, curr) => acc + curr.amount, 0);
+    const pendingCount = pendingItems.length;
+    const isOverdue = pendingItems.some(i => isBefore(new Date(i.date), startOfDay(new Date())));
+
+    if (pendingCount === 0) return null;
 
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -783,7 +786,7 @@ function DashboardGroupedTransactionItem({ group }: { group: { isGroup: true, it
                             <div className="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-xl relative">
                                 {getCategoryIcon(firstItem.category)}
                                 <div className="absolute -bottom-1 -right-1 bg-purple-600 text-white text-[8px] px-1.5 py-0.5 rounded-full border-2 border-white dark:border-zinc-900 font-bold">
-                                    {totalCount}x
+                                    {pendingCount}x
                                 </div>
                             </div>
                             <div className="text-left">
@@ -792,16 +795,16 @@ function DashboardGroupedTransactionItem({ group }: { group: { isGroup: true, it
                                     {isOpen ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                    {totalInstallments} parcelas • {paidCount} Pagas
+                                    {totalInstallments} parcelas • {paidCount} Pagas • {pendingCount} Restantes
                                 </p>
                             </div>
                         </div>
                         <div className="text-right whitespace-nowrap">
                             <span className={`font-bold block ${firstItem.type === 'income' ? 'text-green-600' : 'text-red-600 dark:text-red-400'}`}>
-                                {firstItem.type === 'income' ? '+ ' : '- '}{formatCurrency(totalAmount)}
+                                {firstItem.type === 'income' ? '+ ' : '- '}{formatCurrency(pendingAmount)}
                             </span>
                             <span className="text-[10px] text-purple-600 font-medium">
-                                Agrupado
+                                Restante
                             </span>
                         </div>
                     </div>
@@ -809,8 +812,8 @@ function DashboardGroupedTransactionItem({ group }: { group: { isGroup: true, it
                 
                 <CollapsibleContent>
                     <div className="bg-gray-50 dark:bg-zinc-950/50 border-t border-gray-100 dark:border-zinc-800 pl-4">
-                        {group.items.map((tx, idx) => (
-                            <div key={tx.id} className={`pr-3 ${idx !== group.items.length - 1 ? 'border-b border-gray-100 dark:border-zinc-800' : ''}`}>
+                        {pendingItems.map((tx, idx) => (
+                            <div key={tx.id} className={`pr-3 ${idx !== pendingItems.length - 1 ? 'border-b border-gray-100 dark:border-zinc-800' : ''}`}>
                                 <DashboardTransactionItem tx={tx} isChild={true} />
                             </div>
                         ))}
