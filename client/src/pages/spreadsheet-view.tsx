@@ -247,12 +247,67 @@ export default function SpreadsheetView() {
     return investments.filter(i => context === "personal" ? i.isPersonal : !i.isPersonal);
   }, [investments, context]);
 
+  // Consolidated Logic (computed first so projections can use real balances)
+  const consolidatedData = useMemo(() => {
+    const year = parseInt(projectionYear);
+    const months = Array.from({ length: 12 }, (_, i) => i);
+    
+    const filteredAccounts = accounts.filter(a => context === "personal" ? a.isPersonal : !a.isPersonal);
+    const currentTotalBalance = filteredAccounts.reduce((acc, curr) => acc + curr.balance, 0);
+
+    const subsequentTransactions = transactions.filter(t => {
+        const tDate = new Date(t.date);
+        const isContextMatch = context === "personal" ? t.isPersonal : !t.isPersonal;
+        const isPaid = t.status === 'paid';
+        return isContextMatch && isPaid && tDate.getFullYear() >= year;
+    });
+
+    let initialBalance = currentTotalBalance;
+    
+    subsequentTransactions.forEach(t => {
+        if (t.type === 'income') initialBalance -= t.amount;
+        else initialBalance += t.amount;
+    });
+
+    let currentBalance = initialBalance;
+    
+    return months.map(month => {
+        const monthStart = new Date(year, month, 1);
+        const monthName = monthStart.toLocaleString('pt-BR', { month: 'long' });
+        
+        const monthTransactions = transactions.filter(t => {
+            const tDate = new Date(t.date);
+            const isContextMatch = context === "personal" ? t.isPersonal : !t.isPersonal;
+            const isPaid = t.status === 'paid';
+            const isSameMonth = tDate.getMonth() === month && tDate.getFullYear() === year;
+            return isContextMatch && isPaid && isSameMonth;
+        });
+
+        const income = monthTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
+        const expense = monthTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
+        const result = income - expense;
+        const previousBalance = currentBalance;
+        const accumulatedBalance = previousBalance + result;
+
+        currentBalance = accumulatedBalance;
+
+        return {
+            month,
+            monthName,
+            previousBalance,
+            income,
+            expense,
+            result,
+            accumulatedBalance
+        };
+    });
+  }, [transactions, accounts, projectionYear, context]);
+
   // Projections Logic
   const projectionData = useMemo(() => {
-    const months = Array.from({ length: 12 }, (_, i) => i); // 0-11
+    const months = Array.from({ length: 12 }, (_, i) => i);
     const year = parseInt(projectionYear);
     
-    // Initialize structure
     const data = months.map(month => ({
       month,
       monthName: new Date(year, month, 1).toLocaleString('pt-BR', { month: 'short' }),
@@ -291,14 +346,8 @@ export default function SpreadsheetView() {
         }
     });
 
-    // 2. Credit Card Logic
-    // Projeção (planilha) deve mostrar apenas o que está EM ABERTO (pendente) e a partir do mês atual.
-    // A competência é o mês da fatura (ciclo/closing day). O vencimento acontece no mês seguinte.
     const relevantCardIds = creditCards.map(c => c.id);
 
-    // Include the invoice month that is currently open.
-    // We consider the last month as "current invoice" because its due date is typically in the current month.
-    // Example: invoice competency Jan -> due Feb.
     const invoiceMonthStart = startOfMonth(subMonths(today, 1));
 
     creditPurchases
@@ -307,15 +356,10 @@ export default function SpreadsheetView() {
             const card = creditCards.find(c => c.id === purchase.creditCardId);
             if (!card) return;
 
-            // If this invoice month was already paid for this card, it should NOT appear in projection.
             const isInvoiceMonthPaid = (invoiceMonth: Date) => {
                 const nextMonth = addMonths(startOfMonth(invoiceMonth), 1);
                 const invoiceDueDate = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), card.dueDay);
 
-                // A payment can be done early/on-time/late.
-                // What matters is: if there is ANY "Pagamento Fatura" for this card
-                // happening between invoice competency month start and the end of the due month,
-                // we consider the invoice closed for projection.
                 const competencyStart = startOfMonth(invoiceMonth);
                 const dueMonthEnd = endOfMonth(invoiceDueDate);
 
@@ -331,7 +375,6 @@ export default function SpreadsheetView() {
                     return payDate.getTime() >= competencyStart.getTime() && payDate.getTime() <= dueMonthEnd.getTime();
                   });
 
-                // Backward compatibility: if older data doesn't have creditPayments, fall back to transaction scan.
                 const paymentTx = transactions
                   .filter(t => (context === "personal" ? t.isPersonal : !t.isPersonal))
                   .filter(t => t.status === 'paid')
@@ -347,15 +390,12 @@ export default function SpreadsheetView() {
                 return hasPaymentRecordForInvoiceMonth || Boolean(paymentTx);
             };
 
-            // Normalize YYYY-MM-DD to local midday to avoid timezone shifting the day/month.
             const pDate = (() => {
                 const raw = String(purchase.purchaseDate || '');
                 if (raw.length === 10) return new Date(`${raw}T12:00:00`);
                 return new Date(raw);
             })();
 
-            // Helper to get invoice month competency based on closing day.
-            // Rule: if purchase day <= closingDay => belongs to previous month; else belongs to same month.
             const getInvoiceDate = (date: Date) => {
                 const d = new Date(date);
                 if (d.getDate() <= card.closingDay) {
@@ -364,7 +404,6 @@ export default function SpreadsheetView() {
                 return d;
             };
 
-            // Competency month for 1st installment.
             let currentInvoiceDate = startOfMonth(getInvoiceDate(pDate));
 
             for (let i = 1; i <= purchase.installments; i++) {
@@ -383,8 +422,6 @@ export default function SpreadsheetView() {
             }
         });
 
-    // Add Annual Fees to projections
-    // Anuidade mensal deve seguir a mesma regra: apenas a partir do mês atual (projeção) e no ano selecionado.
     relevantCardIds.forEach(cardId => {
         const card = creditCards.find(c => c.id === cardId);
         if (!card || !card.hasAnnualFee || !card.annualFeeValue || card.annualFeeValue <= 0) return;
@@ -399,10 +436,6 @@ export default function SpreadsheetView() {
             }
         });
     });
-
-    // In projections, we must include the CURRENT open invoice month (competency) even if
-    // some purchases have purchaseDate stored as YYYY-MM-DD (local). Normalizing to midday
-    // avoids timezone shifts that can drop items into the wrong month.
 
     const filteredAccounts = accounts.filter(a => context === "personal" ? a.isPersonal : !a.isPersonal);
     const currentTotalBalance = filteredAccounts.reduce((acc, curr) => acc + curr.balance, 0);
@@ -420,84 +453,31 @@ export default function SpreadsheetView() {
       else initialBalance += t.amount;
     });
 
+    const currentMonth = today.getMonth();
+    const currentYearNum = today.getFullYear();
+
     let running = initialBalance;
     data.forEach((d, idx) => {
       const paidResult = paidPerMonth[idx].income - paidPerMonth[idx].expense;
       const pendingResult = d.income - d.expense - d.creditCardBill;
-      d.previousBalance = running;
-      d.balance = pendingResult;
-      d.accumulatedBalance = running + paidResult + pendingResult;
+
+      const hasRealData = (year < currentYearNum) || (year === currentYearNum && idx <= currentMonth);
+
+      if (hasRealData && consolidatedData[idx]) {
+        d.previousBalance = consolidatedData[idx].accumulatedBalance;
+        d.balance = pendingResult;
+        d.accumulatedBalance = d.previousBalance + pendingResult;
+      } else {
+        d.previousBalance = running;
+        d.balance = pendingResult;
+        d.accumulatedBalance = running + paidResult + pendingResult;
+      }
+
       running = d.accumulatedBalance;
     });
 
     return data;
-  }, [transactions, projectionYear, context, creditCards, creditPurchases, creditPayments, accounts]);
-
-  // Consolidated Logic
-  const consolidatedData = useMemo(() => {
-    const year = parseInt(projectionYear);
-    const months = Array.from({ length: 12 }, (_, i) => i);
-    
-    // 1. Calculate Initial Balance (Start of Selected Year)
-    // We derive this from the Current Balance (which is the source of truth for the user)
-    // Start Balance = Current Balance - (All Paid Transactions from Start of Year onwards)
-    const filteredAccounts = accounts.filter(a => context === "personal" ? a.isPersonal : !a.isPersonal);
-    const currentTotalBalance = filteredAccounts.reduce((acc, curr) => acc + curr.balance, 0);
-
-    // Filter transactions that are PAID and occurred on or after the start of the selected year
-    const subsequentTransactions = transactions.filter(t => {
-        const tDate = new Date(t.date);
-        const isContextMatch = context === "personal" ? t.isPersonal : !t.isPersonal;
-        const isPaid = t.status === 'paid'; // Only paid transactions affect balance
-        return isContextMatch && isPaid && tDate.getFullYear() >= year;
-    });
-
-    let initialBalance = currentTotalBalance;
-    
-    // Reverse the effect of subsequent transactions to get back to start of year
-    subsequentTransactions.forEach(t => {
-        // If it was income, we subtract it to go back in time
-        if (t.type === 'income') initialBalance -= t.amount;
-        // If it was expense, we add it back to go back in time
-        else initialBalance += t.amount;
-    });
-
-    // 2. Build Monthly Data
-    let currentBalance = initialBalance;
-    
-    return months.map(month => {
-        const monthStart = new Date(year, month, 1);
-        const monthName = monthStart.toLocaleString('pt-BR', { month: 'long' }); // Full month name
-        
-        // Filter transactions for this month
-        const monthTransactions = transactions.filter(t => {
-            const tDate = new Date(t.date);
-            const isContextMatch = context === "personal" ? t.isPersonal : !t.isPersonal;
-            const isPaid = t.status === 'paid';
-            const isSameMonth = tDate.getMonth() === month && tDate.getFullYear() === year;
-            return isContextMatch && isPaid && isSameMonth;
-        });
-
-        const income = monthTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
-        const expense = monthTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
-        const result = income - expense;
-        const previousBalance = currentBalance;
-        const accumulatedBalance = previousBalance + result;
-
-        // Update current balance for next iteration
-        currentBalance = accumulatedBalance;
-
-        return {
-            month,
-            monthName,
-            previousBalance,
-            income,
-            expense,
-            result,
-            accumulatedBalance
-        };
-    });
-  }, [transactions, accounts, projectionYear, context]);
+  }, [transactions, projectionYear, context, creditCards, creditPurchases, creditPayments, accounts, consolidatedData]);
 
   // Totals Calculation
   const totals = useMemo(() => {
