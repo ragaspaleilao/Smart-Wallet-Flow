@@ -161,7 +161,7 @@ export default function Dashboard() {
     type DueItem = { id: string; type: 'transaction' | 'credit_card' | 'subscription'; title: string; subtitle: string; amount: number; dueDate: Date; link: string; icon: 'bill' | 'card' | 'subscription' };
     const items: DueItem[] = [];
 
-    transactions.filter(t => t.status === 'pending').forEach(t => {
+    transactions.filter(t => t.status === 'pending' && !t.creditCardId).forEach(t => {
       const d = new Date(t.date);
       if (d >= today && d <= in7) {
         items.push({
@@ -201,7 +201,7 @@ export default function Dashboard() {
       }
     });
 
-    apiSubscriptions.forEach(sub => {
+    apiSubscriptions.filter(sub => !sub.creditCardId).forEach(sub => {
       const billingDay = parseInt(String(sub.date || '1'));
       if (!isNaN(billingDay)) {
         const now = new Date();
