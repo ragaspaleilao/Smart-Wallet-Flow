@@ -1060,10 +1060,15 @@ export default function CreditCards() {
     return storeData.creditPayments;
   }, [apiCreditPayments, storeData.creditPayments, paymentsSuccess]);
 
-  const isInvoiceMonthPaid = (creditCardId: string, targetMonth: number, targetYear: number) => {
-    return (creditPayments || [])
-      .filter(p => p.creditCardId === creditCardId)
+  const isInvoicePastOrPaid = (card: CreditCard, targetMonth: number, targetYear: number) => {
+    const hasPayment = (creditPayments || [])
+      .filter(p => p.creditCardId === card.id)
       .some(p => Number(p.month) === targetMonth && Number(p.year) === targetYear);
+    if (hasPayment) return true;
+
+    const invoiceDueBase = addMonths(new Date(targetYear, targetMonth, 1), 1);
+    const invoiceDueDate = new Date(invoiceDueBase.getFullYear(), invoiceDueBase.getMonth(), card.dueDay);
+    return isAfter(startOfDay(new Date()), startOfDay(invoiceDueDate));
   };
 
   // Calculate invoice items for a specific month/year
@@ -1095,8 +1100,8 @@ export default function CreditCards() {
     });
 
     // Add Annual Fee if applicable (monthly charge, invoice-only)
-    // Only add to invoices that are NOT already paid
-    if (card.hasAnnualFee && card.annualFeeValue && card.annualFeeValue > 0 && !isInvoiceMonthPaid(card.id, targetMonth, targetYear)) {
+    // Only add to invoices that are NOT past due or already paid
+    if (card.hasAnnualFee && card.annualFeeValue && card.annualFeeValue > 0 && !isInvoicePastOrPaid(card, targetMonth, targetYear)) {
         const feeValue = card.annualFeeValue;
 
         // Invoice-only synthetic item: it must show on the invoice for THIS competence month,

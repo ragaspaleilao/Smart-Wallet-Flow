@@ -197,13 +197,19 @@ export default function Analytics() {
     return `Mês atual (${format(today, 'MM/yyyy')})`;
   }, [period, customStart, customEnd]);
 
-  // Invoice paid rule (source of truth): creditPayments carries competence month/year for the invoice.
-  const isInvoiceMonthPaid = (creditCardId: string, invoiceMonth: Date) => {
+  const isInvoiceMonthPaidOrPast = (creditCardId: string, invoiceMonth: Date) => {
     const m = invoiceMonth.getMonth();
     const y = invoiceMonth.getFullYear();
-    return (creditPayments || [])
+    const hasPaid = (creditPayments || [])
       .filter(p => p.creditCardId === creditCardId)
       .some(p => Number(p.month) === m && Number(p.year) === y);
+    if (hasPaid) return true;
+
+    const card = creditCards.find(c => c.id === creditCardId);
+    if (!card) return false;
+    const invoiceDueBase = addMonths(invoiceMonth, 1);
+    const invoiceDueDate = new Date(invoiceDueBase.getFullYear(), invoiceDueBase.getMonth(), card.dueDay);
+    return isAfter(startOfDay(new Date()), startOfDay(invoiceDueDate));
   };
 
   // 2. Generate Virtual Transactions (Installments)
@@ -266,7 +272,7 @@ export default function Analytics() {
       for (let m = 0; m < 12; m++) {
         const competencyMonth = new Date(parseInt(selectedYear), m, 1);
 
-        if (isInvoiceMonthPaid(card.id, competencyMonth)) continue;
+        if (isInvoiceMonthPaidOrPast(card.id, competencyMonth)) continue;
 
         const dueBase = addMonths(competencyMonth, 1);
         const dueDate = new Date(dueBase.getFullYear(), dueBase.getMonth(), card.dueDay);
@@ -406,7 +412,7 @@ export default function Analytics() {
                 const card = creditCards.find(c => c.id === purchase.creditCardId);
                 if (!card) return;
 
-                if (isInvoiceMonthPaid(card.id, competenceMonth)) return;
+                if (isInvoiceMonthPaidOrPast(card.id, competenceMonth)) return;
 
                 const pDate = (() => {
                   const raw = String(purchase.purchaseDate || '');
@@ -434,7 +440,7 @@ export default function Analytics() {
             // Annual fee (monthly) follows same rule as Spreadsheet (only from invoiceMonthStart onward)
             creditCards.forEach(card => {
               if (!card.hasAnnualFee || !card.annualFeeValue || card.annualFeeValue <= 0) return;
-              if (isInvoiceMonthPaid(card.id, competenceMonth)) return;
+              if (isInvoiceMonthPaidOrPast(card.id, competenceMonth)) return;
               creditCardExpense += card.annualFeeValue;
             });
           }
