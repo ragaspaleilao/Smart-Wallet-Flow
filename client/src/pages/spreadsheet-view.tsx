@@ -66,6 +66,9 @@ export default function SpreadsheetView() {
       }
     }
     apiUpdateMutation.mutate({ id, data: apiData as any }, {
+      onSuccess: () => {
+        refetchTransactions();
+      },
       onError: () => {
         toast({ title: "Erro ao salvar alteração", variant: "destructive" });
         refetchTransactions();
