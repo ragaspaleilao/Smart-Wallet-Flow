@@ -272,10 +272,6 @@ export default function Dashboard() {
                 <div className="cursor-pointer hover:opacity-80 transition-opacity">
                   <div className="flex items-center gap-2 mb-1">
                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Saldo disponível</p>
-                     <div className="flex items-center gap-1 bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full animate-in fade-in zoom-in">
-                        <Flame className="w-3 h-3 text-orange-500 fill-orange-500" />
-                        <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">3 Dias</span>
-                     </div>
                      <ChevronDown className="w-4 h-4 text-gray-400" />
                   </div>
                   <h1 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mt-1">
