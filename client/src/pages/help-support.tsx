@@ -209,10 +209,10 @@ export default function HelpSupport() {
               <p className="font-bold mb-1">Sobre o App</p>
               <p>Versão 1.0.0</p>
               <p className="mt-1">Seus dados são protegidos com criptografia e salvos com segurança na nuvem.</p>
-              <div className="flex items-center gap-1 mt-2 text-teal-600 dark:text-teal-400">
+              <Link href="/terms-privacy" className="flex items-center gap-1 mt-2 text-teal-600 dark:text-teal-400 hover:text-teal-500">
                 <ExternalLink className="w-3 h-3" />
-                <span className="underline cursor-pointer">Termos de uso e Privacidade</span>
-              </div>
+                <span className="underline cursor-pointer" data-testid="link-terms-privacy">Termos de uso e Privacidade</span>
+              </Link>
             </div>
           </div>
         </div>
