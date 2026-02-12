@@ -603,7 +603,7 @@ export default function Dashboard() {
                     </div>
                     <div className="text-right shrink-0">
                       {item.amount > 0 && (
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatCurrency(item.amount)}</p>
+                        <p className="text-sm font-semibold text-red-600 dark:text-red-400">- {formatCurrency(item.amount)}</p>
                       )}
                       <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">{format(item.dueDate, 'dd/MM')}</p>
                     </div>
@@ -807,9 +807,9 @@ function DashboardGroupedTransactionItem({ group }: { group: { isGroup: true, it
                                 </p>
                             </div>
                         </div>
-                        <div className="text-right">
-                            <span className="font-bold block text-gray-900 dark:text-white">
-                                {formatCurrency(totalAmount)}
+                        <div className="text-right whitespace-nowrap">
+                            <span className={`font-bold block ${firstItem.type === 'income' ? 'text-green-600' : 'text-red-600 dark:text-red-400'}`}>
+                                {firstItem.type === 'income' ? '+ ' : '- '}{formatCurrency(totalAmount)}
                             </span>
                             <span className="text-[10px] text-purple-600 font-medium">
                                 Agrupado
@@ -869,9 +869,9 @@ function DashboardTransactionItem({ tx, isChild = false }: { tx: any, isChild?: 
                         </p>
                     </div>
                 </div>
-                <div className="text-right">
-                    <span className={`font-bold block ${tx.type === 'income' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
-                        {tx.type === 'income' ? '+' : '-'} {formatCurrency(tx.amount)}
+                <div className="text-right whitespace-nowrap">
+                    <span className={`font-bold block ${tx.type === 'income' ? 'text-green-600' : 'text-red-600 dark:text-red-400'}`}>
+                        {tx.type === 'income' ? '+ ' : '- '}{formatCurrency(tx.amount)}
                     </span>
                     {tx.status === 'pending' ? (
                         <span className={`text-[10px] font-medium ${isOverdue ? 'text-red-500' : 'text-yellow-600'}`}>

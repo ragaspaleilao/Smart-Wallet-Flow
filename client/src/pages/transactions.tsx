@@ -566,9 +566,9 @@ function GroupedTransactionItem({ group }: { group: { isGroup: true, items: any[
                                 </p>
                             </div>
                         </div>
-                        <div className="text-right">
-                            <span className="font-bold block text-gray-900 dark:text-white">
-                                {formatCurrency(totalAmount)}
+                        <div className="text-right whitespace-nowrap">
+                            <span className={`font-bold block ${firstItem.type === 'income' ? 'text-green-600' : 'text-red-600 dark:text-red-400'}`}>
+                                {firstItem.type === 'income' ? '+ ' : '- '}{formatCurrency(totalAmount)}
                             </span>
                             <span className="text-[10px] text-purple-600 font-medium">
                                 Total do Grupo
@@ -659,9 +659,9 @@ function TransactionItem({ tx, isChild = false }: { tx: any, isChild?: boolean }
           </p>
         </div>
       </div>
-      <div className="text-right">
-        <span className={`font-bold block ${tx.type === 'income' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
-          {tx.type === 'income' ? '+' : '-'} R$ {tx.amount.toFixed(2)}
+      <div className="text-right whitespace-nowrap">
+        <span className={`font-bold block ${tx.type === 'income' ? 'text-green-600' : 'text-red-600 dark:text-red-400'}`}>
+          {tx.type === 'income' ? '+ ' : '- '}{formatCurrency(tx.amount)}
         </span>
         {isOverdue ? (
             <span className="text-[10px] text-red-600 font-medium">Atrasado</span>
