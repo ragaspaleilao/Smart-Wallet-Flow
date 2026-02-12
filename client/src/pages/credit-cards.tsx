@@ -1050,6 +1050,22 @@ export default function CreditCards() {
     return 'open';
   };
 
+  const creditPayments = useMemo(() => {
+    if (paymentsSuccess) {
+      return apiCreditPayments.map(p => ({
+        ...p,
+        amount: parseFloat(p.amount),
+      }));
+    }
+    return storeData.creditPayments;
+  }, [apiCreditPayments, storeData.creditPayments, paymentsSuccess]);
+
+  const isInvoiceMonthPaid = (creditCardId: string, targetMonth: number, targetYear: number) => {
+    return (creditPayments || [])
+      .filter(p => p.creditCardId === creditCardId)
+      .some(p => Number(p.month) === targetMonth && Number(p.year) === targetYear);
+  };
+
   // Calculate invoice items for a specific month/year
   const getInvoiceItems = (cardId: string, month: Date) => {
     const card = creditCards.find(c => c.id === cardId);
@@ -1079,7 +1095,8 @@ export default function CreditCards() {
     });
 
     // Add Annual Fee if applicable (monthly charge, invoice-only)
-    if (card.hasAnnualFee && card.annualFeeValue && card.annualFeeValue > 0) {
+    // Only add to invoices that are NOT already paid
+    if (card.hasAnnualFee && card.annualFeeValue && card.annualFeeValue > 0 && !isInvoiceMonthPaid(card.id, targetMonth, targetYear)) {
         const feeValue = card.annualFeeValue;
 
         // Invoice-only synthetic item: it must show on the invoice for THIS competence month,
@@ -1108,8 +1125,6 @@ export default function CreditCards() {
 
     return items;
   };
-
-  const creditPayments = useFinancialStore((state) => state.creditPayments);
 
   const [invoiceMonthOffset, setInvoiceMonthOffset] = useState(0);
   const [invoiceTargetDate, setInvoiceTargetDate] = useState<Date | null>(null);

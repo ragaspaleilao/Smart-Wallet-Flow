@@ -197,6 +197,15 @@ export default function Analytics() {
     return `Mês atual (${format(today, 'MM/yyyy')})`;
   }, [period, customStart, customEnd]);
 
+  // Invoice paid rule (source of truth): creditPayments carries competence month/year for the invoice.
+  const isInvoiceMonthPaid = (creditCardId: string, invoiceMonth: Date) => {
+    const m = invoiceMonth.getMonth();
+    const y = invoiceMonth.getFullYear();
+    return (creditPayments || [])
+      .filter(p => p.creditCardId === creditCardId)
+      .some(p => Number(p.month) === m && Number(p.year) === y);
+  };
+
   // 2. Generate Virtual Transactions (Installments)
   const virtualTransactions = useMemo(() => {
     const virtual: Transaction[] = [];
@@ -250,12 +259,15 @@ export default function Analytics() {
       });
 
     // 2) Annual fee (monthly) — must be included in Analytics projection as well
+    // Only add to invoices that are NOT already paid
     creditCards.forEach((card) => {
       if (!card.hasAnnualFee || !card.annualFeeValue || card.annualFeeValue <= 0) return;
 
-      // We generate 12 months inside the selected year.
       for (let m = 0; m < 12; m++) {
         const competencyMonth = new Date(parseInt(selectedYear), m, 1);
+
+        if (isInvoiceMonthPaid(card.id, competencyMonth)) continue;
+
         const dueBase = addMonths(competencyMonth, 1);
         const dueDate = new Date(dueBase.getFullYear(), dueBase.getMonth(), card.dueDay);
 
@@ -276,7 +288,7 @@ export default function Analytics() {
     });
 
     return virtual;
-  }, [creditPurchases, creditCards, selectedYear]);
+  }, [creditPurchases, creditCards, selectedYear, creditPayments]);
 
   // 3. Combined Data (Real + Virtual)
   const combinedTransactions = useMemo(() => {
@@ -284,15 +296,6 @@ export default function Analytics() {
     const realTransactions = transactions.filter(t => !t.description.includes("Pagamento Fatura"));
     return [...realTransactions, ...virtualTransactions];
   }, [transactions, virtualTransactions]);
-
-  // Invoice paid rule (source of truth): creditPayments carries competence month/year for the invoice.
-  const isInvoiceMonthPaid = (creditCardId: string, invoiceMonth: Date) => {
-    const m = invoiceMonth.getMonth();
-    const y = invoiceMonth.getFullYear();
-    return (creditPayments || [])
-      .filter(p => p.creditCardId === creditCardId)
-      .some(p => Number(p.month) === m && Number(p.year) === y);
-  };
 
   // 4. Filtered Data for Overview
   const filteredOverviewData = useMemo(() => {
