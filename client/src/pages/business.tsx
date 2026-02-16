@@ -19,12 +19,12 @@ import { EditProductDialog } from "@/components/edit-product-dialog";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { 
-  useAccounts, useTransactions, useCreateAccount, useCreateTransaction,
+  useAccountsWithBalance, useTransactions, useCreateAccount, useCreateTransaction,
   useBusinessProducts, useBusinessSettings, useCreateBusinessProduct, useUpdateBusinessSettings 
 } from "@/hooks/use-api";
 
 export default function Business() {
-  const { data: accounts = [] } = useAccounts();
+  const { data: accounts = [] } = useAccountsWithBalance();
   const { data: transactions = [] } = useTransactions();
   const { data: businessProducts = [] } = useBusinessProducts();
   const { data: businessSettings } = useBusinessSettings();

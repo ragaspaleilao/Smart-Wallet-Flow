@@ -37,7 +37,7 @@ const parseDateSafe = (dateStr: string): Date => {
   const dateOnly = dateStr.slice(0, 10);
   return parseISO(`${dateOnly}T12:00:00`);
 };
-import { useCreditCards, useCreditPurchases, useCreditPayments, useCreateCreditCard, useCreateCreditPurchase, useUpdateCreditPurchase, useCreateCreditPayment, useDeleteCreditCard, useDeleteCreditPurchase, useAccounts, useUpdateCreditCard, useSubscriptions } from "@/hooks/use-api";
+import { useCreditCards, useCreditPurchases, useCreditPayments, useCreateCreditCard, useCreateCreditPurchase, useUpdateCreditPurchase, useCreateCreditPayment, useDeleteCreditCard, useDeleteCreditPurchase, useAccountsWithBalance, useUpdateCreditCard, useSubscriptions } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
 import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
@@ -810,7 +810,7 @@ export default function CreditCards() {
   const { data: apiCreditCards = [], isLoading: cardsLoading, isSuccess: cardsSuccess } = useCreditCards();
   const { data: apiCreditPurchases = [], isSuccess: purchasesSuccess } = useCreditPurchases();
   const { data: apiCreditPayments = [], isSuccess: paymentsSuccess } = useCreditPayments();
-  const { data: apiAccounts = [], isSuccess: accountsSuccess } = useAccounts();
+  const { data: apiAccounts = [], isSuccess: accountsSuccess } = useAccountsWithBalance();
   const { data: apiSubscriptions = [], isSuccess: subscriptionsSuccess } = useSubscriptions();
   
   const createCreditCardMutation = useCreateCreditCard();

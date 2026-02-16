@@ -17,7 +17,7 @@ import { useState, useMemo, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { format, addMonths, differenceInDays, differenceInMonths } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useInvestments, useCreateInvestment, useUpdateInvestment, useDeleteInvestment, useAccounts, useCreateTransaction } from "@/hooks/use-api";
+import { useInvestments, useCreateInvestment, useUpdateInvestment, useDeleteInvestment, useAccountsWithBalance, useCreateTransaction } from "@/hooks/use-api";
 
 interface Investment {
   id: string;
@@ -32,7 +32,7 @@ interface Investment {
 
 export default function Investments() {
   const { data: apiInvestments = [], isLoading: investmentsLoading } = useInvestments();
-  const { data: apiAccounts = [] } = useAccounts();
+  const { data: apiAccounts = [] } = useAccountsWithBalance();
   
   const createInvestmentMutation = useCreateInvestment();
   const updateInvestmentMutation = useUpdateInvestment();

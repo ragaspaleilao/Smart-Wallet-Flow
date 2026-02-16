@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
-import { useGoals, useCreateGoal, useUpdateGoal, useDeleteGoal, useAccounts } from "@/hooks/use-api";
+import { useGoals, useCreateGoal, useUpdateGoal, useDeleteGoal, useAccountsWithBalance } from "@/hooks/use-api";
 
 interface Goal {
   id: string;
@@ -29,7 +29,7 @@ interface Goal {
 
 export default function Goals() {
   const { data: apiGoals = [], isLoading: goalsLoading } = useGoals();
-  const { data: apiAccounts = [] } = useAccounts();
+  const { data: apiAccounts = [] } = useAccountsWithBalance();
   
   const createGoalMutation = useCreateGoal();
   const updateGoalMutation = useUpdateGoal();

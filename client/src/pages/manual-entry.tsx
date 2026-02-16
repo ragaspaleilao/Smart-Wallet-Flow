@@ -11,14 +11,14 @@ import { useFinancialStore, Category } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import * as Popover from "@radix-ui/react-popover";
-import { useAccounts, useCreditCards, useCreateTransaction, useCreateCreditPurchase } from "@/hooks/use-api";
+import { useAccountsWithBalance, useCreditCards, useCreateTransaction, useCreateCreditPurchase } from "@/hooks/use-api";
 
 export default function ManualEntry() {
   const [_, setLocation] = useLocation();
   const { transactionCategories, addTransactionCategory, removeTransactionCategory } = useFinancialStore();
   
   // Use API hooks for real data
-  const { data: accounts = [] } = useAccounts();
+  const { data: accounts = [] } = useAccountsWithBalance();
   const { data: creditCards = [] } = useCreditCards();
   const createTransactionMutation = useCreateTransaction();
   const createCreditPurchaseMutation = useCreateCreditPurchase();

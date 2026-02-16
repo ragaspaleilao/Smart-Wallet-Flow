@@ -7,11 +7,11 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { useAccounts, useCreditCards, useCreateTransaction, useCreateCreditPurchase } from "@/hooks/use-api";
+import { useAccountsWithBalance, useCreditCards, useCreateTransaction, useCreateCreditPurchase } from "@/hooks/use-api";
 
 export default function VoiceEntry() {
   const [_, setLocation] = useLocation();
-  const { data: accounts = [] } = useAccounts();
+  const { data: accounts = [] } = useAccountsWithBalance();
   const { data: creditCards = [] } = useCreditCards();
   const createTransactionMutation = useCreateTransaction();
   const createCreditPurchaseMutation = useCreateCreditPurchase();

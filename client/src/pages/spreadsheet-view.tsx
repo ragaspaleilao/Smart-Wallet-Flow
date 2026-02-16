@@ -1,5 +1,5 @@
 import { useFinancialStore, Transaction, Category, Account, Investment } from "@/lib/store";
-import { useAccounts as useApiAccounts, useTransactions as useApiTransactions, useUpdateTransaction as useApiUpdateTransaction, useCreditCards as useApiCreditCards, useCreditPurchases as useApiCreditPurchases, useCreditPayments as useApiCreditPayments } from "@/hooks/use-api";
+import { useAccountsWithBalance as useApiAccounts, useTransactions as useApiTransactions, useUpdateTransaction as useApiUpdateTransaction, useCreditCards as useApiCreditCards, useCreditPurchases as useApiCreditPurchases, useCreditPayments as useApiCreditPayments } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";

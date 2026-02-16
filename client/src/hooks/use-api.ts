@@ -579,3 +579,25 @@ export function useDashboardStats() {
     monthlyNet: income - expense,
   };
 }
+
+export function useAccountsWithBalance() {
+  const { data: accounts = [], isSuccess, isLoading } = useAccounts();
+  const { data: transactions = [] } = useTransactions();
+
+  const accountsWithBalance = accounts.map(acc => {
+    const initialBalance = parseFloat(String(acc.initialBalance || acc.balance || '0'));
+    const accountIncome = transactions
+      .filter(t => t.accountId === acc.id && t.type === 'income' && t.status === 'paid')
+      .reduce((sum, t) => sum + parseFloat(String(t.amount || '0')), 0);
+    const accountExpenses = transactions
+      .filter(t => t.accountId === acc.id && t.type === 'expense' && t.status === 'paid')
+      .reduce((sum, t) => sum + parseFloat(String(t.amount || '0')), 0);
+    return {
+      ...acc,
+      balance: String(initialBalance + accountIncome - accountExpenses),
+      dynamicBalance: initialBalance + accountIncome - accountExpenses,
+    };
+  });
+
+  return { data: accountsWithBalance, isSuccess, isLoading };
+}
