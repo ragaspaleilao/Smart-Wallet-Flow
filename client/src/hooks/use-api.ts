@@ -228,6 +228,7 @@ export function useCreateCreditPayment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['creditPayments'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
   });
 }

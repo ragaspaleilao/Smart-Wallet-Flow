@@ -349,6 +349,26 @@ export async function registerRoutes(
     try {
       const data = insertCreditPaymentSchema.parse(req.body);
       const payment = await storage.createCreditPayment(req.userId!, data);
+
+      const card = await storage.getCreditCard(data.creditCardId, req.userId!);
+      const cardName = card?.name || 'Cartão';
+      const paymentAmount = parseFloat(String(data.amount));
+      if (paymentAmount > 0 && data.accountId) {
+        await storage.createTransaction(req.userId!, {
+          accountId: data.accountId,
+          amount: String(paymentAmount),
+          type: 'expense',
+          category: 'Cartão de Crédito',
+          description: `Pagamento fatura ${cardName}`,
+          date: data.paymentDate,
+          source: 'manual',
+          isPersonal: true,
+          status: 'paid',
+          paymentMethod: 'transfer',
+          creditCardId: data.creditCardId,
+        });
+      }
+
       res.status(201).json(payment);
     } catch (error) {
       res.status(400).json({ error: 'Invalid credit payment data' });
