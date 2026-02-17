@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 
 import { ShareButton } from "@/components/share-button";
 import { useAuth } from "@/hooks/use-auth";
-import { useAccounts, useTransactions, useCreateTransaction, useCreditCards, useCreateCreditPurchase, useSubscriptions } from "@/hooks/use-api";
+import { useAccounts, useTransactions, useCreateTransaction, useCreditCards, useCreateCreditPurchase, useSubscriptions, useCreditPayments, useCreditPurchases } from "@/hooks/use-api";
 import { PhotoScanner } from "@/components/photo-scanner";
 import { VoiceRecorder } from "@/components/voice-recorder";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +26,8 @@ export default function Dashboard() {
   const { data: apiTransactions = [], isLoading: transactionsLoading, isSuccess: transactionsSuccess } = useTransactions();
   const { data: apiCreditCards = [] } = useCreditCards();
   const { data: apiSubscriptions = [] } = useSubscriptions();
+  const { data: apiCreditPayments = [] } = useCreditPayments();
+  const { data: apiCreditPurchases = [] } = useCreditPurchases();
   
   const storeData = useFinancialStore();
   
@@ -188,16 +190,28 @@ export default function Dashboard() {
         dueDate.setMonth(dueDate.getMonth() + 1);
       }
       if (dueDate >= today && dueDate <= in7) {
-        items.push({
-          id: `cc-${card.id}`,
-          type: 'credit_card',
-          title: `Fatura ${card.name}`,
-          subtitle: `Vence dia ${card.dueDay}`,
-          amount: 0,
-          dueDate,
-          link: '/credit-cards',
-          icon: 'card'
-        });
+        const competenceMonth = dueDate.getMonth() === 0
+          ? new Date(dueDate.getFullYear() - 1, 11, 1)
+          : new Date(dueDate.getFullYear(), dueDate.getMonth() - 1, 1);
+
+        const hasPayment = apiCreditPayments.some(p =>
+          p.creditCardId === card.id &&
+          Number(p.month) === competenceMonth.getMonth() &&
+          Number(p.year) === competenceMonth.getFullYear()
+        );
+
+        if (!hasPayment) {
+          items.push({
+            id: `cc-${card.id}`,
+            type: 'credit_card',
+            title: `Fatura ${card.name}`,
+            subtitle: `Vence dia ${card.dueDay}`,
+            amount: 0,
+            dueDate,
+            link: '/credit-cards',
+            icon: 'card'
+          });
+        }
       }
     });
 
@@ -226,7 +240,7 @@ export default function Dashboard() {
 
     items.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
     return items;
-  }, [transactions, apiCreditCards, apiSubscriptions]);
+  }, [transactions, apiCreditCards, apiSubscriptions, apiCreditPayments]);
 
   const installmentGroups = useMemo(() => {
       const groups: Record<string, typeof transactions> = {};
