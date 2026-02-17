@@ -190,15 +190,24 @@ export default function Dashboard() {
         dueDate.setMonth(dueDate.getMonth() + 1);
       }
       if (dueDate >= today && dueDate <= in7) {
-        const competenceMonth = dueDate.getMonth() === 0
-          ? new Date(dueDate.getFullYear() - 1, 11, 1)
-          : new Date(dueDate.getFullYear(), dueDate.getMonth() - 1, 1);
+        const dueMonth = dueDate.getMonth();
+        const dueYear = dueDate.getFullYear();
+        const compMonth = dueMonth === 0 ? 11 : dueMonth - 1;
+        const compYear = dueMonth === 0 ? dueYear - 1 : dueYear;
 
-        const hasPayment = apiCreditPayments.some(p =>
-          p.creditCardId === card.id &&
-          Number(p.month) === competenceMonth.getMonth() &&
-          Number(p.year) === competenceMonth.getFullYear()
-        );
+        const hasPayment = apiCreditPayments.some(p => {
+          if (p.creditCardId !== card.id) return false;
+          const pm = Number(p.month);
+          const py = Number(p.year);
+          if (pm === compMonth && py === compYear) return true;
+          if (pm === dueMonth && py === dueYear) return true;
+          const payDate = new Date(String(p.paymentDate));
+          if (!isNaN(payDate.getTime())) {
+            const diff = Math.abs(payDate.getTime() - dueDate.getTime());
+            if (diff <= 30 * 24 * 60 * 60 * 1000) return true;
+          }
+          return false;
+        });
 
         if (!hasPayment) {
           items.push({
