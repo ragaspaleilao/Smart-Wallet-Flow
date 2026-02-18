@@ -297,7 +297,7 @@ export default function Dashboard() {
                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Saldo disponível</p>
                      <ChevronDown className="w-4 h-4 text-gray-400" />
                   </div>
-                  <h1 className="text-4xl font-heading font-bold text-gray-900 dark:text-white mt-1">
+                  <h1 className={`text-4xl font-heading font-bold mt-1 ${personalBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                     {formatCurrency(personalBalance)}
                   </h1>
                 </div>
