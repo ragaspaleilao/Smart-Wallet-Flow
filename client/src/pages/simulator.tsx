@@ -7,12 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Category } from "@/lib/store";
-import { ArrowLeft, Calculator, Calendar, CreditCard, DollarSign, Plus, Save, Trash2, CheckCircle2, AlertTriangle, TrendingDown, Pencil, Loader2 } from "lucide-react";
+import { ArrowLeft, Calculator, Calendar, CreditCard, DollarSign, Plus, Save, Trash2, CheckCircle2, AlertTriangle, TrendingDown, Pencil, Loader2, Info } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { format, addMonths, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
+import { format, addMonths, startOfMonth, endOfMonth, isSameMonth, subMonths, isAfter, isBefore } from "date-fns";
 import { toast } from "@/hooks/use-toast";
-import { useSimulations, useCreateSimulation, useUpdateSimulation, useDeleteSimulation, useTransactions, useAccounts } from "@/hooks/use-api";
+import { useSimulations, useCreateSimulation, useUpdateSimulation, useDeleteSimulation, useTransactions, useAccounts, useCreditCards, useCreditPurchases, useSubscriptions } from "@/hooks/use-api";
 
 interface Simulation {
   id: string;
@@ -33,12 +33,18 @@ export default function Simulator() {
   const { data: transactionsData = [] } = useTransactions();
   const { data: accountsData = [] } = useAccounts();
   const { data: simulationsData = [], isLoading } = useSimulations();
+  const { data: creditCardsData = [] } = useCreditCards();
+  const { data: creditPurchasesData = [] } = useCreditPurchases();
+  const { data: subscriptionsData = [] } = useSubscriptions();
   const createSimulationMutation = useCreateSimulation();
   const updateSimulationMutation = useUpdateSimulation();
   const deleteSimulationMutation = useDeleteSimulation();
   
   const transactions = transactionsData;
   const accounts = accountsData;
+  const creditCards = creditCardsData;
+  const creditPurchases = creditPurchasesData;
+  const subscriptionsList = subscriptionsData;
   const simulations: Simulation[] = (simulationsData || []).map((s: any) => ({
     ...s,
     totalValue: Number(s.totalValue),
@@ -48,7 +54,6 @@ export default function Simulator() {
     manualInstallmentValue: s.manualInstallmentValue ? Number(s.manualInstallmentValue) : undefined,
   }));
   
-  // State for new simulation form
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -62,168 +67,259 @@ export default function Simulator() {
     manualInstallmentValue: ""
   });
 
-  // Calculate base monthly averages (Income vs Fixed Expenses)
-  // In a real app, this would be more complex. Here we infer from "recurring" looking transactions or just use averages.
-  // For simplicity, let's look at the last 3 months average.
   const baseFinancials = useMemo(() => {
-    // This is a simplified projection engine
-    // It assumes current average income/expenses continue
-    // It overlays existing future transactions (pending)
-    // It overlays the simulation
-    
-    // 1. Get average monthly income/expense from last 3 months
-    // For mockup: Using fixed hypothetical values based on store initial data if not enough history
-    const avgIncome = 3500; 
-    const avgFixedExpense = 2000; // Rent, food, etc.
-    const currentBalance = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
+    const now = new Date();
+    const threeMonthsAgo = subMonths(now, 3);
 
-    return { avgIncome, avgFixedExpense, currentBalance };
+    const paidTransactions = transactions.filter(t => 
+      t.status === 'paid' && isAfter(new Date(t.date), threeMonthsAgo) && isBefore(new Date(t.date), now)
+    );
+
+    const nonCreditTransactions = paidTransactions.filter(t => !t.creditCardId);
+
+    const totalIncome = nonCreditTransactions
+      .filter(t => t.type === 'income')
+      .reduce((acc, t) => acc + Number(t.amount), 0);
+    
+    const totalExpense = nonCreditTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((acc, t) => acc + Number(t.amount), 0);
+
+    const monthsWithData = new Set(
+      paidTransactions.map(t => format(new Date(t.date), 'yyyy-MM'))
+    ).size;
+
+    const divisor = Math.max(monthsWithData, 1);
+    const avgIncome = totalIncome / divisor;
+    const avgExpense = totalExpense / divisor;
+
+    const currentBalance = accounts.reduce((acc, curr) => {
+      const initialBalance = Number(curr.initialBalance || curr.balance || 0);
+      const accountIncome = transactions
+        .filter(t => t.accountId === curr.id && t.type === 'income' && t.status === 'paid')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      const accountExpense = transactions
+        .filter(t => t.accountId === curr.id && t.type === 'expense' && t.status === 'paid')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      return acc + initialBalance + accountIncome - accountExpense;
+    }, 0);
+
+    return { avgIncome, avgExpense, currentBalance };
   }, [accounts, transactions]);
 
-  // Generate Projection Data (Next 12 Months)
+  const dataSources = useMemo(() => {
+    const sources: string[] = [];
+    if (transactions.length > 0) sources.push(`${transactions.length} lançamentos`);
+    if (creditPurchases.length > 0) sources.push(`${creditPurchases.length} compras no cartão`);
+    if (subscriptionsList.length > 0) sources.push(`${subscriptionsList.length} assinaturas`);
+    if (accounts.length > 0) sources.push(`${accounts.length} contas`);
+    return sources;
+  }, [transactions, creditPurchases, subscriptionsList, accounts]);
+
   const projectionData = useMemo(() => {
     const months = 12;
-    const data = [];
-    let runningBalance = baseFinancials.currentBalance;
-    let simulatedRunningBalance = baseFinancials.currentBalance;
+    const now = new Date();
 
-    for (let i = 0; i < months; i++) {
-        const currentDate = addMonths(new Date(), i);
-        const monthKey = format(currentDate, 'MMM');
-        
-        // 1. Base Cash Flow
-        // Find actual pending transactions for this month
-        const pendingForMonth = transactions.filter(t => 
-            t.status === 'pending' && 
-            isSameMonth(new Date(t.date), currentDate)
-        );
-        
-        const monthlyPendingIncome = pendingForMonth
-            .filter(t => t.type === 'income')
-            .reduce((acc, t) => acc + Number(t.amount), 0);
-            
-        const monthlyPendingExpense = pendingForMonth
-            .filter(t => t.type === 'expense')
-            .reduce((acc, t) => acc + Number(t.amount), 0);
+    const subscriptionCreditCardIds = new Set(
+      subscriptionsList
+        .filter(sub => sub.creditCardId && sub.paymentMethod === 'credit')
+        .map(sub => sub.creditCardId)
+    );
+    const subscriptionAccountIds = new Set(
+      subscriptionsList
+        .filter(sub => sub.accountId && sub.paymentMethod !== 'credit')
+        .map(sub => sub.accountId)
+    );
 
-        // If we have pending data, use it. If not (future undefined months), use averages.
-        // Logic: specific pending transactions override averages? Or add to them? 
-        // Best approach for simulator: Use Average Income - Average Expense as a baseline "Savings Potential"
-        // Then subtract specific Debt/Installments.
-        
-        // Let's simplify:
-        // Net Change = Avg Income - Avg Expense
-        const netChange = baseFinancials.avgIncome - baseFinancials.avgFixedExpense;
-        
-        // Real Projection
-        runningBalance += netChange;
+    const monthlyData: Array<{
+      month: string;
+      netChange: number;
+      simulationCost: number;
+      originalBalance: number;
+      simulatedBalance: number;
+      details: {
+        avgIncome: number;
+        avgExpense: number;
+        pendingIncome: number;
+        pendingExpense: number;
+        creditCardCost: number;
+        subscriptionCost: number;
+      };
+    }> = [];
 
-        // Simulation Impact
-        let simulationCost = 0;
-        
-        // Calculate cost of ALL active simulations for this month
-        // + The temporary form simulation if it's valid
-        const activeSimulations = [...simulations];
-        if (showForm && formData.totalValue) {
-            activeSimulations.push({
-                id: 'temp',
-                name: formData.name || 'Nova Simulação',
-                totalValue: Number(formData.totalValue),
-                downPayment: Number(formData.downPayment || 0),
-                installments: Number(formData.installments || 1),
-                startDate: formData.startDate,
-                category: formData.category,
-                type: 'purchase',
-                createdAt: new Date().toISOString(),
-                interestRate: formData.interestRate ? Number(formData.interestRate) : undefined,
-                manualInstallmentValue: formData.manualInstallmentValue ? Number(formData.manualInstallmentValue) : undefined
-            });
-        }
-
-        activeSimulations.forEach(sim => {
-            const simStart = new Date(sim.startDate);
-            const simEnd = addMonths(simStart, sim.installments + (sim.downPayment > 0 ? 0 : -1)); // Rough approx
-            
-            // Check if this month is the down payment month
-            if (isSameMonth(currentDate, simStart) && sim.downPayment > 0) {
-                simulationCost += sim.downPayment;
-            }
-            
-            // Check if this month has an installment
-            // Installment usually starts next month after down payment, or same month if no down payment?
-            // Let's assume: Down payment at T0. Installment 1 at T+1.
-            const firstInstallmentDate = sim.downPayment > 0 ? addMonths(simStart, 1) : simStart;
-            
-            const monthDiff = (currentDate.getFullYear() - firstInstallmentDate.getFullYear()) * 12 + (currentDate.getMonth() - firstInstallmentDate.getMonth());
-            
-            if (monthDiff >= 0 && monthDiff < sim.installments) {
-                // Calculate Installment Value
-                let installmentValue = 0;
-                
-                if (sim.manualInstallmentValue) {
-                    // User manually set the installment value
-                    installmentValue = sim.manualInstallmentValue;
-                } else if (sim.interestRate && sim.interestRate > 0) {
-                    // Calculate using Price Table (PMT)
-                    // PMT = PV * (i * (1+i)^n) / ((1+i)^n - 1)
-                    const pv = sim.totalValue - sim.downPayment;
-                    const i = sim.interestRate / 100;
-                    const n = sim.installments;
-                    
-                    if (pv > 0) {
-                        installmentValue = pv * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1);
-                    }
-                } else {
-                    // Simple division (no interest)
-                    installmentValue = (sim.totalValue - sim.downPayment) / sim.installments;
-                }
-                
-                simulationCost += installmentValue;
-            }
-        });
-
-        simulatedRunningBalance = runningBalance - simulationCost; // Base balance already incremented, so we subtract simulation cost from that base? No.
-        // Base line: Balance
-        // Simulated line: Balance - Cumulative Cost of Simulation?
-        // Actually: 
-        // Real Path: Balance[t] = Balance[t-1] + NetChange
-        // Sim Path: Balance[t] = SimBalance[t-1] + NetChange - SimCosts[t]
-        
-        // We need to re-calculate simulatedRunningBalance iteratively correctly
-        if (i === 0) {
-            // First month
-            runningBalance = baseFinancials.currentBalance + netChange;
-            simulatedRunningBalance = baseFinancials.currentBalance + netChange - simulationCost;
-        } else {
-            // Subsequent months
-            // We need to carry over the 'simulated' state
-            // Let's fix the loop logic above to be iterative properly
-        }
-        
-        data.push({
-            month: monthKey,
-            originalBalance: runningBalance, // We will fix values in a second pass or loop fix
-            simulatedBalance: 0, // placeholder
-            simulationCost: simulationCost,
-            netChange: netChange
-        });
-    }
-
-    // Correct Iterative Calculation
     let rb = baseFinancials.currentBalance;
     let srb = baseFinancials.currentBalance;
 
-    return data.map(d => {
-        rb += d.netChange;
-        srb += d.netChange - d.simulationCost;
-        return {
-            ...d,
-            originalBalance: rb,
-            simulatedBalance: srb
-        };
-    });
+    for (let i = 0; i < months; i++) {
+      const projMonth = addMonths(now, i);
+      const monthKey = format(projMonth, 'MMM');
+      const projMonthStart = startOfMonth(projMonth);
+      const projMonthEnd = endOfMonth(projMonth);
 
-  }, [baseFinancials, transactions, simulations, showForm, formData]);
+      const pendingForMonth = transactions.filter(t => {
+        const tDate = new Date(t.date);
+        return t.status === 'pending' && 
+          !t.creditCardId &&
+          isAfter(tDate, projMonthStart) && 
+          isBefore(tDate, projMonthEnd);
+      });
+
+      const pendingIncome = pendingForMonth
+        .filter(t => t.type === 'income')
+        .reduce((acc, t) => acc + Number(t.amount), 0);
+
+      const pendingExpense = pendingForMonth
+        .filter(t => t.type === 'expense')
+        .reduce((acc, t) => acc + Number(t.amount), 0);
+
+      let creditCardCost = 0;
+
+      const activePurchases = (creditPurchases as any[]).filter((cp: any) => cp.status === 'active');
+      activePurchases.forEach((purchase: any) => {
+        const purchaseDate = new Date(purchase.purchaseDate);
+        const totalInstallments = Number(purchase.installments);
+        const installmentValue = Number(purchase.installmentValue);
+
+        const monthDiff = (projMonth.getFullYear() - purchaseDate.getFullYear()) * 12 +
+          (projMonth.getMonth() - purchaseDate.getMonth());
+
+        if (monthDiff >= 0 && monthDiff < totalInstallments) {
+          creditCardCost += installmentValue;
+        }
+      });
+
+      const pendingCreditTransactions = transactions.filter(t => {
+        const tDate = new Date(t.date);
+        return t.creditCardId && 
+          t.status === 'pending' &&
+          t.type === 'expense' &&
+          isSameMonth(tDate, projMonth);
+      });
+      
+      pendingCreditTransactions.forEach(t => {
+        const alreadyCounted = activePurchases.some((cp: any) => {
+          const cpDate = new Date(cp.purchaseDate);
+          return cp.creditCardId === t.creditCardId && 
+            Math.abs(Number(cp.installmentValue) - Number(t.amount)) < 0.01 &&
+            isSameMonth(cpDate, new Date(t.date));
+        });
+        if (!alreadyCounted) {
+          creditCardCost += Number(t.amount);
+        }
+      });
+
+      let subscriptionCost = 0;
+      subscriptionsList.forEach((sub: any) => {
+        const subPrice = Number(sub.price || 0);
+        if (subPrice <= 0) return;
+
+        const isOnCreditCard = sub.creditCardId && sub.paymentMethod === 'credit';
+
+        if (isOnCreditCard) {
+          const alreadyInPurchases = activePurchases.some((cp: any) =>
+            cp.creditCardId === sub.creditCardId &&
+            Math.abs(Number(cp.installmentValue) - subPrice) < 0.01
+          );
+
+          const alreadyInPendingCredit = pendingCreditTransactions.some(t =>
+            t.creditCardId === sub.creditCardId &&
+            Math.abs(Number(t.amount) - subPrice) < 0.01
+          );
+
+          if (!alreadyInPurchases && !alreadyInPendingCredit) {
+            creditCardCost += subPrice;
+          }
+        } else {
+          const alreadyInPending = pendingForMonth.some(t =>
+            Math.abs(Number(t.amount) - subPrice) < 0.5 &&
+            (t.description || '').toLowerCase().includes((sub.name || '').toLowerCase().substring(0, 4))
+          );
+
+          if (!alreadyInPending) {
+            subscriptionCost += subPrice;
+          }
+        }
+      });
+
+      const hasPendingData = pendingForMonth.length > 0;
+      const monthIncome = hasPendingData 
+        ? pendingIncome 
+        : baseFinancials.avgIncome;
+      const monthExpenseBase = hasPendingData 
+        ? pendingExpense 
+        : baseFinancials.avgExpense;
+
+      const netChange = monthIncome - monthExpenseBase - creditCardCost - subscriptionCost;
+
+      let simulationCost = 0;
+      const activeSimulations = [...simulations];
+      if (showForm && formData.totalValue) {
+        activeSimulations.push({
+          id: 'temp',
+          name: formData.name || 'Nova Simulação',
+          totalValue: Number(formData.totalValue),
+          downPayment: Number(formData.downPayment || 0),
+          installments: Number(formData.installments || 1),
+          startDate: formData.startDate,
+          category: formData.category,
+          type: 'purchase',
+          createdAt: new Date().toISOString(),
+          interestRate: formData.interestRate ? Number(formData.interestRate) : undefined,
+          manualInstallmentValue: formData.manualInstallmentValue ? Number(formData.manualInstallmentValue) : undefined
+        });
+      }
+
+      activeSimulations.forEach(sim => {
+        const simStart = new Date(sim.startDate);
+
+        if (isSameMonth(projMonth, simStart) && sim.downPayment > 0) {
+          simulationCost += sim.downPayment;
+        }
+
+        const firstInstallmentDate = sim.downPayment > 0 ? addMonths(simStart, 1) : simStart;
+        const monthDiff = (projMonth.getFullYear() - firstInstallmentDate.getFullYear()) * 12 +
+          (projMonth.getMonth() - firstInstallmentDate.getMonth());
+
+        if (monthDiff >= 0 && monthDiff < sim.installments) {
+          let installmentValue = 0;
+          if (sim.manualInstallmentValue) {
+            installmentValue = sim.manualInstallmentValue;
+          } else if (sim.interestRate && sim.interestRate > 0) {
+            const pv = sim.totalValue - sim.downPayment;
+            const rate = sim.interestRate / 100;
+            const n = sim.installments;
+            if (pv > 0) {
+              installmentValue = pv * (rate * Math.pow(1 + rate, n)) / (Math.pow(1 + rate, n) - 1);
+            }
+          } else {
+            installmentValue = (sim.totalValue - sim.downPayment) / sim.installments;
+          }
+          simulationCost += installmentValue;
+        }
+      });
+
+      rb += netChange;
+      srb += netChange - simulationCost;
+
+      monthlyData.push({
+        month: monthKey,
+        netChange,
+        simulationCost,
+        originalBalance: rb,
+        simulatedBalance: srb,
+        details: {
+          avgIncome: baseFinancials.avgIncome,
+          avgExpense: baseFinancials.avgExpense,
+          pendingIncome,
+          pendingExpense,
+          creditCardCost,
+          subscriptionCost,
+        }
+      });
+    }
+
+    return monthlyData;
+  }, [baseFinancials, transactions, simulations, showForm, formData, creditPurchases, subscriptionsList]);
 
   const handleSave = async () => {
     if (!formData.name || !formData.totalValue) {
@@ -464,6 +560,20 @@ export default function Simulator() {
                 </Card>
             )}
 
+            {/* Data Sources Info */}
+            {dataSources.length > 0 && (
+              <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30">
+                <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                <div className="text-xs text-blue-700 dark:text-blue-300">
+                  <span className="font-medium">Dados integrados:</span>{' '}
+                  {dataSources.join(' · ')}
+                  <p className="mt-1 text-blue-600/70 dark:text-blue-400/60">
+                    Receita média: {formatCurrency(baseFinancials.avgIncome)}/mês · Despesa média: {formatCurrency(baseFinancials.avgExpense)}/mês · Saldo atual: {formatCurrency(baseFinancials.currentBalance)}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Analysis Chart */}
             {(simulations.length > 0 || (showForm && formData.totalValue)) && (
                 <div className="space-y-4">
@@ -488,7 +598,28 @@ export default function Simulator() {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
                                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                                <Tooltip />
+                                <Tooltip 
+                                    content={({ active, payload, label }: any) => {
+                                        if (!active || !payload?.length) return null;
+                                        const data = payload[0]?.payload;
+                                        if (!data) return null;
+                                        return (
+                                            <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-zinc-700 text-xs space-y-1.5">
+                                                <p className="font-bold text-gray-900 dark:text-white">{label}</p>
+                                                <div className="space-y-1 text-gray-600 dark:text-gray-400">
+                                                    <p>Saldo sem compra: <span className="text-green-600 font-medium">{formatCurrency(data.originalBalance)}</span></p>
+                                                    <p>Saldo com compra: <span className="text-purple-600 font-medium">{formatCurrency(data.simulatedBalance)}</span></p>
+                                                    {data.details?.creditCardCost > 0 && (
+                                                        <p>Cartões de crédito: <span className="text-orange-600 font-medium">-{formatCurrency(data.details.creditCardCost)}</span></p>
+                                                    )}
+                                                    {data.details?.subscriptionCost > 0 && (
+                                                        <p>Assinaturas: <span className="text-pink-600 font-medium">-{formatCurrency(data.details.subscriptionCost)}</span></p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    }}
+                                />
                                 <Area 
                                     type="monotone" 
                                     dataKey="originalBalance" 
