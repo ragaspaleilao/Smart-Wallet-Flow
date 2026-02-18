@@ -366,12 +366,14 @@ export default function Simulator() {
   };
 
   const handleEdit = (sim: Simulation) => {
+    const rawDate = String(sim.startDate);
+    const dateOnly = rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;
     setFormData({
         name: sim.name,
         totalValue: sim.totalValue.toString(),
         downPayment: sim.downPayment.toString(),
         installments: sim.installments.toString(),
-        startDate: sim.startDate,
+        startDate: dateOnly,
         category: sim.category,
         interestRate: sim.interestRate?.toString() || "",
         manualInstallmentValue: sim.manualInstallmentValue?.toString() || ""
@@ -387,6 +389,20 @@ export default function Simulator() {
   const handleDelete = async (id: string) => {
       try {
         await deleteSimulationMutation.mutateAsync(id);
+        if (editingId === id) {
+          setEditingId(null);
+          setShowForm(false);
+          setFormData({
+            name: "",
+            totalValue: "",
+            downPayment: "",
+            installments: "1",
+            startDate: new Date().toISOString().split('T')[0],
+            category: "Outros" as Category,
+            interestRate: "",
+            manualInstallmentValue: ""
+          });
+        }
         toast({ title: "Simulação removida!" });
       } catch (error) {
         toast({ title: "Erro ao remover", variant: "destructive" });
