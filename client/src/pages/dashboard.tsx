@@ -472,10 +472,10 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions - Floating-ish feel */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="flex justify-around items-center">
           <Button 
             variant="ghost" 
-            className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl hover:bg-primary/5 transition-all group p-1"
+            className="h-auto py-3 flex flex-col items-center gap-1.5 rounded-2xl hover:bg-primary/5 transition-all group px-4"
             onClick={() => setPhotoScannerOpen(true)}
             data-testid="button-photo-scanner"
           >
@@ -487,7 +487,7 @@ export default function Dashboard() {
           
           <Button 
             variant="ghost" 
-            className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl hover:bg-primary/5 transition-all group p-1"
+            className="h-auto py-3 flex flex-col items-center gap-1.5 rounded-2xl hover:bg-primary/5 transition-all group px-4"
             onClick={() => setVoiceRecorderOpen(true)}
             data-testid="button-voice-recorder"
           >
@@ -498,7 +498,7 @@ export default function Dashboard() {
           </Button>
 
           <Link href="/accounts">
-            <Button variant="ghost" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl hover:bg-primary/5 transition-all group p-1">
+            <Button variant="ghost" className="h-auto py-3 flex flex-col items-center gap-1.5 rounded-2xl hover:bg-primary/5 transition-all group px-4">
               <div className="p-2.5 bg-blue-100 dark:bg-blue-900/30 rounded-full group-hover:scale-110 transition-transform">
                 <Wallet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
@@ -507,7 +507,7 @@ export default function Dashboard() {
           </Link>
 
           <Link href="/manual-entry">
-            <Button variant="ghost" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl bg-primary/5 hover:bg-primary/10 transition-all group p-1">
+            <Button variant="ghost" className="h-auto py-3 flex flex-col items-center gap-1.5 rounded-2xl bg-primary/5 hover:bg-primary/10 transition-all group px-4">
               <div className="p-2.5 bg-primary text-white rounded-full group-hover:scale-110 transition-transform shadow-lg shadow-primary/30">
                 <Plus className="w-5 h-5" />
               </div>
