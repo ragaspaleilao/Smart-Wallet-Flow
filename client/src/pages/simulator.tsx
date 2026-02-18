@@ -749,7 +749,7 @@ export default function Simulator() {
                                             return (sim.totalValue - sim.downPayment) / sim.installments;
                                         })())
                                     )}</p>
-                                    <p className="text-[10px] text-gray-400 mt-1">{new Date(sim.startDate).toLocaleDateString()}</p>
+                                    <p className="text-[10px] text-gray-400 mt-1">{sim.startDate.includes('T') ? new Date(sim.startDate + 'Z').toLocaleDateString('pt-BR') : new Date(sim.startDate + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
                                 </div>
                             </div>
                             
