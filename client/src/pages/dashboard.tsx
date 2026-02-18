@@ -474,8 +474,8 @@ export default function Dashboard() {
         {/* Quick Actions - Floating-ish feel */}
         <div className="grid grid-cols-4 gap-3">
           <Button 
-            variant="outline" 
-            className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1"
+            variant="ghost" 
+            className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl hover:bg-primary/5 transition-all group p-1"
             onClick={() => setPhotoScannerOpen(true)}
             data-testid="button-photo-scanner"
           >
@@ -486,8 +486,8 @@ export default function Dashboard() {
           </Button>
           
           <Button 
-            variant="outline" 
-            className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1"
+            variant="ghost" 
+            className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl hover:bg-primary/5 transition-all group p-1"
             onClick={() => setVoiceRecorderOpen(true)}
             data-testid="button-voice-recorder"
           >
@@ -498,7 +498,7 @@ export default function Dashboard() {
           </Button>
 
           <Link href="/accounts">
-            <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1">
+            <Button variant="ghost" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl hover:bg-primary/5 transition-all group p-1">
               <div className="p-2.5 bg-blue-100 dark:bg-blue-900/30 rounded-full group-hover:scale-110 transition-transform">
                 <Wallet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
@@ -507,7 +507,7 @@ export default function Dashboard() {
           </Link>
 
           <Link href="/manual-entry">
-            <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all group p-1">
+            <Button variant="ghost" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl bg-primary/5 hover:bg-primary/10 transition-all group p-1">
               <div className="p-2.5 bg-primary text-white rounded-full group-hover:scale-110 transition-transform shadow-lg shadow-primary/30">
                 <Plus className="w-5 h-5" />
               </div>
