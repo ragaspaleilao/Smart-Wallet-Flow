@@ -765,7 +765,7 @@ export default function Simulator() {
                                             return (sim.totalValue - sim.downPayment) / sim.installments;
                                         })())
                                     )}</p>
-                                    <p className="text-[10px] text-gray-400 mt-1">{(() => { try { const d = new Date(sim.startDate); return isNaN(d.getTime()) ? String(sim.startDate) : d.toLocaleDateString('pt-BR'); } catch { return String(sim.startDate); } })()}</p>
+                                    <p className="text-[10px] text-gray-400 mt-1">{(() => { try { const raw = String(sim.startDate); const dateStr = raw.includes('T') ? raw.split('T')[0] : raw; const [y, m, d] = dateStr.split('-'); return `${d}/${m}/${y}`; } catch { return String(sim.startDate); } })()}</p>
                                 </div>
                             </div>
                             
