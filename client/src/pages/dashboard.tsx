@@ -471,116 +471,97 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="space-y-3">
-          <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-1">Ações Rápidas</h3>
-          <div className="flex items-center gap-3">
-            <Link href="/manual-entry" className="flex-1">
-              <button
-                className="w-full flex items-center gap-3 px-4 py-3 bg-primary text-white rounded-2xl shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 active:scale-[0.98] transition-all"
-                data-testid="button-manual-entry"
-              >
-                <div className="p-1.5 bg-white/20 rounded-xl">
-                  <Plus className="w-5 h-5" />
-                </div>
-                <div className="text-left">
-                  <span className="text-sm font-bold block">Novo Lançamento</span>
-                  <span className="text-[10px] opacity-80">Adicionar manual</span>
-                </div>
-              </button>
-            </Link>
-
-            <button
-              className="flex flex-col items-center justify-center gap-1.5 w-16 h-16 bg-purple-50 dark:bg-purple-900/20 rounded-2xl hover:bg-purple-100 dark:hover:bg-purple-900/30 active:scale-95 transition-all"
-              onClick={() => setPhotoScannerOpen(true)}
-              data-testid="button-photo-scanner"
-            >
+        {/* Quick Actions - Floating-ish feel */}
+        <div className="grid grid-cols-4 gap-3">
+          <Button 
+            variant="outline" 
+            className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1"
+            onClick={() => setPhotoScannerOpen(true)}
+            data-testid="button-photo-scanner"
+          >
+            <div className="p-2.5 bg-purple-100 dark:bg-purple-900/30 rounded-full group-hover:scale-110 transition-transform">
               <Camera className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400">Foto</span>
-            </button>
-
-            <button
-              className="flex flex-col items-center justify-center gap-1.5 w-16 h-16 bg-orange-50 dark:bg-orange-900/20 rounded-2xl hover:bg-orange-100 dark:hover:bg-orange-900/30 active:scale-95 transition-all"
-              onClick={() => setVoiceRecorderOpen(true)}
-              data-testid="button-voice-recorder"
-            >
+            </div>
+            <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Foto</span>
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1"
+            onClick={() => setVoiceRecorderOpen(true)}
+            data-testid="button-voice-recorder"
+          >
+            <div className="p-2.5 bg-orange-100 dark:bg-orange-900/30 rounded-full group-hover:scale-110 transition-transform">
               <Mic className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-              <span className="text-[10px] font-semibold text-orange-600 dark:text-orange-400">Voz</span>
-            </button>
-          </div>
+            </div>
+            <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Voz</span>
+          </Button>
+
+          <Link href="/accounts">
+            <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1">
+              <div className="p-2.5 bg-blue-100 dark:bg-blue-900/30 rounded-full group-hover:scale-110 transition-transform">
+                <Wallet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Contas</span>
+            </Button>
+          </Link>
+
+          <Link href="/manual-entry">
+            <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all group p-1">
+              <div className="p-2.5 bg-primary text-white rounded-full group-hover:scale-110 transition-transform shadow-lg shadow-primary/30">
+                <Plus className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-semibold text-primary">Manual</span>
+            </Button>
+          </Link>
         </div>
 
         {/* Management Modules */}
-        <div className="space-y-3">
-          <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-1">Módulos</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <Link href="/accounts">
-              <div className="flex items-center gap-3 p-3.5 bg-gray-50 dark:bg-zinc-900 rounded-2xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer border border-gray-100 dark:border-zinc-800">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                  <Wallet className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Contas</h3>
-                  <p className="text-[10px] text-gray-500">Minhas Carteiras</p>
-                </div>
-              </div>
-            </Link>
+        <div className="grid grid-cols-2 gap-3">
             <Link href="/investments">
-              <div className="flex items-center gap-3 p-3.5 bg-gray-50 dark:bg-zinc-900 rounded-2xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer border border-gray-100 dark:border-zinc-800">
-                <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl">
-                  <ArrowUp className="w-4 h-4 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Investimentos</h3>
-                  <p className="text-[10px] text-gray-500">Meus Rendimentos</p>
-                </div>
-              </div>
+                <Card className="p-3 border-none shadow-sm bg-gray-50 dark:bg-zinc-900 flex items-center gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-600">
+                        <ArrowUp className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Investimentos</h3>
+                        <p className="text-[10px] text-gray-500">Meus Rendimentos</p>
+                    </div>
+                </Card>
             </Link>
             <Link href="/vehicles">
-              <div className="flex items-center gap-3 p-3.5 bg-gray-50 dark:bg-zinc-900 rounded-2xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer border border-gray-100 dark:border-zinc-800">
-                <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
-                  <Car className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Veículos</h3>
-                  <p className="text-[10px] text-gray-500">Gestão de Auto</p>
-                </div>
-              </div>
+                <Card className="p-3 border-none shadow-sm bg-gray-50 dark:bg-zinc-900 flex items-center gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-600">
+                        <Car className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Veículos</h3>
+                        <p className="text-[10px] text-gray-500">Gestão de Auto</p>
+                    </div>
+                </Card>
             </Link>
             <Link href="/ai-chat">
-              <div className="flex items-center gap-3 p-3.5 bg-gray-50 dark:bg-zinc-900 rounded-2xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer border border-gray-100 dark:border-zinc-800">
-                <div className="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-xl">
-                  <Brain className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Mentor IA</h3>
-                  <p className="text-[10px] text-gray-500">Conversar agora</p>
-                </div>
-              </div>
+                <Card className="p-3 border-none shadow-sm bg-gray-50 dark:bg-zinc-900 flex items-center gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-600">
+                        <Brain className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Mentor IA</h3>
+                        <p className="text-[10px] text-gray-500">Conversar agora</p>
+                    </div>
+                </Card>
             </Link>
             <Link href="/subscriptions">
-              <div className="flex items-center gap-3 p-3.5 bg-gray-50 dark:bg-zinc-900 rounded-2xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer border border-gray-100 dark:border-zinc-800">
-                <div className="p-2 bg-cyan-100 dark:bg-cyan-900/30 rounded-xl">
-                  <Zap className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Assinaturas</h3>
-                  <p className="text-[10px] text-gray-500">Gestão do Clube</p>
-                </div>
-              </div>
+                <Card className="p-3 border-none shadow-sm bg-gray-50 dark:bg-zinc-900 flex items-center gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-600">
+                        <Zap className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Assinaturas</h3>
+                        <p className="text-[10px] text-gray-500">Gestão do Clube</p>
+                    </div>
+                </Card>
             </Link>
-            <Link href="/credit-cards">
-              <div className="flex items-center gap-3 p-3.5 bg-gray-50 dark:bg-zinc-900 rounded-2xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer border border-gray-100 dark:border-zinc-800">
-                <div className="p-2 bg-rose-100 dark:bg-rose-900/30 rounded-xl">
-                  <CreditCard className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Cartões</h3>
-                  <p className="text-[10px] text-gray-500">Crédito e Faturas</p>
-                </div>
-              </div>
-            </Link>
-          </div>
         </div>
 
         {/* Alerts */}
