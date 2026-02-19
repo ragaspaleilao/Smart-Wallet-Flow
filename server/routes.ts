@@ -285,8 +285,10 @@ export async function registerRoutes(
       syncCreditPurchaseToCalendar(purchase);
       
       res.status(201).json(purchase);
-    } catch (error) {
-      res.status(400).json({ error: 'Invalid credit purchase data' });
+    } catch (error: any) {
+      console.error('Create credit purchase error:', error);
+      const message = error?.issues ? error.issues.map((i: any) => `${i.path?.join('.')}: ${i.message}`).join(', ') : (error?.message || 'Invalid credit purchase data');
+      res.status(400).json({ error: message });
     }
   });
 

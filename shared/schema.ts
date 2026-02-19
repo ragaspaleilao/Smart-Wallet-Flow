@@ -338,7 +338,13 @@ export const insertCreditPurchaseSchema = createInsertSchema(creditPurchases).om
   createdAt: true,
   updatedAt: true,
 }).extend({
-  purchaseDate: z.union([z.date(), z.string().transform((str) => new Date(str))]),
+  purchaseDate: z.union([z.date(), z.string().transform((str) => {
+    const d = new Date(str);
+    if (d.getFullYear() < 2000) {
+      d.setFullYear(d.getFullYear() + 2000);
+    }
+    return d;
+  })]),
 });
 
 export const insertCreditPaymentSchema = createInsertSchema(creditPayments).omit({
