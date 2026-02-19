@@ -147,8 +147,9 @@ interface InvoicePurchase {
   selected: boolean;
 }
 
-function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: { 
+function CreditCardPhotoScanner({ cardId, creditCards: allCreditCards, onPurchaseCreated, createPurchase }: { 
   cardId: string; 
+  creditCards: CreditCard[];
   onPurchaseCreated: () => void;
   createPurchase: any;
 }) {
@@ -165,8 +166,13 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
   const [editCategory, setEditCategory] = useState("Outros");
   const [editDate, setEditDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [editInstallments, setEditInstallments] = useState("1");
+  const [selectedCardId, setSelectedCardId] = useState(cardId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setSelectedCardId(cardId);
+  }, [cardId]);
 
   const CATEGORIES = ["Alimentação", "Transporte", "Moradia", "Saúde", "Educação", "Lazer", "Compras", "Vestuário", "Serviços", "Assinatura", "Outros"];
 
@@ -248,14 +254,14 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
 
   const handleConfirm = () => {
     const amount = parseFloat(editAmount);
-    if (!amount || !cardId) {
+    if (!amount || !selectedCardId) {
       toast({ title: "Preencha todos os campos", variant: "destructive" });
       return;
     }
     const installments = parseInt(editInstallments) || 1;
     const installmentValue = amount / installments;
     createPurchase.mutate({
-      creditCardId: cardId,
+      creditCardId: selectedCardId,
       description: editDescription || "Compra via recibo",
       totalAmount: String(amount),
       installments,
@@ -313,7 +319,7 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
 
         await new Promise<void>((resolve, reject) => {
           createPurchase.mutate({
-            creditCardId: cardId,
+            creditCardId: selectedCardId,
             description: p.description,
             totalAmount: String(totalAmount),
             installments,
@@ -537,6 +543,27 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
               </span>
             </div>
 
+            {allCreditCards.length > 1 && (
+              <div className="space-y-2">
+                <Label className="text-xs">Cartão</Label>
+                <Select value={selectedCardId} onValueChange={setSelectedCardId}>
+                  <SelectTrigger data-testid="select-cc-scanner-card-batch">
+                    <SelectValue placeholder="Selecione o cartão" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allCreditCards.map(card => (
+                      <SelectItem key={card.id} value={card.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: card.color || '#6B7280' }} />
+                          {card.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button variant="outline" onClick={resetState} className="flex-1" data-testid="button-cc-retry">
                 Nova Foto
@@ -599,6 +626,26 @@ function CreditCardPhotoScanner({ cardId, onPurchaseCreated, createPurchase }: {
                 <Label>Data</Label>
                 <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
               </div>
+              {allCreditCards.length > 1 && (
+                <div className="space-y-2">
+                  <Label>Cartão</Label>
+                  <Select value={selectedCardId} onValueChange={setSelectedCardId}>
+                    <SelectTrigger data-testid="select-cc-scanner-card">
+                      <SelectValue placeholder="Selecione o cartão" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allCreditCards.map(card => (
+                        <SelectItem key={card.id} value={card.id}>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: card.color || '#6B7280' }} />
+                            {card.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="flex gap-2">
                 <Button variant="outline" onClick={resetState} className="flex-1">Nova Foto</Button>
                 <Button onClick={handleConfirm} disabled={createPurchase.isPending} className="flex-1">
@@ -2558,11 +2605,12 @@ export default function CreditCards() {
             <DialogHeader>
               <DialogTitle>Escanear Recibo / Fatura</DialogTitle>
               <DialogDescription>
-                Leia um recibo individual ou importe toda a fatura do cartão {selectedCard?.name}
+                Leia um recibo individual ou importe toda a fatura do cartão de crédito
               </DialogDescription>
             </DialogHeader>
             <CreditCardPhotoScanner 
               cardId={selectedCard?.id || ''}
+              creditCards={creditCards}
               onPurchaseCreated={() => setIsPhotoScannerOpen(false)}
               createPurchase={createCreditPurchaseMutation}
             />
