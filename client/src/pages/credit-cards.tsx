@@ -1520,16 +1520,13 @@ export default function CreditCards() {
       
       const numericAmount = Number(paymentData.amount.replace(/\D/g, "")) / 100;
 
-      const payDate = parseISO(String(paymentData.date || '').length === 10 ? `${paymentData.date}T12:00:00` : paymentData.date);
-      const paymentCompetence = getInvoiceMonthDate(payDate, selectedCard?.closingDay || 1);
-
       createCreditPaymentMutation.mutate({
           creditCardId: selectedCardId,
           amount: String(numericAmount),
           accountId: paymentData.accountId,
           paymentDate: paymentData.date,
-          month: paymentCompetence.getMonth(),
-          year: paymentCompetence.getFullYear(),
+          month: currentInvoiceDate.getMonth(),
+          year: currentInvoiceDate.getFullYear(),
           type: 'partial'
       }, {
           onSuccess: () => {
