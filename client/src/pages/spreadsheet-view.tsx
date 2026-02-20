@@ -357,21 +357,6 @@ export default function SpreadsheetView() {
           .some(p => Number(p.month) === targetMonth && Number(p.year) === targetYear);
         if (hasPaymentRecord) return true;
 
-        const paymentTx = transactions
-          .filter(t => (context === "personal" ? t.isPersonal : !t.isPersonal))
-          .filter(t => t.status === 'paid')
-          .filter(t => t.creditCardId === card.id)
-          .filter(t => t.description.toLowerCase().includes('pagamento fatura'))
-          .some(t => {
-            const raw = String(t.date || '');
-            const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
-            const competencyStart = startOfMonth(invoiceMonth);
-            const nextMonth = addMonths(competencyStart, 1);
-            const dueMonthEnd = endOfMonth(new Date(nextMonth.getFullYear(), nextMonth.getMonth(), card.dueDay));
-            return d.getTime() >= competencyStart.getTime() && d.getTime() <= dueMonthEnd.getTime();
-          });
-        if (paymentTx) return true;
-
         const invoiceDueBase = addMonths(new Date(targetYear, targetMonth, 1), 1);
         const invoiceDueDate = new Date(invoiceDueBase.getFullYear(), invoiceDueBase.getMonth(), card.dueDay);
         return isAfter(startOfDay(today), startOfDay(invoiceDueDate));
