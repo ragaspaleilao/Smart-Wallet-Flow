@@ -1202,8 +1202,7 @@ export default function CreditCards() {
     return (creditPayments || [])
       .filter((p) => p.creditCardId === selectedCard.id)
       .filter((p) => {
-        const payDate = parseISO(String(p.paymentDate || '').length === 10 ? `${p.paymentDate}T12:00:00` : p.paymentDate);
-        return payDate <= endOfDay(invoiceDueDate);
+        return Number(p.month) === baseInvoiceDate.getMonth() && Number(p.year) === baseInvoiceDate.getFullYear();
       })
       .reduce((sum, p) => sum + (p.amount || 0), 0);
   }, [creditPayments, selectedCard, baseInvoiceDate]);
@@ -1217,11 +1216,8 @@ export default function CreditCards() {
   const openInvoiceTotalForBaseDate = Math.max(0, invoiceTotalForBaseDate - invoicePaymentsTotalForDate);
 
   const currentInvoiceDate = useMemo(() => {
-    if (!selectedCard) return baseInvoiceDate;
-    if (invoiceMonthOffset !== 0 || invoiceTargetDate) return baseInvoiceDate;
-    if (openInvoiceTotalForBaseDate > 0) return baseInvoiceDate;
-    return addMonths(baseInvoiceDate, 1);
-  }, [selectedCard, baseInvoiceDate, openInvoiceTotalForBaseDate, invoiceMonthOffset, invoiceTargetDate]);
+    return baseInvoiceDate;
+  }, [baseInvoiceDate]);
 
   const invoiceItems = useMemo(() => {
     if (!selectedCardId) return [];
@@ -1239,8 +1235,7 @@ export default function CreditCards() {
     return (creditPayments || [])
       .filter((p) => p.creditCardId === selectedCard.id)
       .filter((p) => {
-        const payDate = parseISO(String(p.paymentDate || '').length === 10 ? `${p.paymentDate}T12:00:00` : p.paymentDate);
-        return payDate <= endOfDay(invoiceDueDate);
+        return Number(p.month) === currentInvoiceDate.getMonth() && Number(p.year) === currentInvoiceDate.getFullYear();
       })
       .reduce((sum, p) => sum + (p.amount || 0), 0);
   }, [creditPayments, selectedCard, currentInvoiceDate]);
@@ -2288,7 +2283,24 @@ export default function CreditCards() {
 
                             return (
                                 <>
-                                    {(isOverdue || isDueSoon) && (
+                                    {openInvoiceTotal <= 0 && invoiceTotal > 0 && (isOverdue || isBefore(startOfDay(dueDate), startOfDay(now)) || isSameMonth(dueDate, now)) && (
+                                        <div
+                                            className="rounded-2xl border p-3 flex items-start gap-3 bg-green-50 border-green-100 dark:bg-green-900/10 dark:border-green-900/30"
+                                            data-testid="status-invoice-paid"
+                                        >
+                                            <div className="mt-0.5 h-8 w-8 rounded-xl flex items-center justify-center bg-green-500 text-white">
+                                                <Check className="h-4 w-4" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-green-700 dark:text-green-300">Fatura paga</p>
+                                                <p className="text-xs mt-0.5 text-green-700/80 dark:text-green-300/80">
+                                                    Valor total: {formatCurrency(invoiceTotal)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {(isOverdue || isDueSoon) && openInvoiceTotal > 0 && (
                                         <div
                                             className={`rounded-2xl border p-3 flex items-start gap-3 ${isOverdue ? 'bg-red-50 border-red-100 dark:bg-red-900/10 dark:border-red-900/30' : 'bg-yellow-50 border-yellow-100 dark:bg-yellow-900/10 dark:border-yellow-900/30'}`}
                                             data-testid="status-invoice-alert"
