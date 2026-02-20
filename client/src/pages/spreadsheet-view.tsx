@@ -384,9 +384,8 @@ export default function SpreadsheetView() {
             if (!card) return;
 
             const pDate = (() => {
-                const raw = String(purchase.purchaseDate || '');
-                if (raw.length === 10) return new Date(`${raw}T12:00:00`);
-                return new Date(raw);
+                const raw = String(purchase.purchaseDate || '').slice(0, 10);
+                return new Date(`${raw}T12:00:00`);
             })();
 
             const getInvoiceDate = (date: Date) => {
