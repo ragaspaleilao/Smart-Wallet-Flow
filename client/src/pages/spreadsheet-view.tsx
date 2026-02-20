@@ -39,7 +39,7 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { format, isBefore, startOfDay, getMonth, getYear, parseISO, addMonths, startOfYear, endOfYear, subMonths, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
+import { format, isAfter, isBefore, startOfDay, getMonth, getYear, parseISO, addMonths, startOfYear, endOfYear, subMonths, startOfMonth, endOfMonth, isSameMonth } from "date-fns";
 import { AddTransactionSheet } from "@/components/add-transaction-sheet";
 
 export default function SpreadsheetView() {
@@ -348,47 +348,40 @@ export default function SpreadsheetView() {
 
     const relevantCardIds = creditCards.map(c => c.id);
 
-    const invoiceMonthStart = startOfMonth(subMonths(today, 1));
+    const isInvoicePastOrPaid = (card: typeof creditCards[0], invoiceMonth: Date) => {
+        const targetMonth = invoiceMonth.getMonth();
+        const targetYear = invoiceMonth.getFullYear();
+
+        const hasPaymentRecord = (creditPayments || [])
+          .filter(p => p.creditCardId === card.id)
+          .some(p => Number(p.month) === targetMonth && Number(p.year) === targetYear);
+        if (hasPaymentRecord) return true;
+
+        const paymentTx = transactions
+          .filter(t => (context === "personal" ? t.isPersonal : !t.isPersonal))
+          .filter(t => t.status === 'paid')
+          .filter(t => t.creditCardId === card.id)
+          .filter(t => t.description.toLowerCase().includes('pagamento fatura'))
+          .some(t => {
+            const raw = String(t.date || '');
+            const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
+            const competencyStart = startOfMonth(invoiceMonth);
+            const nextMonth = addMonths(competencyStart, 1);
+            const dueMonthEnd = endOfMonth(new Date(nextMonth.getFullYear(), nextMonth.getMonth(), card.dueDay));
+            return d.getTime() >= competencyStart.getTime() && d.getTime() <= dueMonthEnd.getTime();
+          });
+        if (paymentTx) return true;
+
+        const invoiceDueBase = addMonths(new Date(targetYear, targetMonth, 1), 1);
+        const invoiceDueDate = new Date(invoiceDueBase.getFullYear(), invoiceDueBase.getMonth(), card.dueDay);
+        return isAfter(startOfDay(today), startOfDay(invoiceDueDate));
+    };
 
     creditPurchases
         .filter(p => relevantCardIds.includes(p.creditCardId) && p.status === 'active')
         .forEach(purchase => {
             const card = creditCards.find(c => c.id === purchase.creditCardId);
             if (!card) return;
-
-            const isInvoiceMonthPaid = (invoiceMonth: Date) => {
-                const nextMonth = addMonths(startOfMonth(invoiceMonth), 1);
-                const invoiceDueDate = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), card.dueDay);
-
-                const competencyStart = startOfMonth(invoiceMonth);
-                const dueMonthEnd = endOfMonth(invoiceDueDate);
-
-                const hasPaymentRecordForInvoiceMonth = (creditPayments || [])
-                  .filter(p => p.creditCardId === card.id)
-                  .filter(p => {
-                    const paymentCompetence = new Date(Number(p.year), Number(p.month), 1);
-                    return isSameMonth(paymentCompetence, invoiceMonth);
-                  })
-                  .some(p => {
-                    const raw = String(p.paymentDate || '');
-                    const payDate = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
-                    return payDate.getTime() >= competencyStart.getTime() && payDate.getTime() <= dueMonthEnd.getTime();
-                  });
-
-                const paymentTx = transactions
-                  .filter(t => (context === "personal" ? t.isPersonal : !t.isPersonal))
-                  .filter(t => t.status === 'paid')
-                  .filter(t => t.creditCardId === card.id)
-                  .filter(t => t.description.toLowerCase().includes('pagamento fatura'))
-                  .filter(t => {
-                    const raw = String(t.date || '');
-                    const d = raw.length === 10 ? new Date(`${raw}T12:00:00`) : new Date(raw);
-                    return d.getTime() >= competencyStart.getTime() && d.getTime() <= dueMonthEnd.getTime();
-                  })
-                  .find(Boolean);
-
-                return hasPaymentRecordForInvoiceMonth || Boolean(paymentTx);
-            };
 
             const pDate = (() => {
                 const raw = String(purchase.purchaseDate || '');
@@ -408,10 +401,8 @@ export default function SpreadsheetView() {
 
             for (let i = 1; i <= purchase.installments; i++) {
                 const isInSelectedYear = currentInvoiceDate.getFullYear() === year;
-                const isCurrentOrFuture = !isBefore(currentInvoiceDate, invoiceMonthStart);
-                const isPaidForThatInvoiceMonth = isInvoiceMonthPaid(currentInvoiceDate);
 
-                if (isInSelectedYear && isCurrentOrFuture && !isPaidForThatInvoiceMonth) {
+                if (isInSelectedYear && !isInvoicePastOrPaid(card, currentInvoiceDate)) {
                     const m = currentInvoiceDate.getMonth();
                     if (data[m]) {
                         data[m].creditCardBill += purchase.installmentValue;
@@ -430,8 +421,7 @@ export default function SpreadsheetView() {
 
         data.forEach((monthData) => {
             const competencyMonth = new Date(year, monthData.month, 1);
-            const isCurrentOrFuture = !isBefore(competencyMonth, invoiceMonthStart);
-            if (isCurrentOrFuture) {
+            if (!isInvoicePastOrPaid(card, competencyMonth)) {
                 monthData.creditCardBill += feeValue;
             }
         });
