@@ -305,9 +305,16 @@ function CreditCardPhotoScanner({ cardId, creditCards: allCreditCards, onPurchas
       return;
     }
 
+    if (!selectedCardId) {
+      toast({ title: "Selecione um cartão", variant: "destructive" });
+      return;
+    }
+
     setSavingBatch(true);
     let saved = 0;
     let failed = 0;
+    
+    const currentYear = new Date().getFullYear();
     
     for (const p of selected) {
       try {
@@ -317,6 +324,21 @@ function CreditCardPhotoScanner({ cardId, creditCards: allCreditCards, onPurchas
           ? p.totalAmount 
           : installmentValue * installments;
 
+        let purchaseDate = p.date;
+        if (purchaseDate) {
+          const parsedDate = new Date(purchaseDate + 'T12:00:00');
+          const dateYear = parsedDate.getFullYear();
+          if (dateYear < currentYear - 1 || dateYear > currentYear + 1) {
+            parsedDate.setFullYear(currentYear);
+            purchaseDate = format(parsedDate, 'yyyy-MM-dd');
+          }
+
+          if (installments > 1 && p.currentInstallment > 1) {
+            const adjustedDate = addMonths(parsedDate, -(p.currentInstallment - 1));
+            purchaseDate = format(adjustedDate, 'yyyy-MM-dd');
+          }
+        }
+
         await new Promise<void>((resolve, reject) => {
           createPurchase.mutate({
             creditCardId: selectedCardId,
@@ -324,7 +346,7 @@ function CreditCardPhotoScanner({ cardId, creditCards: allCreditCards, onPurchas
             totalAmount: String(totalAmount),
             installments,
             installmentValue: String(installmentValue),
-            purchaseDate: p.date,
+            purchaseDate,
             category: p.category || "Outros"
           }, {
             onSuccess: () => { saved++; resolve(); },

@@ -159,28 +159,31 @@ export async function extractCreditCardInvoice(
   mimeType: string = "image/jpeg"
 ): Promise<CreditCardInvoiceResult> {
   try {
+    const currentYear = new Date().getFullYear();
     const prompt = `Analise esta imagem de fatura de cartão de crédito.
 Extraia TODAS as compras/lançamentos visíveis na fatura.
+
+IMPORTANTE: O ano atual é ${currentYear}. Use ${currentYear} para as datas, a menos que a fatura explicitamente mostre outro ano.
 
 Para cada compra, identifique:
 - description: nome do estabelecimento ou descrição da compra
 - amount: valor cobrado nesta fatura (o valor da parcela, não o total)
 - category: uma das categorias (Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Vestuário, Compras, Serviços, Assinatura, Outros)
-- date: data da compra no formato YYYY-MM-DD
+- date: data da compra no formato YYYY-MM-DD (use o ano ${currentYear})
 - installments: número total de parcelas (1 se à vista)
-- currentInstallment: parcela atual (ex: se é "3/10", currentInstallment = 3)
-- totalAmount: valor total da compra (se parcelado, multiplique amount x installments restantes ou use o valor original se visível; se à vista, igual ao amount)
+- currentInstallment: parcela atual (ex: se é "Parcela 1 de 3", currentInstallment = 1; se é "3/10", currentInstallment = 3)
+- totalAmount: valor total da compra (se parcelado, amount x installments; se à vista, igual ao amount)
 
 Dicas para identificar parcelas:
-- Textos como "PARC 3/10", "3 de 10", "03/10", "parcela 3 de 10" indicam parcelamento
+- Textos como "PARC 3/10", "3 de 10", "03/10", "parcela 3 de 10", "Parcela 1 de 3" indicam parcelamento
 - Se não houver indicação de parcela, considere installments = 1 e currentInstallment = 1
 - O valor mostrado na fatura é o valor da parcela (amount), não o total
 
 Responda APENAS o JSON:
 {
   "purchases": [
-    {"description": "Loja X", "amount": 50.00, "category": "Compras", "date": "2026-01-15", "installments": 10, "currentInstallment": 3, "totalAmount": 500.00},
-    {"description": "Restaurante Y", "amount": 45.90, "category": "Alimentação", "date": "2026-01-20", "installments": 1, "currentInstallment": 1, "totalAmount": 45.90}
+    {"description": "Loja X", "amount": 50.00, "category": "Compras", "date": "${currentYear}-01-15", "installments": 10, "currentInstallment": 3, "totalAmount": 500.00},
+    {"description": "Restaurante Y", "amount": 45.90, "category": "Alimentação", "date": "${currentYear}-01-20", "installments": 1, "currentInstallment": 1, "totalAmount": 45.90}
   ],
   "totalFound": 2,
   "invoiceTotal": 95.90,
@@ -212,7 +215,17 @@ Responda APENAS o JSON:
       throw new Error("Formato inválido");
     }
 
-    parsed.purchases = parsed.purchases.filter(p => p.amount && p.amount > 0);
+    parsed.purchases = parsed.purchases
+      .filter(p => p.amount && p.amount > 0)
+      .map(p => {
+        if (p.date) {
+          const dateYear = parseInt(p.date.substring(0, 4), 10);
+          if (dateYear < currentYear - 1 || dateYear > currentYear + 1) {
+            p.date = `${currentYear}${p.date.substring(4)}`;
+          }
+        }
+        return p;
+      });
     parsed.totalFound = parsed.purchases.length;
     parsed.invoiceTotal = parsed.purchases.reduce((sum, p) => sum + p.amount, 0);
     
