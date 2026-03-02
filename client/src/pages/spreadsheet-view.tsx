@@ -667,7 +667,7 @@ export default function SpreadsheetView() {
             
             {/* TRANSACTIONS VIEW */}
             <TabsContent value="transactions" className="h-full m-0 p-0 flex flex-col">
-                 <div className="p-1 flex items-center gap-2 border-b border-gray-200 dark:border-zinc-800 bg-white dark:bg-black">
+                 <div className="p-1 flex items-center gap-2 border-b border-gray-200 dark:border-zinc-800 bg-white dark:bg-black overflow-x-auto flex-shrink-0">
                      <Select value={filterType} onValueChange={setFilterType}>
                         <SelectTrigger className="h-7 text-xs w-[120px] border-none bg-transparent shadow-none">
                             <SelectValue placeholder="Tipo" />
