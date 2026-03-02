@@ -868,8 +868,32 @@ export default function Analytics() {
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                                     <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
                                     <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} cursor={{ fill: 'transparent' }} />
-                                    <Bar dataKey="income" name="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} hide={cashFlowType === 'expense'} />
-                                    <Bar dataKey="expense" name="Saídas" fill="#ef4444" radius={[4, 4, 0, 0]} hide={cashFlowType === 'income'} />
+                                    <Bar 
+                                        dataKey="income" 
+                                        name="Entradas" 
+                                        fill="#10b981" 
+                                        radius={[4, 4, 0, 0]} 
+                                        hide={cashFlowType === 'expense'}
+                                        label={{ 
+                                            position: 'top', 
+                                            fontSize: 10, 
+                                            fill: '#10b981',
+                                            formatter: (val: number) => val > 0 ? `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ''
+                                        }}
+                                    />
+                                    <Bar 
+                                        dataKey="expense" 
+                                        name="Saídas" 
+                                        fill="#ef4444" 
+                                        radius={[4, 4, 0, 0]} 
+                                        hide={cashFlowType === 'income'}
+                                        label={{ 
+                                            position: 'top', 
+                                            fontSize: 10, 
+                                            fill: '#ef4444',
+                                            formatter: (val: number) => val > 0 ? `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ''
+                                        }}
+                                    />
                                 </BarChart>
                             </ResponsiveContainer>
                         </Card>
