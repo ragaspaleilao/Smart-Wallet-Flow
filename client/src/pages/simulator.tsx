@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { MobileLayout } from "@/components/mobile-layout";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
