@@ -881,12 +881,6 @@ export default function Analytics() {
                                         fill="#10b981" 
                                         radius={[4, 4, 0, 0]} 
                                         hide={cashFlowType === 'expense'}
-                                        label={{ 
-                                            position: 'top', 
-                                            fontSize: 10, 
-                                            fill: '#10b981',
-                                            formatter: (val: number) => val > 0 ? `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ''
-                                        }}
                                     />
                                     <Bar 
                                         dataKey="expense" 
@@ -894,12 +888,6 @@ export default function Analytics() {
                                         fill="#ef4444" 
                                         radius={[4, 4, 0, 0]} 
                                         hide={cashFlowType === 'income'}
-                                        label={{ 
-                                            position: 'top', 
-                                            fontSize: 10, 
-                                            fill: '#ef4444',
-                                            formatter: (val: number) => val > 0 ? `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ''
-                                        }}
                                     />
                                 </BarChart>
                             </ResponsiveContainer>
