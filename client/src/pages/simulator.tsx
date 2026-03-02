@@ -12,7 +12,7 @@ import { Link, useLocation } from "wouter";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { format, addMonths, startOfMonth, endOfMonth, isSameMonth, subMonths, isAfter, isBefore } from "date-fns";
 import { toast } from "@/hooks/use-toast";
-import { useSimulations, useCreateSimulation, useUpdateSimulation, useDeleteSimulation, useTransactions, useAccounts, useCreditCards, useCreditPurchases, useSubscriptions } from "@/hooks/use-api";
+import { useSimulations, useCreateSimulation, useUpdateSimulation, useDeleteSimulation, useTransactions, useCreateTransaction, useAccounts, useCreditCards, useCreditPurchases, useSubscriptions } from "@/hooks/use-api";
 
 interface Simulation {
   id: string;
@@ -39,6 +39,7 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
   const createSimulationMutation = useCreateSimulation();
   const updateSimulationMutation = useUpdateSimulation();
   const deleteSimulationMutation = useDeleteSimulation();
+  const createTransactionMutation = useCreateTransaction();
   
   const transactions = transactionsData;
   const accounts = accountsData;
