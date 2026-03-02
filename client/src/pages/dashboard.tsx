@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp, Zap, Flame, Car, Loader2, CreditCard, Bell, Receipt, CalendarClock } from "lucide-react";
+import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp, Zap, Flame, Car, Loader2, CreditCard, Bell, Receipt, CalendarClock, Eye, EyeOff } from "lucide-react";
 import { useFinancialStore } from "@/lib/store";
 import { format, isBefore, startOfDay, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, parseISO, isWithinInterval, addDays } from "date-fns";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
@@ -65,11 +65,23 @@ export default function Dashboard() {
   const [photoScannerOpen, setPhotoScannerOpen] = useState(false);
   const [voiceRecorderOpen, setVoiceRecorderOpen] = useState(false);
   const [accountsSheetOpen, setAccountsSheetOpen] = useState(false);
+  const [balanceVisible, setBalanceVisible] = useState(() => {
+    const stored = localStorage.getItem('balanceVisible');
+    return stored !== null ? stored === 'true' : true;
+  });
   
   const createTransactionMutation = useCreateTransaction();
   const createCreditPurchaseMutation = useCreateCreditPurchase();
   const { toast } = useToast();
   
+  const toggleBalanceVisibility = () => {
+    const newValue = !balanceVisible;
+    setBalanceVisible(newValue);
+    localStorage.setItem('balanceVisible', String(newValue));
+  };
+
+  const hiddenValue = '••••••';
+
   const creditCards = apiCreditCards;
 
   const dateRange = useMemo(() => {
@@ -294,11 +306,21 @@ export default function Dashboard() {
                 <div className="cursor-pointer hover:opacity-80 transition-opacity">
                   <div className="flex items-center gap-2 mb-1">
                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Saldo disponível</p>
+                     <button
+                       type="button"
+                       onClick={(e) => { e.stopPropagation(); toggleBalanceVisibility(); }}
+                       className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
+                       data-testid="button-toggle-balance"
+                     >
+                       {balanceVisible ? <Eye className="w-4 h-4 text-gray-400" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
+                     </button>
                      <ChevronDown className="w-4 h-4 text-gray-400" />
                   </div>
-                  <h1 className={`text-4xl font-heading font-bold mt-1 ${personalBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {formatCurrency(personalBalance)}
-                  </h1>
+                  <div className="flex items-center gap-3">
+                    <h1 className={`text-4xl font-heading font-bold mt-1 ${personalBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {balanceVisible ? formatCurrency(personalBalance) : `R$ ${hiddenValue}`}
+                    </h1>
+                  </div>
                 </div>
               </SheetTrigger>
               <SheetContent side="bottom" className="rounded-t-3xl max-h-[70vh]">
@@ -350,7 +372,7 @@ export default function Dashboard() {
                         </div>
                         <div className="flex items-center gap-2">
                           <p className={`font-bold ${accountBalance >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                            {formatCurrency(accountBalance)}
+                            {balanceVisible ? formatCurrency(accountBalance) : `R$ ${hiddenValue}`}
                           </p>
                           <ChevronDown className="w-4 h-4 text-gray-400 -rotate-90" />
                         </div>
@@ -371,7 +393,7 @@ export default function Dashboard() {
                   <div className="border-t pt-4 mt-4">
                     <div className="flex justify-between items-center">
                       <p className="font-semibold text-gray-700 dark:text-gray-300">Total Disponível</p>
-                      <p className="text-xl font-bold text-primary">{formatCurrency(personalBalance)}</p>
+                      <p className="text-xl font-bold text-primary">{balanceVisible ? formatCurrency(personalBalance) : `R$ ${hiddenValue}`}</p>
                     </div>
                   </div>
                 </div>
@@ -450,7 +472,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Entradas</p>
-                    <p className="text-sm font-bold text-green-600 dark:text-green-400" data-testid="text-dashboard-income">{formatCurrency(personalIncome)}</p>
+                    <p className="text-sm font-bold text-green-600 dark:text-green-400" data-testid="text-dashboard-income">{balanceVisible ? formatCurrency(personalIncome) : `R$ ${hiddenValue}`}</p>
                     <p className="text-[10px] text-gray-500 dark:text-gray-400" data-testid="text-dashboard-income-period">{periodLabel}</p>
                 </div>
                 </div>
@@ -462,7 +484,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Saídas</p>
-                    <p className="text-sm font-bold text-red-600 dark:text-red-400" data-testid="text-dashboard-expense">{formatCurrency(personalExpense)}</p>
+                    <p className="text-sm font-bold text-red-600 dark:text-red-400" data-testid="text-dashboard-expense">{balanceVisible ? formatCurrency(personalExpense) : `R$ ${hiddenValue}`}</p>
                     <p className="text-[10px] text-gray-500 dark:text-gray-400" data-testid="text-dashboard-expense-period">{periodLabel}</p>
                 </div>
                 </div>
@@ -572,7 +594,7 @@ export default function Dashboard() {
                     <h4 className="font-semibold text-sm text-red-700 dark:text-red-400">Contas Atrasadas!</h4>
                     <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-1">
                         Você tem {overdueTransactions.length} contas vencidas totalizando 
-                        <span className="font-bold"> {formatCurrency(overdueTotal)}</span>.
+                        <span className="font-bold"> {balanceVisible ? formatCurrency(overdueTotal) : `R$ ${hiddenValue}`}</span>.
                     </p>
                     <p className="text-[10px] font-medium text-red-500 mt-2 flex items-center gap-1 group-hover:underline">
                         Resolver agora <ArrowUp className="w-3 h-3 rotate-45" />
@@ -608,7 +630,7 @@ export default function Dashboard() {
                     </div>
                     <div className="text-right shrink-0">
                       {item.amount > 0 && (
-                        <p className="text-sm font-semibold text-red-600 dark:text-red-400">- {formatCurrency(item.amount)}</p>
+                        <p className="text-sm font-semibold text-red-600 dark:text-red-400">- {balanceVisible ? formatCurrency(item.amount) : `R$ ${hiddenValue}`}</p>
                       )}
                       <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">{format(item.dueDate, 'dd/MM')}</p>
                     </div>
@@ -651,7 +673,7 @@ export default function Dashboard() {
               </div>
             ) : (
               installmentGroups.map((group, idx) => (
-                <DashboardGroupedTransactionItem key={`group-${group.key}-${idx}`} group={group as any} />
+                <DashboardGroupedTransactionItem key={`group-${group.key}-${idx}`} group={group as any} balanceVisible={balanceVisible} />
               ))
             )}
           </div>
@@ -781,7 +803,8 @@ export default function Dashboard() {
   );
 }
 
-function DashboardGroupedTransactionItem({ group }: { group: { isGroup: true, items: any[], key: string } }) {
+function DashboardGroupedTransactionItem({ group, balanceVisible = true }: { group: { isGroup: true, items: any[], key: string }, balanceVisible?: boolean }) {
+    const hiddenValue = '••••••';
     const [isOpen, setIsOpen] = useState(false);
     const firstItem = group.items[0];
     const match = firstItem.description.match(/^(.*) \((\d+)\/(\d+)\)$/);
@@ -821,7 +844,7 @@ function DashboardGroupedTransactionItem({ group }: { group: { isGroup: true, it
                         </div>
                         <div className="text-right whitespace-nowrap">
                             <span className={`font-bold block ${firstItem.type === 'income' ? 'text-green-600' : 'text-red-600 dark:text-red-400'}`}>
-                                {firstItem.type === 'income' ? '+ ' : '- '}{formatCurrency(pendingAmount)}
+                                {firstItem.type === 'income' ? '+ ' : '- '}{balanceVisible ? formatCurrency(pendingAmount) : `R$ ${hiddenValue}`}
                             </span>
                             <span className="text-[10px] text-purple-600 font-medium">
                                 Restante
@@ -834,7 +857,7 @@ function DashboardGroupedTransactionItem({ group }: { group: { isGroup: true, it
                     <div className="bg-gray-50 dark:bg-zinc-950/50 border-t border-gray-100 dark:border-zinc-800 pl-4">
                         {pendingItems.map((tx, idx) => (
                             <div key={tx.id} className={`pr-3 ${idx !== pendingItems.length - 1 ? 'border-b border-gray-100 dark:border-zinc-800' : ''}`}>
-                                <DashboardTransactionItem tx={tx} isChild={true} />
+                                <DashboardTransactionItem tx={tx} isChild={true} balanceVisible={balanceVisible} />
                             </div>
                         ))}
                     </div>
@@ -844,7 +867,8 @@ function DashboardGroupedTransactionItem({ group }: { group: { isGroup: true, it
     );
 }
 
-function DashboardTransactionItem({ tx, isChild = false }: { tx: any, isChild?: boolean }) {
+function DashboardTransactionItem({ tx, isChild = false, balanceVisible = true }: { tx: any, isChild?: boolean, balanceVisible?: boolean }) {
+    const hiddenValue = '••••••';
     const isOverdue = tx.status === 'pending' && isBefore(new Date(tx.date), startOfDay(new Date()));
     
     return (
@@ -883,7 +907,7 @@ function DashboardTransactionItem({ tx, isChild = false }: { tx: any, isChild?: 
                 </div>
                 <div className="text-right whitespace-nowrap">
                     <span className={`font-bold block ${tx.type === 'income' ? 'text-green-600' : 'text-red-600 dark:text-red-400'}`}>
-                        {tx.type === 'income' ? '+ ' : '- '}{formatCurrency(tx.amount)}
+                        {tx.type === 'income' ? '+ ' : '- '}{balanceVisible ? formatCurrency(tx.amount) : `R$ ${hiddenValue}`}
                     </span>
                     {tx.status === 'pending' ? (
                         <span className={`text-[10px] font-medium ${isOverdue ? 'text-red-500' : 'text-yellow-600'}`}>
