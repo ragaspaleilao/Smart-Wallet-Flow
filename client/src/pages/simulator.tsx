@@ -383,7 +383,79 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
   };
 
   const handleApply = async (id: string) => {
-      toast({ title: "Funcionalidade em desenvolvimento", description: "A conversão de simulação para lançamentos reais será implementada em breve." });
+    const sim = simulations.find(s => s.id === id);
+    if (!sim) return;
+
+    try {
+      const installments = Number(sim.installments);
+      const startDate = new Date(sim.startDate);
+      const totalValue = Number(sim.totalValue);
+      const downPayment = Number(sim.downPayment);
+      
+      let installmentValue = 0;
+      if (sim.manualInstallmentValue) {
+        installmentValue = Number(sim.manualInstallmentValue);
+      } else if (sim.interestRate && Number(sim.interestRate) > 0) {
+        const pv = totalValue - downPayment;
+        const i = Number(sim.interestRate) / 100;
+        const n = installments;
+        if (pv > 0) {
+          installmentValue = pv * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1);
+        }
+      } else {
+        installmentValue = (totalValue - downPayment) / installments;
+      }
+
+      // Create initial down payment transaction if exists
+      if (downPayment > 0) {
+        await createTransactionMutation.mutateAsync({
+          amount: String(downPayment),
+          type: 'expense',
+          category: sim.category,
+          description: `${sim.name} (Entrada)`,
+          date: startDate,
+          source: 'manual',
+          isPersonal: true,
+          status: 'paid',
+          paymentMethod: 'debit'
+        });
+      }
+
+      // Create installment transactions
+      const firstInstallmentDate = downPayment > 0 ? addMonths(startDate, 1) : startDate;
+      
+      for (let i = 0; i < installments; i++) {
+        const dueDate = addMonths(firstInstallmentDate, i);
+        await createTransactionMutation.mutateAsync({
+          amount: String(installmentValue.toFixed(2)),
+          type: 'expense',
+          category: sim.category,
+          description: `${sim.name} (${i + 1}/${installments})`,
+          date: dueDate,
+          source: 'manual',
+          isPersonal: true,
+          status: 'pending',
+          paymentMethod: 'debit'
+        });
+      }
+
+      // Delete the simulation after effective
+      await deleteSimulationMutation.mutateAsync(id);
+      
+      toast({ 
+        title: "Compra efetivada!", 
+        description: `${installments} lançamentos foram criados no seu extrato.` 
+      });
+      
+      setLocation("/transactions");
+    } catch (error) {
+      console.error('Error effecting simulation:', error);
+      toast({ 
+        title: "Erro ao efetivar", 
+        description: "Ocorreu um erro ao criar os lançamentos.",
+        variant: "destructive" 
+      });
+    }
   };
   
   const handleDelete = async (id: string) => {
