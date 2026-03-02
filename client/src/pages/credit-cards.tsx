@@ -2070,7 +2070,7 @@ export default function CreditCards() {
             <div className="flex-1 p-6 space-y-6">
                 
                 {/* Quick Actions Grid */}
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1" onClick={() => setIsPhotoScannerOpen(true)}>
                     <div className="p-2.5 bg-purple-100 dark:bg-purple-900/30 rounded-full group-hover:scale-110 transition-transform">
                       <Camera className="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -2085,12 +2085,6 @@ export default function CreditCards() {
                     <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Voz</span>
                   </Button>
 
-                  <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1" onClick={() => toast({title: "Leitura de notificação em breve"})}>
-                      <div className="p-2.5 bg-blue-100 dark:bg-blue-900/30 rounded-full group-hover:scale-110 transition-transform">
-                        <Bell className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Notif.</span>
-                  </Button>
 
                   <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all group p-1" onClick={() => setIsPurchaseOpen(true)}>
                       <div className="p-2.5 bg-primary text-white rounded-full group-hover:scale-110 transition-transform shadow-lg shadow-primary/30">
