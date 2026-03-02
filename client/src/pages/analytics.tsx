@@ -901,6 +901,17 @@ export default function Analytics() {
                                 Gastos por Categoria
                             </h3>
                             <div className="flex gap-2">
+                                <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
+                                    <SelectTrigger className="h-7 text-[10px] w-[110px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="this_month">Este Mês</SelectItem>
+                                        <SelectItem value="last_month">Mês Passado</SelectItem>
+                                        <SelectItem value="year">Este Ano</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
                                 <Select value={categorySource} onValueChange={(v: any) => {
                                     setCategorySource(v);
                                     if (v !== 'card') setCategoryGroupBy('category');
