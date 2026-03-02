@@ -141,10 +141,16 @@ export async function registerRoutes(
   
   app.get('/api/transactions', authMiddleware, async (req: AuthRequest, res) => {
     try {
-      const filters = {
+      const filters: { accountId?: string; type?: string; startDate?: Date; endDate?: Date } = {
         accountId: req.query.accountId as string | undefined,
         type: req.query.type as string | undefined,
       };
+      if (req.query.startDate) {
+        filters.startDate = new Date(req.query.startDate as string);
+      }
+      if (req.query.endDate) {
+        filters.endDate = new Date(req.query.endDate as string);
+      }
       const transactions = await storage.getTransactions(req.userId!, filters);
       res.json(transactions);
     } catch (error) {

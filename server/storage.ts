@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
   AuthUser,
@@ -211,7 +211,12 @@ export class DbStorage implements IStorage {
     if (filters?.type) {
       query = query.where(eq(schema.transactions.type, filters.type));
     }
-    // Add date filters if needed
+    if (filters?.startDate) {
+      query = query.where(gte(schema.transactions.date, filters.startDate.toISOString()));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(schema.transactions.date, filters.endDate.toISOString()));
+    }
     
     return await query.orderBy(desc(schema.transactions.date));
   }

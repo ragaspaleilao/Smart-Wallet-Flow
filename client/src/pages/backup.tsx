@@ -111,8 +111,8 @@ export default function Backup() {
     }
 
     const confirmImport = window.confirm(
-      "ATENÇÃO: Importar um backup irá ADICIONAR os dados ao seu banco atual.\n\n" +
-      "Dados existentes NÃO serão apagados, mas podem haver duplicatas.\n\n" +
+      "Importar um backup irá adicionar apenas dados NOVOS ao seu banco.\n\n" +
+      "Dados que já existem serão ignorados automaticamente (sem duplicatas).\n\n" +
       "Deseja continuar?"
     );
 
@@ -143,9 +143,22 @@ export default function Backup() {
       };
 
       let imported = { accounts: 0, transactions: 0, creditCards: 0, subscriptions: 0, vehicles: 0, goals: 0, investments: 0 };
+      let skipped = { accounts: 0, transactions: 0, creditCards: 0, subscriptions: 0, vehicles: 0, goals: 0, investments: 0 };
+
+      const existingAccounts = accounts;
+      const existingTransactions = transactions;
+      const existingCreditCards = creditCards;
+      const existingSubscriptions = subscriptions;
+      const existingVehicles = vehicles;
+      const existingGoals = goals;
+      const existingInvestments = investments;
 
       setProgress(30);
       for (const account of backupData.accounts || []) {
+        const isDuplicate = existingAccounts.some(
+          (a: any) => a.name === account.name && a.type === account.type
+        );
+        if (isDuplicate) { skipped.accounts++; continue; }
         try {
           await fetch('/api/accounts', {
             method: 'POST',
@@ -164,6 +177,15 @@ export default function Backup() {
 
       setProgress(50);
       for (const transaction of backupData.transactions || []) {
+        const txDate = new Date(transaction.date).toISOString().split('T')[0];
+        const txAmount = String(parseFloat(transaction.amount));
+        const isDuplicate = existingTransactions.some(
+          (t: any) => t.description === transaction.description && 
+            String(parseFloat(t.amount)) === txAmount &&
+            new Date(t.date).toISOString().split('T')[0] === txDate &&
+            t.type === transaction.type
+        );
+        if (isDuplicate) { skipped.transactions++; continue; }
         try {
           await fetch('/api/transactions', {
             method: 'POST',
@@ -185,6 +207,10 @@ export default function Backup() {
 
       setProgress(70);
       for (const card of backupData.creditCards || []) {
+        const isDuplicate = existingCreditCards.some(
+          (c: any) => c.name === card.name
+        );
+        if (isDuplicate) { skipped.creditCards++; continue; }
         try {
           await fetch('/api/credit-cards', {
             method: 'POST',
@@ -203,6 +229,10 @@ export default function Backup() {
 
       setProgress(80);
       for (const sub of backupData.subscriptions || []) {
+        const isDuplicate = existingSubscriptions.some(
+          (s: any) => s.name === sub.name
+        );
+        if (isDuplicate) { skipped.subscriptions++; continue; }
         try {
           await fetch('/api/subscriptions', {
             method: 'POST',
@@ -220,8 +250,12 @@ export default function Backup() {
         } catch (e) { console.error('Import subscription error:', e); }
       }
 
-      setProgress(90);
+      setProgress(85);
       for (const vehicle of backupData.vehicles || []) {
+        const isDuplicate = existingVehicles.some(
+          (v: any) => v.name === vehicle.name || (vehicle.plate && v.plate === vehicle.plate)
+        );
+        if (isDuplicate) { skipped.vehicles++; continue; }
         try {
           await fetch('/api/vehicles', {
             method: 'POST',
@@ -235,7 +269,12 @@ export default function Backup() {
         } catch (e) { console.error('Import vehicle error:', e); }
       }
 
+      setProgress(90);
       for (const goal of backupData.goals || []) {
+        const isDuplicate = existingGoals.some(
+          (g: any) => g.name === goal.name
+        );
+        if (isDuplicate) { skipped.goals++; continue; }
         try {
           await fetch('/api/goals', {
             method: 'POST',
@@ -253,7 +292,12 @@ export default function Backup() {
         } catch (e) { console.error('Import goal error:', e); }
       }
 
+      setProgress(95);
       for (const investment of backupData.investments || []) {
+        const isDuplicate = existingInvestments.some(
+          (i: any) => i.name === investment.name && i.institution === investment.institution
+        );
+        if (isDuplicate) { skipped.investments++; continue; }
         try {
           await fetch('/api/investments', {
             method: 'POST',
@@ -275,9 +319,27 @@ export default function Backup() {
       
       queryClient.invalidateQueries();
 
+      const totalImported = imported.accounts + imported.transactions + imported.creditCards + 
+        imported.subscriptions + imported.vehicles + imported.goals + imported.investments;
+      const totalSkipped = skipped.accounts + skipped.transactions + skipped.creditCards + 
+        skipped.subscriptions + skipped.vehicles + skipped.goals + skipped.investments;
+
+      const parts = [];
+      if (imported.accounts > 0) parts.push(`${imported.accounts} contas`);
+      if (imported.transactions > 0) parts.push(`${imported.transactions} transações`);
+      if (imported.creditCards > 0) parts.push(`${imported.creditCards} cartões`);
+      if (imported.subscriptions > 0) parts.push(`${imported.subscriptions} assinaturas`);
+      if (imported.vehicles > 0) parts.push(`${imported.vehicles} veículos`);
+      if (imported.goals > 0) parts.push(`${imported.goals} metas`);
+      if (imported.investments > 0) parts.push(`${imported.investments} investimentos`);
+
+      const description = totalImported > 0
+        ? `Importados: ${parts.join(', ')}.${totalSkipped > 0 ? ` ${totalSkipped} itens já existiam e foram ignorados.` : ''}`
+        : `Nenhum dado novo encontrado. ${totalSkipped} itens já existiam no seu banco.`;
+
       toast({ 
-        title: "Backup importado!", 
-        description: `Importados: ${imported.accounts} contas, ${imported.transactions} transações, ${imported.creditCards} cartões, ${imported.subscriptions} assinaturas, ${imported.vehicles} veículos, ${imported.goals} metas, ${imported.investments} investimentos.`
+        title: totalImported > 0 ? "Backup importado!" : "Nenhum dado novo",
+        description,
       });
 
     } catch (error: any) {

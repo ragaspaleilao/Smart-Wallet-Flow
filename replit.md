@@ -157,5 +157,9 @@ shared/
 - **Goals Page**: Migrated from Zustand localStorage to PostgreSQL API
 
 ### API Migration Status
-- **Completed**: Dashboard, Accounts, Transactions, Credit Cards, Credit Purchases, Credit Payments, Investments, Subscriptions, Vehicles, Goals, Budget, Simulator, Business, Photo-entry, Voice-entry, Manual-entry, Add-subscription
-- **Pending**: Calendar Integration, Backup (still using localStorage via Zustand store)
+- **Completed**: Dashboard, Accounts, Transactions, Credit Cards, Credit Purchases, Credit Payments, Investments, Subscriptions, Vehicles, Goals, Budget, Simulator, Business, Photo-entry, Voice-entry, Manual-entry, Add-subscription, Backup (with deduplication)
+- **Pending**: Calendar Integration (bidirectional sync - low priority)
+
+### Recent Changes (Mar 2026)
+- **Transaction Date Filters**: Backend now supports `startDate` and `endDate` query parameters on GET `/api/transactions` for server-side date filtering (previously all filtering was client-side only)
+- **Backup Deduplication**: Import/restore now checks for existing data before inserting — accounts matched by name+type, transactions by description+amount+date+type, credit cards by name, subscriptions by name, vehicles by name/plate, goals by name, investments by name+institution. Shows summary of imported vs skipped items.
