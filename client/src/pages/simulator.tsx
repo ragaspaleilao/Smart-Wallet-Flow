@@ -768,7 +768,7 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
               <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30">
                 <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
                 <div className="text-xs text-blue-700 dark:text-blue-300">
-                  <span className="font-medium">Dados integrados:</span>{' '}
+                  <span className="font-medium">Dados integrados (média últimos 3 meses):</span>{' '}
                   {dataSources.join(' · ')}
                   <p className="mt-1 text-blue-600/70 dark:text-blue-400/60">
                     Receita média: {formatCurrency(baseFinancials.avgIncome)}/mês · Despesa média: {formatCurrency(baseFinancials.avgExpense)}/mês · Saldo atual: {formatCurrency(baseFinancials.currentBalance)}
