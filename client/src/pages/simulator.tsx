@@ -425,7 +425,7 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
           type: 'expense',
           category: sim.category,
           description: `${sim.name} (Entrada)`,
-          date: startDate.toISOString(),
+          date: new Date(startDate).toISOString(),
           source: 'manual',
           isPersonal: true,
           status: 'paid',
@@ -435,10 +435,10 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
       }
 
       // Create installment transactions
-      const firstInstallmentDate = downPayment > 0 ? addMonths(startDate, 1) : startDate;
+      const firstInstallmentDate = downPayment > 0 ? addMonths(new Date(startDate), 1) : new Date(startDate);
       
       for (let i = 0; i < installments; i++) {
-        const dueDate = addMonths(firstInstallmentDate, i);
+        const dueDate = addMonths(new Date(firstInstallmentDate), i);
         await createTransactionMutation.mutateAsync({
           amount: String(installmentValue.toFixed(2)),
           type: 'expense',
