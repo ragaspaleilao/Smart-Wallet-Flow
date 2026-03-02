@@ -24,7 +24,8 @@ import {
   MoreVertical,
   Edit,
   Trash2,
-  Loader2
+  Loader2,
+  Wifi
 } from "lucide-react";
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
@@ -1698,65 +1699,114 @@ export default function CreditCards() {
 
             {/* Card Carousel / Selector */}
             <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
-                {creditCards.map(card => (
+                {creditCards.map(card => {
+                    const availableLimit = card.creditLimit - (selectedCardId === card.id ? (openInvoiceTotal + futureInstallmentsTotal) : 0);
+                    const usedPercent = Math.min(100, Math.max(0, ((card.creditLimit - availableLimit) / card.creditLimit) * 100));
+                    return (
                     <div 
                         key={card.id}
                         onClick={() => { setSelectedCardId(card.id); setInvoiceMonthOffset(0); setInvoiceTargetDate(null); }}
-                        className={`min-w-[280px] p-4 rounded-xl transition-all cursor-pointer border-2 ${
+                        data-testid={`card-credit-${card.id}`}
+                        className={`min-w-[300px] rounded-2xl transition-all cursor-pointer relative overflow-hidden group ${
                             selectedCardId === card.id 
-                            ? 'border-gray-900 dark:border-white shadow-lg scale-[1.02]' 
-                            : 'border-transparent bg-gray-100 dark:bg-zinc-900 opacity-70'
-                        } ${card.color} text-white relative overflow-hidden group`}
+                            ? 'shadow-2xl scale-[1.02] ring-2 ring-white/50' 
+                            : 'opacity-75 hover:opacity-90'
+                        }`}
+                        style={{ aspectRatio: '1.586/1' }}
                     >
-                        {selectedCardId === card.id && (
-                            <div className="absolute top-2 right-2 flex gap-1 z-10">
-                                <div 
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        openEditCard();
-                                    }}
-                                    className="p-1.5 bg-black/20 hover:bg-black/40 rounded-full transition-colors"
-                                >
-                                    <Settings className="w-4 h-4 text-white" />
+                        <div className={`absolute inset-0 ${card.color}`} />
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/20" />
+                        <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
+                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/5 rounded-full translate-y-1/2 -translate-x-1/4" />
+
+                        <div className="relative z-10 h-full flex flex-col justify-between p-5 text-white">
+                            <div className="flex justify-between items-start">
+                                <div className="flex flex-col gap-1">
+                                    <span className="font-bold text-base tracking-wide drop-shadow-sm">{card.name}</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-8 h-5 bg-gradient-to-br from-yellow-300 via-yellow-400 to-yellow-600 rounded-sm shadow-sm" />
+                                        <div className="w-4 h-4 border border-white/40 rounded-sm flex items-center justify-center">
+                                            <Wifi className="w-3 h-3 text-white/70 rotate-90" />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div 
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (confirm('Tem certeza que deseja excluir este cartão? Todas as compras e pagamentos associados serão removidos.')) {
-                                            deleteCreditCardMutation.mutate(card.id);
-                                        }
-                                    }}
-                                    className="p-1.5 bg-red-500/60 hover:bg-red-500/80 rounded-full transition-colors"
-                                >
-                                    <Trash2 className="w-4 h-4 text-white" />
+                                <div className="flex items-center gap-1">
+                                    {selectedCardId === card.id && (
+                                        <div className="flex gap-1 mr-1">
+                                            <div 
+                                                onClick={(e) => { e.stopPropagation(); openEditCard(); }}
+                                                data-testid={`button-edit-card-${card.id}`}
+                                                className="p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors backdrop-blur-sm"
+                                            >
+                                                <Settings className="w-3.5 h-3.5 text-white" />
+                                            </div>
+                                            <div 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (confirm('Tem certeza que deseja excluir este cartão? Todas as compras e pagamentos associados serão removidos.')) {
+                                                        deleteCreditCardMutation.mutate(card.id);
+                                                    }
+                                                }}
+                                                data-testid={`button-delete-card-${card.id}`}
+                                                className="p-1.5 bg-red-500/40 hover:bg-red-500/60 rounded-full transition-colors backdrop-blur-sm"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5 text-white" />
+                                            </div>
+                                        </div>
+                                    )}
+                                    {card.brand === 'mastercard' && (
+                                        <div className="flex -space-x-2">
+                                            <div className="w-8 h-8 rounded-full bg-red-500 opacity-90" />
+                                            <div className="w-8 h-8 rounded-full bg-yellow-400 opacity-80" />
+                                        </div>
+                                    )}
+                                    {card.brand === 'visa' && <span className="font-bold italic text-2xl tracking-tight drop-shadow-md">VISA</span>}
+                                    {card.brand === 'elo' && <span className="font-extrabold text-xl tracking-wider drop-shadow-md">elo</span>}
+                                    {card.brand === 'amex' && <span className="font-bold text-xl tracking-tighter drop-shadow-md">AMEX</span>}
+                                    {card.brand === 'hipercard' && <span className="font-bold italic text-xl drop-shadow-md">Hiper</span>}
+                                    {card.brand === 'other' && <CreditCardIcon className="w-7 h-7 drop-shadow-md" />}
+                                    {!card.brand && <CreditCardIcon className="w-7 h-7 drop-shadow-md" />}
                                 </div>
                             </div>
-                        )}
-                        <div className="flex justify-between items-start mb-8">
-                            <span className="font-medium">{card.name}</span>
-                            {card.brand === 'mastercard' && <div className="flex -space-x-2"><div className="w-6 h-6 rounded-full bg-red-500/80"></div><div className="w-6 h-6 rounded-full bg-yellow-500/80"></div></div>}
-                            {card.brand === 'visa' && <span className="font-bold italic text-lg">VISA</span>}
-                            {card.brand === 'elo' && <span className="font-bold text-lg">elo</span>}
-                            {card.brand === 'amex' && <span className="font-bold text-lg tracking-tighter">AMEX</span>}
-                            {card.brand === 'hipercard' && <span className="font-bold italic text-lg">Hiper</span>}
-                            {card.brand === 'other' && <CreditCardIcon className="w-6 h-6" />}
-                        </div>
-                        <div className="flex justify-between items-end">
+
+                            <div className="flex-1 flex items-center">
+                                <div className="flex gap-3 text-base tracking-[0.2em] font-mono text-white/60 drop-shadow-sm">
+                                    <span>••••</span>
+                                    <span>••••</span>
+                                    <span>••••</span>
+                                    <span>••••</span>
+                                </div>
+                            </div>
+
                             <div>
-                                <p className="text-xs opacity-80 mb-1">Limite Disponível</p>
-                                <p className="font-bold text-xl">{formatCurrency(card.creditLimit - (selectedCardId === card.id ? (openInvoiceTotal + futureInstallmentsTotal) : 0))}</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-xs opacity-80">Fatura Atual</p>
-                                <p className="font-bold">Vence dia {card.dueDay}</p>
+                                <div className="w-full h-1 bg-white/15 rounded-full mb-3 overflow-hidden">
+                                    <div 
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{ 
+                                            width: `${usedPercent}%`,
+                                            backgroundColor: usedPercent > 80 ? '#ef4444' : usedPercent > 50 ? '#f59e0b' : '#22c55e'
+                                        }}
+                                    />
+                                </div>
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <p className="text-[10px] uppercase tracking-wider text-white/50 mb-0.5">Limite Disponível</p>
+                                        <p className="font-bold text-lg drop-shadow-sm">{formatCurrency(availableLimit)}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] uppercase tracking-wider text-white/50 mb-0.5">Vencimento</p>
+                                        <p className="font-semibold text-sm drop-shadow-sm">Dia {card.dueDay}</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                ))}
+                    );
+                })}
                  
                  <Dialog open={isAddCardOpen} onOpenChange={setIsAddCardOpen}>
                     <DialogTrigger asChild>
-                        <Button variant="outline" className="min-w-[50px] h-[140px] rounded-xl border-dashed border-2 flex flex-col gap-2 items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-900">
+                        <Button variant="outline" className="min-w-[50px] h-full min-h-[189px] rounded-2xl border-dashed border-2 flex flex-col gap-2 items-center justify-center hover:bg-gray-50 dark:hover:bg-zinc-900">
                             <Plus className="w-8 h-8 text-gray-400" />
                             <span className="text-xs text-gray-500 font-medium">Novo</span>
                         </Button>
