@@ -382,13 +382,14 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
     setShowForm(true);
   };
 
-  const [selectedAccountId, setSelectedAccountId] = useState<string>("");
+  const [selectedAccountIds, setSelectedAccountIds] = useState<Record<string, string>>({});
 
   const handleApply = async (id: string) => {
     const sim = simulations.find(s => s.id === id);
     if (!sim) return;
 
-    if (!selectedAccountId) {
+    const accountId = selectedAccountIds[id];
+    if (!accountId) {
       toast({ 
         title: "Selecione uma conta", 
         description: "Escolha a conta que será usada para esta compra.",
@@ -429,7 +430,7 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
           isPersonal: true,
           status: 'paid',
           paymentMethod: 'debit',
-          accountId: selectedAccountId
+          accountId: accountId
         });
       }
 
@@ -448,7 +449,7 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
           isPersonal: true,
           status: 'pending',
           paymentMethod: 'debit',
-          accountId: selectedAccountId
+          accountId: accountId
         });
       }
 
@@ -959,8 +960,8 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
                                 <div className="flex items-center gap-2 mb-1">
                                     <Label className="text-[10px] text-gray-500 uppercase font-bold">Conta p/ Efetivar:</Label>
                                     <Select 
-                                        value={selectedAccountId} 
-                                        onValueChange={setSelectedAccountId}
+                                        value={selectedAccountIds[sim.id] || ""} 
+                                        onValueChange={(val) => setSelectedAccountIds(prev => ({ ...prev, [sim.id]: val }))}
                                     >
                                         <SelectTrigger className="h-7 text-[10px] py-0 px-2 border-dashed bg-gray-50 dark:bg-zinc-800/50">
                                             <SelectValue placeholder="Escolha a conta" />
