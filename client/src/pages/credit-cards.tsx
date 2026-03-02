@@ -2070,7 +2070,7 @@ export default function CreditCards() {
             <div className="flex-1 p-6 space-y-6">
                 
                 {/* Quick Actions Grid */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-4 gap-3">
                   <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-gray-100 hover:border-primary/50 hover:bg-primary/5 transition-all group p-1" onClick={() => setIsPhotoScannerOpen(true)}>
                     <div className="p-2.5 bg-purple-100 dark:bg-purple-900/30 rounded-full group-hover:scale-110 transition-transform">
                       <Camera className="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -2085,17 +2085,22 @@ export default function CreditCards() {
                     <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Voz</span>
                   </Button>
 
-
                   <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all group p-1" onClick={() => setIsPurchaseOpen(true)}>
                       <div className="p-2.5 bg-primary text-white rounded-full group-hover:scale-110 transition-transform shadow-lg shadow-primary/30">
                         <Plus className="w-5 h-5" />
                       </div>
                       <span className="text-[10px] font-semibold text-primary">Manual</span>
                   </Button>
+
+                  <Button variant="outline" className="h-auto py-3 flex flex-col gap-1.5 rounded-2xl border border-green-200 hover:border-green-400 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:border-green-800 dark:hover:bg-green-900/30 transition-all group p-1" onClick={() => setIsPaymentOpen(true)} data-testid="button-pay-invoice">
+                      <div className="p-2.5 bg-green-100 dark:bg-green-900/30 rounded-full group-hover:scale-110 transition-transform">
+                        <Receipt className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      </div>
+                      <span className="text-[10px] font-semibold text-green-700 dark:text-green-400">Pagar</span>
+                  </Button>
                 </div>
 
-                {/* Main Actions */}
-                <div className="grid grid-cols-1 gap-3">
+                <div className="hidden">
                     <Dialog open={isPurchaseOpen} onOpenChange={(open) => {
                         setIsPurchaseOpen(open);
                         if (!open) resetPurchaseForm();
@@ -2287,12 +2292,6 @@ export default function CreditCards() {
                     </Dialog>
 
                     <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-                        <DialogTrigger asChild>
-                            <Button variant="outline" className="h-auto py-4 flex flex-col gap-2 border-dashed border-2">
-                                <Receipt className="w-6 h-6 text-gray-500" />
-                                <span className="font-medium text-gray-600">Pagar Fatura</span>
-                            </Button>
-                        </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>Pagar Fatura - {selectedCard.name}</DialogTitle>
