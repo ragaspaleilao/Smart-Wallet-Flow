@@ -28,7 +28,7 @@ interface Simulation {
   manualInstallmentValue?: number;
 }
 
-export default function Simulator() {
+export default function Simulator({ showNav = true }: { showNav?: boolean }) {
   const [location, setLocation] = useLocation();
   const { data: transactionsData = [] } = useTransactions();
   const { data: accountsData = [] } = useAccounts();
@@ -409,28 +409,127 @@ export default function Simulator() {
       }
   };
 
-  return (
-    <MobileLayout showNav={false}>
+  if (showForm && !showNav) {
+    return (
       <div className="flex-1 flex flex-col bg-gray-50 dark:bg-black min-h-screen">
         {/* Header */}
         <div className="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 p-4 sticky top-0 z-20">
             <div className="flex items-center gap-3">
-                <Link href="/dashboard">
-                    <Button variant="ghost" size="icon" className="-ml-2">
-                        <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                </Link>
+                <Button variant="ghost" size="icon" className="-ml-2" onClick={() => setShowForm(false)}>
+                    <ArrowLeft className="w-5 h-5" />
+                </Button>
                 <div>
                     <h1 className="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
                         <Calculator className="w-5 h-5 text-purple-600" />
-                        Simulador de Decisão
+                        Nova Simulação
                     </h1>
-                    <p className="text-xs text-gray-500">Teste antes de comprar</p>
                 </div>
             </div>
         </div>
 
         <div className="p-4 space-y-6 flex-1 overflow-y-auto pb-24">
+            <Card className="border-purple-200 dark:border-purple-900/50 shadow-md">
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-base text-purple-900 dark:text-purple-300">Detalhes da Compra</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label>O que você quer comprar?</Label>
+                        <Input 
+                            placeholder="Ex: iPhone 15, Moto, Viagem..." 
+                            value={formData.name}
+                            onChange={e => setFormData({...formData, name: e.target.value})}
+                        />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>Valor Total</Label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+                                <Input 
+                                    type="number" 
+                                    className="pl-9" 
+                                    placeholder="0,00"
+                                    value={formData.totalValue}
+                                    onChange={e => setFormData({...formData, totalValue: e.target.value})}
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Entrada (se houver)</Label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+                                <Input 
+                                    type="number" 
+                                    className="pl-9" 
+                                    placeholder="0,00"
+                                    value={formData.downPayment}
+                                    onChange={e => setFormData({...formData, downPayment: e.target.value})}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>Parcelas</Label>
+                            <Select value={formData.installments.toString()} onValueChange={v => setFormData({...formData, installments: v})}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {[1,2,3,4,5,6,10,12,18,24,36,48,60].map(n => (
+                                        <SelectItem key={n} value={n.toString()}>{n}x</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                         <div className="space-y-2">
+                            <Label>Data Início</Label>
+                            <Input 
+                                type="date" 
+                                value={formData.startDate}
+                                onChange={e => setFormData({...formData, startDate: e.target.value})}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="pt-2 flex gap-3">
+                        <Button variant="ghost" className="flex-1" onClick={() => setShowForm(false)}>Cancelar</Button>
+                        <Button className="flex-1 bg-purple-600 hover:bg-purple-700" onClick={handleSave}>
+                            <Save className="w-4 h-4 mr-2" /> Salvar
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+      </div>
+    );
+  }
+
+  const content = (
+    <div className={cn("flex-1 flex flex-col", showNav ? "" : "bg-transparent")}>
+        {showNav && (
+            <div className="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 p-4 sticky top-0 z-20">
+                <div className="flex items-center gap-3">
+                    <Link href="/dashboard">
+                        <Button variant="ghost" size="icon" className="-ml-2">
+                            <ArrowLeft className="w-5 h-5" />
+                        </Button>
+                    </Link>
+                    <div>
+                        <h1 className="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
+                            <Calculator className="w-5 h-5 text-purple-600" />
+                            Simulador de Decisão
+                        </h1>
+                        <p className="text-xs text-gray-500">Teste antes de comprar</p>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        <div className={cn("space-y-6 flex-1", showNav ? "p-4 pb-24 overflow-y-auto" : "")}>
             
             {/* Action Card: Create Simulation */}
             {!showForm ? (
@@ -454,7 +553,7 @@ export default function Simulator() {
                     <Plus className="w-5 h-5 mr-2" />
                     Nova Simulação
                 </Button>
-            ) : (
+            ) : showNav ? (
                 <Card className="border-purple-200 dark:border-purple-900/50 shadow-md animate-in slide-in-from-top-4">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-base text-purple-900 dark:text-purple-300">Detalhes da Compra</CardTitle>
@@ -574,7 +673,7 @@ export default function Simulator() {
                         </div>
                     </CardContent>
                 </Card>
-            )}
+            ) : null}
 
             {/* Data Sources Info */}
             {dataSources.length > 0 && (
@@ -800,7 +899,16 @@ export default function Simulator() {
                 </div>
             )}
         </div>
-      </div>
-    </MobileLayout>
+    </div>
   );
+
+  if (showNav) {
+    return (
+      <MobileLayout showNav={false}>
+        {content}
+      </MobileLayout>
+    );
+  }
+
+  return content;
 }

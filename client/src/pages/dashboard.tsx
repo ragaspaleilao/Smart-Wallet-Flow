@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { ArrowUp, ArrowDown, Mic, Camera, Plus, AlertTriangle, Wallet, Brain, Package, Table as TableIcon, AlertCircle, Clock, Calculator, Settings, ChevronDown, ChevronUp, Zap, Flame, Car, Loader2, CreditCard, Bell, Receipt, CalendarClock } from "lucide-react";
 import { useFinancialStore } from "@/lib/store";
 import { format, isBefore, startOfDay, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, parseISO, isWithinInterval, addDays } from "date-fns";
+import Simulator from "@/pages/simulator";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 import { useState, useMemo, useEffect } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -286,6 +287,10 @@ export default function Dashboard() {
   return (
     <MobileLayout>
       <div className="flex flex-col space-y-6 p-6 pt-12 safe-pb">
+        {/* Simulador de Decisão */}
+        <section className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <Simulator showNav={false} />
+        </section>
         
         {/* Header / Balance */}
         <div className="space-y-6">
