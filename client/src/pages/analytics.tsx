@@ -867,6 +867,13 @@ export default function Analytics() {
                                 <BarChart data={incomeExpenseChartData}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                                     <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
+                                    <YAxis 
+                                        fontSize={10} 
+                                        tickLine={false} 
+                                        axisLine={false} 
+                                        tickFormatter={(val) => `R$ ${val.toLocaleString('pt-BR', { notation: 'compact' })}`}
+                                        width={45}
+                                    />
                                     <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} cursor={{ fill: 'transparent' }} />
                                     <Bar 
                                         dataKey="income" 
