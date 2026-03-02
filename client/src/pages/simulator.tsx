@@ -413,11 +413,12 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
           type: 'expense',
           category: sim.category,
           description: `${sim.name} (Entrada)`,
-          date: startDate,
+          date: startDate.toISOString(),
           source: 'manual',
           isPersonal: true,
           status: 'paid',
-          paymentMethod: 'debit'
+          paymentMethod: 'debit',
+          accountId: accounts[0]?.id // Default to first account
         });
       }
 
@@ -431,11 +432,12 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
           type: 'expense',
           category: sim.category,
           description: `${sim.name} (${i + 1}/${installments})`,
-          date: dueDate,
+          date: dueDate.toISOString(),
           source: 'manual',
           isPersonal: true,
           status: 'pending',
-          paymentMethod: 'debit'
+          paymentMethod: 'debit',
+          accountId: accounts[0]?.id // Default to first account
         });
       }
 
