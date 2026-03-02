@@ -1698,7 +1698,41 @@ export default function CreditCards() {
             </div>
 
             {/* Card Carousel / Selector */}
-            <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+            <div className="relative">
+                {creditCards.length > 1 && (
+                    <>
+                        <button
+                            onClick={() => {
+                                const currentIdx = creditCards.findIndex(c => c.id === selectedCardId);
+                                const prevIdx = currentIdx > 0 ? currentIdx - 1 : creditCards.length - 1;
+                                const prevCard = creditCards[prevIdx];
+                                setSelectedCardId(prevCard.id);
+                                setInvoiceMonthOffset(0);
+                                setInvoiceTargetDate(null);
+                            }}
+                            data-testid="button-prev-card"
+                            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-30 w-8 h-8 rounded-full bg-white dark:bg-zinc-800 shadow-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors border border-gray-200 dark:border-zinc-600"
+                        >
+                            <ChevronLeft className="w-4 h-4 text-gray-700 dark:text-white" />
+                        </button>
+                        <button
+                            onClick={() => {
+                                const currentIdx = creditCards.findIndex(c => c.id === selectedCardId);
+                                const nextIdx = currentIdx < creditCards.length - 1 ? currentIdx + 1 : 0;
+                                const nextCard = creditCards[nextIdx];
+                                setSelectedCardId(nextCard.id);
+                                setInvoiceMonthOffset(0);
+                                setInvoiceTargetDate(null);
+                            }}
+                            data-testid="button-next-card"
+                            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-30 w-8 h-8 rounded-full bg-white dark:bg-zinc-800 shadow-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors border border-gray-200 dark:border-zinc-600"
+                        >
+                            <ChevronRight className="w-4 h-4 text-gray-700 dark:text-white" />
+                        </button>
+                    </>
+                )}
+
+                <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar px-1">
                 {creditCards.map(card => {
                     const availableLimit = card.creditLimit - (selectedCardId === card.id ? (openInvoiceTotal + futureInstallmentsTotal) : 0);
                     const usedPercent = Math.min(100, Math.max(0, ((card.creditLimit - availableLimit) / card.creditLimit) * 100));
@@ -1793,8 +1827,12 @@ export default function CreditCards() {
                                         <p className="text-[10px] uppercase tracking-wider text-white/50 mb-0.5">Limite Disponível</p>
                                         <p className="font-bold text-lg drop-shadow-sm">{formatCurrency(availableLimit)}</p>
                                     </div>
+                                    <div className="text-center">
+                                        <p className="text-[10px] uppercase tracking-wider text-white/50 mb-0.5">Fecha</p>
+                                        <p className="font-semibold text-sm drop-shadow-sm">Dia {card.closingDay}</p>
+                                    </div>
                                     <div className="text-right">
-                                        <p className="text-[10px] uppercase tracking-wider text-white/50 mb-0.5">Vencimento</p>
+                                        <p className="text-[10px] uppercase tracking-wider text-white/50 mb-0.5">Vence</p>
                                         <p className="font-semibold text-sm drop-shadow-sm">Dia {card.dueDay}</p>
                                     </div>
                                 </div>
@@ -2024,6 +2062,7 @@ export default function CreditCards() {
                         </div>
                     </DialogContent>
                 </Dialog>
+            </div>
             </div>
         </div>
 
