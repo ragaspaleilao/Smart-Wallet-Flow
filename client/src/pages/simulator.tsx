@@ -382,9 +382,20 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
     setShowForm(true);
   };
 
+  const [selectedAccountId, setSelectedAccountId] = useState<string>("");
+
   const handleApply = async (id: string) => {
     const sim = simulations.find(s => s.id === id);
     if (!sim) return;
+
+    if (!selectedAccountId) {
+      toast({ 
+        title: "Selecione uma conta", 
+        description: "Escolha a conta que será usada para esta compra.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       const installments = Number(sim.installments);
@@ -418,7 +429,7 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
           isPersonal: true,
           status: 'paid',
           paymentMethod: 'debit',
-          accountId: accounts[0]?.id // Default to first account
+          accountId: selectedAccountId
         });
       }
 
@@ -437,7 +448,7 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
           isPersonal: true,
           status: 'pending',
           paymentMethod: 'debit',
-          accountId: accounts[0]?.id // Default to first account
+          accountId: selectedAccountId
         });
       }
 
@@ -944,31 +955,51 @@ export default function Simulator({ showNav = true }: { showNav?: boolean }) {
                                 </div>
                             </div>
                             
-                            <div className="flex gap-2 pt-2 border-t border-gray-50 dark:border-zinc-800">
-                                <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="flex-1 text-xs border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-900 dark:text-purple-400 dark:hover:bg-purple-900/20"
-                                    onClick={() => handleApply(sim.id)}
-                                >
-                                    <CheckCircle2 className="w-3 h-3 mr-1.5" /> Efetivar
-                                </Button>
-                                <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="px-3 border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-zinc-700 dark:text-gray-300 dark:hover:bg-zinc-800"
-                                    onClick={() => handleEdit(sim)}
-                                >
-                                    <Pencil className="w-3 h-3" />
-                                </Button>
-                                <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="px-3 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20"
-                                    onClick={() => handleDelete(sim.id)}
-                                >
-                                    <Trash2 className="w-3 h-3" />
-                                </Button>
+                            <div className="flex flex-col gap-2 pt-2 border-t border-gray-50 dark:border-zinc-800">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Label className="text-[10px] text-gray-500 uppercase font-bold">Conta p/ Efetivar:</Label>
+                                    <Select 
+                                        value={selectedAccountId} 
+                                        onValueChange={setSelectedAccountId}
+                                    >
+                                        <SelectTrigger className="h-7 text-[10px] py-0 px-2 border-dashed bg-gray-50 dark:bg-zinc-800/50">
+                                            <SelectValue placeholder="Escolha a conta" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {accounts.map(acc => (
+                                                <SelectItem key={acc.id} value={acc.id} className="text-xs">
+                                                    {acc.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="flex-1 text-xs border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-900 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                                        onClick={() => handleApply(sim.id)}
+                                    >
+                                        <CheckCircle2 className="w-3 h-3 mr-1.5" /> Efetivar
+                                    </Button>
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="px-3 border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-zinc-700 dark:text-gray-300 dark:hover:bg-zinc-800"
+                                        onClick={() => handleEdit(sim)}
+                                    >
+                                        <Pencil className="w-3 h-3" />
+                                    </Button>
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="px-3 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                        onClick={() => handleDelete(sim.id)}
+                                    >
+                                        <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     ))}
