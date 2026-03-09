@@ -1236,7 +1236,7 @@ export default function CreditCards() {
   }, [selectedCardId, baseInvoiceDate]);
 
   const invoiceTotalForBaseDate = invoiceItemsForBaseDate.reduce((acc, item) => acc + item.value, 0);
-  const openInvoiceTotalForBaseDate = Math.max(0, invoiceTotalForBaseDate - invoicePaymentsTotalForDate);
+  const openInvoiceTotalForBaseDate = Math.max(0, Math.round((invoiceTotalForBaseDate - invoicePaymentsTotalForDate) * 100) / 100);
 
   const currentInvoiceDate = useMemo(() => {
     return baseInvoiceDate;
@@ -1263,7 +1263,7 @@ export default function CreditCards() {
       .reduce((sum, p) => sum + (p.amount || 0), 0);
   }, [creditPayments, selectedCard, currentInvoiceDate]);
 
-  const openInvoiceTotal = Math.max(0, invoiceTotal - invoicePaymentsTotal);
+  const openInvoiceTotal = Math.max(0, Math.round((invoiceTotal - invoicePaymentsTotal) * 100) / 100);
 
   const futureInvoices = useMemo(() => {
       if (!selectedCard) return [];
@@ -1331,7 +1331,7 @@ export default function CreditCards() {
                 })
                 .reduce((sum, p) => sum + (p.amount || 0), 0);
 
-              const openForMonth = Math.max(0, invoiceTotalForMonth - paidForMonth);
+              const openForMonth = Math.max(0, Math.round((invoiceTotalForMonth - paidForMonth) * 100) / 100);
 
               monthTotal += openForMonth;
 
