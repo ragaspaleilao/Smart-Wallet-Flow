@@ -211,14 +211,7 @@ export default function Dashboard() {
           if (p.creditCardId !== card.id) return false;
           const pm = Number(p.month);
           const py = Number(p.year);
-          if (pm === compMonth && py === compYear) return true;
-          if (pm === dueMonth && py === dueYear) return true;
-          const payDate = new Date(String(p.paymentDate));
-          if (!isNaN(payDate.getTime())) {
-            const diff = Math.abs(payDate.getTime() - dueDate.getTime());
-            if (diff <= 30 * 24 * 60 * 60 * 1000) return true;
-          }
-          return false;
+          return pm === compMonth && py === compYear;
         });
 
         if (!hasPayment) {
@@ -672,8 +665,8 @@ export default function Dashboard() {
                 <p className="text-sm">Nenhum parcelamento encontrado</p>
               </div>
             ) : (
-              installmentGroups.map((group, idx) => (
-                <DashboardGroupedTransactionItem key={`group-${group.key}-${idx}`} group={group as any} balanceVisible={balanceVisible} />
+              installmentGroups.filter(group => group.items.some(i => i.status !== 'paid')).map((group, idx) => (
+                <DashboardGroupedTransactionItem key={`group-${group.key}-${idx}`} group={group as any} balanceVisible={balanceVisible} idx={idx} />
               ))
             )}
           </div>
@@ -803,7 +796,7 @@ export default function Dashboard() {
   );
 }
 
-function DashboardGroupedTransactionItem({ group, balanceVisible = true }: { group: { isGroup: true, items: any[], key: string }, balanceVisible?: boolean }) {
+function DashboardGroupedTransactionItem({ group, balanceVisible = true, idx = 0 }: { group: { isGroup: true, items: any[], key: string }, balanceVisible?: boolean, idx?: number }) {
     const hiddenValue = '••••••';
     const [isOpen, setIsOpen] = useState(false);
     const firstItem = group.items[0];
@@ -822,7 +815,7 @@ function DashboardGroupedTransactionItem({ group, balanceVisible = true }: { gro
 
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-            <div className={`bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 overflow-hidden mb-3 animate-in fade-in slide-in-from-bottom-2 ${isOverdue ? 'border-red-200 dark:border-red-900/50' : ''}`}>
+            <div className={`rounded-2xl shadow-sm border overflow-hidden mb-3 animate-in fade-in slide-in-from-bottom-2 ${isOverdue ? 'border-red-200 dark:border-red-900/50' : 'border-gray-100 dark:border-zinc-800'} ${idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-gray-100 dark:bg-zinc-800'}`}>
                 <CollapsibleTrigger className="w-full">
                     <div className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
                         <div className="flex items-center gap-4">
@@ -854,9 +847,9 @@ function DashboardGroupedTransactionItem({ group, balanceVisible = true }: { gro
                 </CollapsibleTrigger>
                 
                 <CollapsibleContent>
-                    <div className="bg-gray-50 dark:bg-zinc-950/50 border-t border-gray-100 dark:border-zinc-800 pl-4">
-                        {pendingItems.map((tx, idx) => (
-                            <div key={tx.id} className={`pr-3 ${idx !== pendingItems.length - 1 ? 'border-b border-gray-100 dark:border-zinc-800' : ''}`}>
+                    <div className="border-t border-gray-100 dark:border-zinc-800 pl-4">
+                        {pendingItems.map((tx, childIdx) => (
+                            <div key={tx.id} className={`pr-3 ${childIdx !== pendingItems.length - 1 ? 'border-b border-gray-100 dark:border-zinc-800' : ''} ${childIdx % 2 === 0 ? 'bg-gray-50 dark:bg-zinc-950/50' : 'bg-white dark:bg-zinc-900'}`}>
                                 <DashboardTransactionItem tx={tx} isChild={true} balanceVisible={balanceVisible} />
                             </div>
                         ))}

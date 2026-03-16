@@ -436,7 +436,7 @@ export default function Transactions() {
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide sticky top-0 bg-white dark:bg-black py-2">Recentes</h3>
               {groupedTransactions.map((item, idx) => (
-                  <TransactionItem key={`${item.id}-${idx}`} tx={item} />
+                  <TransactionItem key={`${item.id}-${idx}`} tx={item} idx={idx} />
               ))}
             </div>
           )}
@@ -610,7 +610,7 @@ function GroupedTransactionItem({ group }: { group: { isGroup: true, items: any[
     );
 }
 
-function TransactionItem({ tx, isChild = false }: { tx: any, isChild?: boolean }) {
+function TransactionItem({ tx, isChild = false, idx }: { tx: any, isChild?: boolean, idx?: number }) {
   const accounts = useFinancialStore(state => state.accounts);
   const account = accounts.find(a => a.id === tx.accountId);
   
@@ -623,7 +623,7 @@ function TransactionItem({ tx, isChild = false }: { tx: any, isChild?: boolean }
 
   return (
     <EditTransactionSheet transaction={tx}>
-    <div className={`flex items-center justify-between py-3 group cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800/80 rounded-xl px-3 -mx-3 transition-colors ${isChild ? 'scale-95 origin-left w-full pl-0' : ''} ${isOverdue && !isChild ? 'bg-red-50/50 dark:bg-red-900/10' : ''}`}>
+    <div className={`flex items-center justify-between py-3 group cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800/80 rounded-xl px-3 -mx-3 transition-colors ${isChild ? 'scale-95 origin-left w-full pl-0' : ''} ${isOverdue && !isChild ? 'bg-red-50/50 dark:bg-red-900/10' : idx !== undefined && idx % 2 !== 0 ? 'bg-gray-100 dark:bg-zinc-800/70' : ''}`}>
       <div className="flex items-center gap-4">
         {!isChild && (
             <div className={`w-12 h-12 rounded-2xl bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-2xl relative`}>

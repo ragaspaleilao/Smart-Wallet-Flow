@@ -946,11 +946,11 @@ export default function SpreadsheetView() {
                         <TableBody>
                             {/* Previous Balance Row */}
                             <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-12 hover:bg-gray-50">
-                                <TableCell className="font-semibold text-xs sticky left-0 bg-white dark:bg-black z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-blue-600">
+                                <TableCell className="font-semibold text-xs sticky left-0 bg-white dark:bg-black z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                                     Saldo Anterior
                                 </TableCell>
                                 {projectionData.map(m => (
-                                    <TableCell key={m.month} className="text-center text-xs text-blue-600/80 font-medium">
+                                    <TableCell key={m.month} className={`text-center text-xs font-medium ${m.previousBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                         {formatCurrency(m.previousBalance)}
                                     </TableCell>
                                 ))}
@@ -1008,22 +1008,22 @@ export default function SpreadsheetView() {
                                     RESULTADO
                                 </TableCell>
                                 {projectionData.map(m => (
-                                    <TableCell key={m.month} className={`text-center text-xs font-bold ${m.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                    <TableCell key={m.month} className={`text-center text-xs font-bold ${m.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                         {m.balance !== 0 ? formatCurrency(m.balance) : '-'}
                                     </TableCell>
                                 ))}
-                                <TableCell className={`text-right text-xs font-bold bg-gray-100 dark:bg-zinc-800 ${projectionData.reduce((acc,curr) => acc + curr.balance, 0) >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                                <TableCell className={`text-right text-xs font-bold bg-gray-100 dark:bg-zinc-800 ${projectionData.reduce((acc,curr) => acc + curr.balance, 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                                     {formatCurrency(projectionData.reduce((acc, curr) => acc + curr.balance, 0))}
                                 </TableCell>
                             </TableRow>
 
                             {/* Accumulated Balance Row */}
                             <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-14 bg-gray-50/50 font-medium">
-                                <TableCell className="font-bold text-xs sticky left-0 bg-gray-50 dark:bg-zinc-900 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-blue-700">
+                                <TableCell className="font-bold text-xs sticky left-0 bg-gray-50 dark:bg-zinc-900 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                                     SALDO ACUMULADO
                                 </TableCell>
                                 {projectionData.map(m => (
-                                    <TableCell key={m.month} className={`text-center text-xs font-bold ${m.accumulatedBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                                    <TableCell key={m.month} className={`text-center text-xs font-bold ${m.accumulatedBalance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                                         {formatCurrency(m.accumulatedBalance)}
                                     </TableCell>
                                 ))}
@@ -1069,11 +1069,11 @@ export default function SpreadsheetView() {
                         <TableBody>
                             {/* Saldo Anterior */}
                             <TableRow className="border-b border-gray-100 dark:border-zinc-800 h-12 hover:bg-gray-50">
-                                <TableCell className="font-semibold text-xs sticky left-0 bg-white dark:bg-black z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] text-blue-600">
+                                <TableCell className="font-semibold text-xs sticky left-0 bg-white dark:bg-black z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                                     Saldo Anterior
                                 </TableCell>
                                 {consolidatedData.map(m => (
-                                    <TableCell key={m.month} className="text-center text-xs text-blue-600/80 font-medium">
+                                    <TableCell key={m.month} className={`text-center text-xs font-medium ${m.previousBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                         {formatCurrency(m.previousBalance)}
                                     </TableCell>
                                 ))}
@@ -1116,11 +1116,11 @@ export default function SpreadsheetView() {
                                     Resultado (rec - desp)
                                 </TableCell>
                                 {consolidatedData.map(m => (
-                                    <TableCell key={m.month} className={`text-center text-xs font-bold ${m.result >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                    <TableCell key={m.month} className={`text-center text-xs font-bold ${m.result >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                         {m.result !== 0 ? m.result.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}
                                     </TableCell>
                                 ))}
-                                <TableCell className={`text-right text-xs font-bold bg-gray-100 dark:bg-zinc-900 ${consolidatedData.reduce((acc, curr) => acc + curr.result, 0) >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                                <TableCell className={`text-right text-xs font-bold bg-gray-100 dark:bg-zinc-900 ${consolidatedData.reduce((acc, curr) => acc + curr.result, 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                                     {consolidatedData.reduce((acc, curr) => acc + curr.result, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </TableCell>
                             </TableRow>
@@ -1131,11 +1131,11 @@ export default function SpreadsheetView() {
                                     Saldo Acumulado
                                 </TableCell>
                                 {consolidatedData.map(m => (
-                                    <TableCell key={m.month} className={`text-center text-xs font-bold ${m.accumulatedBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                                    <TableCell key={m.month} className={`text-center text-xs font-bold ${m.accumulatedBalance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                                         {m.accumulatedBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                     </TableCell>
                                 ))}
-                                <TableCell className="text-right text-xs font-bold text-blue-800 bg-blue-100 dark:bg-blue-900">
+                                <TableCell className={`text-right text-xs font-bold bg-blue-100 dark:bg-blue-900 ${consolidatedData[11]?.accumulatedBalance >= 0 ? 'text-green-800' : 'text-red-800'}`}>
                                     {consolidatedData[11]?.accumulatedBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </TableCell>
                             </TableRow>
