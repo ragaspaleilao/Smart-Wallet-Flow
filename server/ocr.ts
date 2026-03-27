@@ -31,15 +31,16 @@ export async function extractTransactionFromImage(
   mimeType: string = "image/jpeg"
 ): Promise<OCRTransactionResult> {
   try {
+    const currentYear = new Date().getFullYear();
     const prompt = `Extraia os dados deste cupom fiscal para JSON puro.
 Categorias: Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Vestuário, Serviços, Investimento, Outros.
-Formato de data: YYYY-MM-DD.
+Formato de data: YYYY-MM-DD. O ano atual é ${currentYear}, use-o nas datas.
 
 Responda APENAS o JSON:
 {
   "amount": 0.0,
   "merchant": "Nome",
-  "date": "YYYY-MM-DD",
+  "date": "${currentYear}-MM-DD",
   "description": "Resumo",
   "category": "Categoria",
   "confidence": 0.0,
@@ -77,14 +78,17 @@ export async function extractMultipleTransactions(
   mimeType: string = "image/jpeg"
 ): Promise<OCRBatchResult> {
   try {
+    const currentYear = new Date().getFullYear();
     const prompt = `Analise esta imagem de extrato bancário ou lista de transações.
 Extraia TODAS as transações visíveis na imagem.
+
+IMPORTANTE: O ano atual é ${currentYear}. Use sempre ${currentYear} nas datas, a menos que o extrato mostre explicitamente outro ano.
 
 Para cada transação, identifique:
 - amount: valor numérico (sempre positivo, sem sinal)
 - description: descrição ou nome do pagador/recebedor
 - category: uma das categorias (Alimentação, Transporte, Moradia, Saúde, Educação, Lazer, Vestuário, Serviços, Investimento, Salário, Vendas, Outros)
-- date: data no formato YYYY-MM-DD
+- date: data no formato YYYY-MM-DD (use o ano ${currentYear})
 - type: "income" se é entrada/crédito/recebimento (valores com +), "expense" se é saída/débito/pagamento (valores com -)
 
 Dicas para identificar o tipo:
@@ -95,8 +99,8 @@ Dicas para identificar o tipo:
 Responda APENAS o JSON:
 {
   "transactions": [
-    {"amount": 0.00, "description": "Descrição", "category": "Categoria", "date": "YYYY-MM-DD", "type": "income"},
-    {"amount": 0.00, "description": "Descrição", "category": "Categoria", "date": "YYYY-MM-DD", "type": "expense"}
+    {"amount": 0.00, "description": "Descrição", "category": "Categoria", "date": "${currentYear}-MM-DD", "type": "income"},
+    {"amount": 0.00, "description": "Descrição", "category": "Categoria", "date": "${currentYear}-MM-DD", "type": "expense"}
   ],
   "totalFound": 0,
   "confidence": 0.0,
@@ -128,6 +132,18 @@ Responda APENAS o JSON:
     }
 
     parsed.transactions = parsed.transactions.filter(t => t.amount && t.amount > 0);
+
+    // Correct any dates with wrong year (model hallucination)
+    parsed.transactions = parsed.transactions.map(t => {
+      if (t.date) {
+        const dateYear = parseInt(t.date.substring(0, 4), 10);
+        if (dateYear < currentYear - 1 || dateYear > currentYear + 1) {
+          t.date = `${currentYear}${t.date.substring(4)}`;
+        }
+      }
+      return t;
+    });
+
     parsed.totalFound = parsed.transactions.length;
     
     return parsed;
