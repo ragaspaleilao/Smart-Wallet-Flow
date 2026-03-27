@@ -254,7 +254,15 @@ export default function Transactions() {
         {/* Header */}
         <div className="p-6 pb-2 sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-xl z-10 border-b border-gray-100 dark:border-zinc-800">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Extrato</h1>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Extrato</h1>
+              {filterAccount !== 'all' && (() => {
+                const selectedAcc = accounts.find(a => a.id === filterAccount);
+                return selectedAcc ? (
+                  <p className="text-xs text-primary font-medium -mt-0.5">{selectedAcc.name}</p>
+                ) : null;
+              })()}
+            </div>
             <div className="flex gap-2">
                 <Button 
                     variant="ghost" 

@@ -326,7 +326,11 @@ export default function Accounts() {
            <div className="space-y-3">
             {accounts.map(acc => (
                 <Card key={acc.id} className="p-4 border-gray-100 dark:border-zinc-800 shadow-sm flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                    <div
+                      className="flex items-center gap-4 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => setLocation(`/transactions?accountId=${acc.id}`)}
+                      data-testid={`button-view-account-${acc.id}`}
+                    >
                     <div className={`p-3 rounded-xl text-white ${acc.type === 'investment' ? 'bg-orange-600' : acc.type === 'bank' ? 'bg-purple-600' : acc.type === 'cash' ? 'bg-green-600' : 'bg-blue-600'}`}>
                         {getIcon(acc.type)}
                     </div>
@@ -338,6 +342,7 @@ export default function Accounts() {
                           )}
                         </div>
                         <p className="text-xs text-gray-500 capitalize">{acc.type === 'bank' ? 'Conta Corrente' : acc.type === 'cash' ? 'Dinheiro' : acc.type === 'wallet' ? 'Carteira' : acc.type === 'investment' ? 'Conta de investimento' : 'Outro'}</p>
+                        <p className="text-[10px] text-primary font-medium mt-0.5">Ver extrato →</p>
                     </div>
                     </div>
 
