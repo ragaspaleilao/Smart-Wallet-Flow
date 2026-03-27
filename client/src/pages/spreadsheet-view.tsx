@@ -809,27 +809,27 @@ export default function SpreadsheetView() {
                  </div>
 
                  <div className="flex-1 overflow-auto relative bg-white dark:bg-black">
-                    <Table className="border-separate border-spacing-0 w-full min-w-[1000px] [&_td]:border-b [&_td]:border-gray-100 dark:[&_td]:border-zinc-800">
-                        <TableHeader className="bg-gray-50 dark:bg-zinc-900">
-                            <TableRow className="border-b border-gray-200 dark:border-zinc-800 hover:bg-transparent">
-                                <TableHead className="w-[40px] px-2 text-center sticky top-0 z-10 bg-gray-50 dark:bg-zinc-900 shadow-[0_1px_0_0] shadow-gray-200 dark:shadow-zinc-800">
+                    <table className="w-full caption-bottom text-sm border-separate border-spacing-0 min-w-[1000px]">
+                        <thead className="[&_tr]:border-b bg-gray-50 dark:bg-zinc-900">
+                            <tr className="border-b border-gray-200 dark:border-zinc-800">
+                                <th className="w-[40px] px-2 text-center h-9 align-middle font-medium text-muted-foreground sticky top-0 z-10 bg-gray-50 dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800">
                                     <Checkbox 
                                         checked={selectedRows.length === filteredTransactions.length && filteredTransactions.length > 0}
                                         onCheckedChange={() => toggleAll(filteredTransactions.map(t => t.id))}
                                     />
-                                </TableHead>
+                                </th>
                                 {([
-                                  { field: "date", label: "Data", className: "w-[100px]" },
-                                  { field: "description", label: "Descrição", className: "w-[200px]" },
-                                  { field: "category", label: "Categoria", className: "w-[120px]" },
-                                  { field: "account", label: "Conta", className: "w-[120px]" },
+                                  { field: "date", label: "Data", className: "w-[100px] text-left" },
+                                  { field: "description", label: "Descrição", className: "w-[200px] text-left" },
+                                  { field: "category", label: "Categoria", className: "w-[120px] text-left" },
+                                  { field: "account", label: "Conta", className: "w-[120px] text-left" },
                                   { field: "amount", label: "Valor", className: "w-[100px] text-right" },
                                   { field: "status", label: "Status", className: "w-[100px] text-center" },
-                                  { field: "notes", label: "Observações", className: "w-[150px]" },
+                                  { field: "notes", label: "Observações", className: "w-[150px] text-left" },
                                 ] as { field: string; label: string; className: string }[]).map(col => (
-                                  <TableHead
+                                  <th
                                     key={col.field}
-                                    className={`${col.className} text-xs font-semibold h-9 cursor-pointer select-none group sticky top-0 z-10 bg-gray-50 dark:bg-zinc-900 shadow-[0_1px_0_0] shadow-gray-200 dark:shadow-zinc-800`}
+                                    className={`${col.className} px-2 text-xs font-semibold h-9 align-middle cursor-pointer select-none group sticky top-0 z-10 bg-gray-50 dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800`}
                                     onClick={() => handleSort(col.field)}
                                     data-testid={`sort-${col.field}`}
                                   >
@@ -843,11 +843,11 @@ export default function SpreadsheetView() {
                                         <ArrowUpDown className="w-3 h-3 text-gray-300 group-hover:text-gray-400 transition-colors" />
                                       )}
                                     </span>
-                                  </TableHead>
+                                  </th>
                                 ))}
-                                <TableHead className="w-[40px] h-9 sticky top-0 z-10 bg-gray-50 dark:bg-zinc-900 shadow-[0_1px_0_0] shadow-gray-200 dark:shadow-zinc-800"></TableHead>
-                            </TableRow>
-                        </TableHeader>
+                                <th className="w-[40px] h-9 sticky top-0 z-10 bg-gray-50 dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800"></th>
+                            </tr>
+                        </thead>
                         <TableBody>
                             {filteredTransactions.map((row) => {
                                 const overdue = isOverdue(row.date, row.status);
@@ -972,7 +972,7 @@ export default function SpreadsheetView() {
                                 </TableRow>
                             )})}
                         </TableBody>
-                    </Table>
+                    </table>
                  </div>
                  
                  {/* Footer Totals */}
