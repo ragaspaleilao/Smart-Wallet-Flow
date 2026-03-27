@@ -175,6 +175,7 @@ export default function SpreadsheetView() {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [filterType, setFilterType] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [filterAccount, setFilterAccount] = useState<string>("all");
   
   // Date Filters
   const [startDate, setStartDate] = useState(format(startOfDay(new Date()), 'yyyy-MM-dd'));
@@ -235,9 +236,11 @@ export default function SpreadsheetView() {
       
       const matchesDate = (!start || txDate >= start) && (!end || txDate <= end);
       
-      return matchesContext && matchesSearch && matchesType && matchesDate && matchesStatus;
-    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Sort Ascending for Spreadsheet (oldest to newest usually better for projections, or keep newest first? User asked for projections, usually chronological order is better)
-  }, [transactions, searchTerm, filterType, statusFilter, context, startDate, endDate]);
+      const matchesAccount = filterAccount === "all" || t.accountId === filterAccount;
+
+      return matchesContext && matchesSearch && matchesType && matchesDate && matchesStatus && matchesAccount;
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [transactions, searchTerm, filterType, statusFilter, filterAccount, context, startDate, endDate]);
 
   const filteredAccounts = useMemo(() => {
     return accounts.filter(a => context === "personal" ? a.isPersonal : !a.isPersonal);
@@ -690,6 +693,20 @@ export default function SpreadsheetView() {
                             <SelectItem value="pending">Pendentes</SelectItem>
                             <SelectItem value="paid">Pagos</SelectItem>
                             <SelectItem value="overdue">Vencidos</SelectItem>
+                        </SelectContent>
+                     </Select>
+
+                     <div className="w-px h-4 bg-gray-300 dark:bg-zinc-700 mx-1"></div>
+
+                     <Select value={filterAccount} onValueChange={setFilterAccount}>
+                        <SelectTrigger className="h-7 text-xs w-[140px] border-none bg-transparent shadow-none">
+                            <SelectValue placeholder="Conta" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas as Contas</SelectItem>
+                            {filteredAccounts.map(acc => (
+                                <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                            ))}
                         </SelectContent>
                      </Select>
                      
