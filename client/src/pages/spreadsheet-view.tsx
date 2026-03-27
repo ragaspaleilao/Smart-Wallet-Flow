@@ -218,7 +218,11 @@ export default function SpreadsheetView() {
   // Filtered Data
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
-      const matchesContext = context === "personal" ? t.isPersonal : !t.isPersonal;
+      // Derive context from the linked account's isPersonal flag (more reliable than transaction's own flag)
+      const linkedAccount = rawAccounts.find(a => a.id === t.accountId);
+      const isPersonalTx = linkedAccount ? linkedAccount.isPersonal : (t.isPersonal ?? true);
+      const matchesContext = context === "personal" ? isPersonalTx : !isPersonalTx;
+
       const matchesSearch = 
         t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -240,7 +244,7 @@ export default function SpreadsheetView() {
 
       return matchesContext && matchesSearch && matchesType && matchesDate && matchesStatus && matchesAccount;
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [transactions, searchTerm, filterType, statusFilter, filterAccount, context, startDate, endDate]);
+  }, [transactions, rawAccounts, searchTerm, filterType, statusFilter, filterAccount, context, startDate, endDate]);
 
   const filteredAccounts = useMemo(() => {
     return accounts.filter(a => context === "personal" ? a.isPersonal : !a.isPersonal);
