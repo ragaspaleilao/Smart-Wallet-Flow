@@ -31,7 +31,10 @@ import {
   AlertCircle,
   Calendar as CalendarIcon,
   XCircle,
-  BarChart3
+  BarChart3,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -192,6 +195,19 @@ export default function SpreadsheetView() {
     }
   }, []);
 
+  // Sort State
+  const [sortField, setSortField] = useState<string>("date");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
   // Projection Filters
   const [projectionYear, setProjectionYear] = useState(new Date().getFullYear().toString());
 
@@ -243,8 +259,50 @@ export default function SpreadsheetView() {
       const matchesAccount = filterAccount === "all" || t.accountId === filterAccount;
 
       return matchesContext && matchesSearch && matchesType && matchesDate && matchesStatus && matchesAccount;
-    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [transactions, rawAccounts, searchTerm, filterType, statusFilter, filterAccount, context, startDate, endDate]);
+    }).sort((a, b) => {
+      let valA: any;
+      let valB: any;
+      switch (sortField) {
+        case "date":
+          valA = new Date(a.date).getTime();
+          valB = new Date(b.date).getTime();
+          break;
+        case "description":
+          valA = a.description.toLowerCase();
+          valB = b.description.toLowerCase();
+          break;
+        case "category":
+          valA = a.category.toLowerCase();
+          valB = b.category.toLowerCase();
+          break;
+        case "account": {
+          const accA = rawAccounts.find(ac => ac.id === a.accountId);
+          const accB = rawAccounts.find(ac => ac.id === b.accountId);
+          valA = (accA?.name || "").toLowerCase();
+          valB = (accB?.name || "").toLowerCase();
+          break;
+        }
+        case "amount":
+          valA = a.amount;
+          valB = b.amount;
+          break;
+        case "status":
+          valA = a.status || "paid";
+          valB = b.status || "paid";
+          break;
+        case "notes":
+          valA = (a.notes || "").toLowerCase();
+          valB = (b.notes || "").toLowerCase();
+          break;
+        default:
+          valA = new Date(a.date).getTime();
+          valB = new Date(b.date).getTime();
+      }
+      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [transactions, rawAccounts, searchTerm, filterType, statusFilter, filterAccount, context, startDate, endDate, sortField, sortDirection]);
 
   const filteredAccounts = useMemo(() => {
     return accounts.filter(a => context === "personal" ? a.isPersonal : !a.isPersonal);
@@ -760,13 +818,33 @@ export default function SpreadsheetView() {
                                         onCheckedChange={() => toggleAll(filteredTransactions.map(t => t.id))}
                                     />
                                 </TableHead>
-                                <TableHead className="w-[100px] text-xs font-semibold h-9">Data</TableHead>
-                                <TableHead className="w-[200px] text-xs font-semibold h-9">Descrição</TableHead>
-                                <TableHead className="w-[120px] text-xs font-semibold h-9">Categoria</TableHead>
-                                <TableHead className="w-[120px] text-xs font-semibold h-9">Conta</TableHead>
-                                <TableHead className="w-[100px] text-xs font-semibold h-9 text-right">Valor</TableHead>
-                                <TableHead className="w-[100px] text-xs font-semibold h-9 text-center">Status</TableHead>
-                                <TableHead className="w-[150px] text-xs font-semibold h-9">Observações</TableHead>
+                                {([
+                                  { field: "date", label: "Data", className: "w-[100px]" },
+                                  { field: "description", label: "Descrição", className: "w-[200px]" },
+                                  { field: "category", label: "Categoria", className: "w-[120px]" },
+                                  { field: "account", label: "Conta", className: "w-[120px]" },
+                                  { field: "amount", label: "Valor", className: "w-[100px] text-right" },
+                                  { field: "status", label: "Status", className: "w-[100px] text-center" },
+                                  { field: "notes", label: "Observações", className: "w-[150px]" },
+                                ] as { field: string; label: string; className: string }[]).map(col => (
+                                  <TableHead
+                                    key={col.field}
+                                    className={`${col.className} text-xs font-semibold h-9 cursor-pointer select-none group`}
+                                    onClick={() => handleSort(col.field)}
+                                    data-testid={`sort-${col.field}`}
+                                  >
+                                    <span className="inline-flex items-center gap-1">
+                                      {col.label}
+                                      {sortField === col.field ? (
+                                        sortDirection === "asc"
+                                          ? <ArrowUp className="w-3 h-3 text-blue-500" />
+                                          : <ArrowDown className="w-3 h-3 text-blue-500" />
+                                      ) : (
+                                        <ArrowUpDown className="w-3 h-3 text-gray-300 group-hover:text-gray-400 transition-colors" />
+                                      )}
+                                    </span>
+                                  </TableHead>
+                                ))}
                                 <TableHead className="w-[40px] h-9"></TableHead>
                             </TableRow>
                         </TableHeader>
