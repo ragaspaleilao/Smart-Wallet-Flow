@@ -810,9 +810,9 @@ export default function SpreadsheetView() {
 
                  <div className="flex-1 overflow-auto relative bg-white dark:bg-black">
                     <Table className="border-collapse w-full min-w-[1000px]">
-                        <TableHeader className="bg-gray-50 dark:bg-zinc-900 sticky top-0 z-10 shadow-sm">
+                        <TableHeader className="bg-gray-50 dark:bg-zinc-900">
                             <TableRow className="border-b border-gray-200 dark:border-zinc-800 hover:bg-transparent">
-                                <TableHead className="w-[40px] px-2 text-center">
+                                <TableHead className="w-[40px] px-2 text-center sticky top-0 z-10 bg-gray-50 dark:bg-zinc-900 shadow-[0_1px_0_0] shadow-gray-200 dark:shadow-zinc-800">
                                     <Checkbox 
                                         checked={selectedRows.length === filteredTransactions.length && filteredTransactions.length > 0}
                                         onCheckedChange={() => toggleAll(filteredTransactions.map(t => t.id))}
@@ -829,7 +829,7 @@ export default function SpreadsheetView() {
                                 ] as { field: string; label: string; className: string }[]).map(col => (
                                   <TableHead
                                     key={col.field}
-                                    className={`${col.className} text-xs font-semibold h-9 cursor-pointer select-none group`}
+                                    className={`${col.className} text-xs font-semibold h-9 cursor-pointer select-none group sticky top-0 z-10 bg-gray-50 dark:bg-zinc-900 shadow-[0_1px_0_0] shadow-gray-200 dark:shadow-zinc-800`}
                                     onClick={() => handleSort(col.field)}
                                     data-testid={`sort-${col.field}`}
                                   >
@@ -845,7 +845,7 @@ export default function SpreadsheetView() {
                                     </span>
                                   </TableHead>
                                 ))}
-                                <TableHead className="w-[40px] h-9"></TableHead>
+                                <TableHead className="w-[40px] h-9 sticky top-0 z-10 bg-gray-50 dark:bg-zinc-900 shadow-[0_1px_0_0] shadow-gray-200 dark:shadow-zinc-800"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
