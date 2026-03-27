@@ -809,7 +809,7 @@ export default function SpreadsheetView() {
                  </div>
 
                  <div className="flex-1 overflow-auto relative bg-white dark:bg-black">
-                    <Table className="border-collapse w-full min-w-[1000px]">
+                    <Table className="border-separate border-spacing-0 w-full min-w-[1000px] [&_td]:border-b [&_td]:border-gray-100 dark:[&_td]:border-zinc-800">
                         <TableHeader className="bg-gray-50 dark:bg-zinc-900">
                             <TableRow className="border-b border-gray-200 dark:border-zinc-800 hover:bg-transparent">
                                 <TableHead className="w-[40px] px-2 text-center sticky top-0 z-10 bg-gray-50 dark:bg-zinc-900 shadow-[0_1px_0_0] shadow-gray-200 dark:shadow-zinc-800">
