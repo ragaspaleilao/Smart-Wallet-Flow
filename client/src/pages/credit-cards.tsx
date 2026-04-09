@@ -1233,7 +1233,7 @@ export default function CreditCards() {
   const invoiceItemsForBaseDate = useMemo(() => {
     if (!selectedCardId) return [];
     return getInvoiceItems(selectedCardId, baseInvoiceDate);
-  }, [selectedCardId, baseInvoiceDate]);
+  }, [selectedCardId, baseInvoiceDate, creditPurchases, creditCards]);
 
   const invoiceTotalForBaseDate = invoiceItemsForBaseDate.reduce((acc, item) => acc + item.value, 0);
   const openInvoiceTotalForBaseDate = Math.max(0, Math.round((invoiceTotalForBaseDate - invoicePaymentsTotalForDate) * 100) / 100);
@@ -1245,7 +1245,7 @@ export default function CreditCards() {
   const invoiceItems = useMemo(() => {
     if (!selectedCardId) return [];
     return getInvoiceItems(selectedCardId, currentInvoiceDate);
-  }, [selectedCardId, currentInvoiceDate]);
+  }, [selectedCardId, currentInvoiceDate, creditPurchases, creditCards]);
 
   const invoiceTotal = invoiceItems.reduce((acc, item) => acc + item.value, 0);
 
@@ -1283,7 +1283,7 @@ export default function CreditCards() {
       }
 
       return invoices;
-  }, [selectedCard, currentInvoiceDate]);
+  }, [selectedCard, currentInvoiceDate, creditPurchases, creditCards]);
 
 
   const [projectionRange, setProjectionRange] = useState<'currentYear' | 'next12Months'>('currentYear');

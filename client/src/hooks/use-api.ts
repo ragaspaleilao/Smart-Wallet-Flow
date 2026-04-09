@@ -183,7 +183,10 @@ export function useCreateCreditPurchase() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateCreditPurchaseInput) => creditPurchasesApi.create(data),
-    onSuccess: () => {
+    onSuccess: (newPurchase) => {
+      queryClient.setQueryData(['creditPurchases', undefined], (old: any[]) =>
+        old ? [...old, newPurchase] : [newPurchase]
+      );
       queryClient.invalidateQueries({ queryKey: ['creditPurchases'] });
       queryClient.invalidateQueries({ queryKey: ['creditCards'] });
     },
@@ -195,6 +198,19 @@ export function useUpdateCreditPurchase() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreditPurchase> }) => 
       creditPurchasesApi.update(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ['creditPurchases'] });
+      const previous = queryClient.getQueryData(['creditPurchases', undefined]);
+      queryClient.setQueryData(['creditPurchases', undefined], (old: any[]) =>
+        old ? old.map(p => p.id === id ? { ...p, ...data } : p) : old
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context: any) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['creditPurchases', undefined], context.previous);
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['creditPurchases'] });
     },
@@ -205,6 +221,19 @@ export function useDeleteCreditPurchase() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => creditPurchasesApi.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['creditPurchases'] });
+      const previous = queryClient.getQueryData(['creditPurchases', undefined]);
+      queryClient.setQueryData(['creditPurchases', undefined], (old: any[]) =>
+        old ? old.filter(p => p.id !== id) : old
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context: any) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['creditPurchases', undefined], context.previous);
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['creditPurchases'] });
     },
