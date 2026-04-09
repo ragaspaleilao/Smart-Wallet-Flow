@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Label } from "@/components/ui/label";
 import { MoreVertical, Trash2, Edit, Save } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useAccounts, useTransactions as useApiTransactions } from "@/hooks/use-api";
+import { useAccounts, useTransactions as useApiTransactions, useDeleteTransaction } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function Transactions() {
@@ -457,6 +457,7 @@ export default function Transactions() {
 function GroupedTransactionItem({ group }: { group: { isGroup: true, items: any[], key: string } }) {
     const [isOpen, setIsOpen] = useState(false);
     const { removeTransaction, updateTransaction } = useFinancialStore();
+    const deleteMutation = useDeleteTransaction();
     
     // Edit Dialog State
     const [showEditDialog, setShowEditDialog] = useState(false);
@@ -487,6 +488,22 @@ function GroupedTransactionItem({ group }: { group: { isGroup: true, items: any[
             toast({
                 title: "Grupo excluído",
                 description: `${totalCount} lançamentos foram removidos.`
+            });
+        }
+    };
+
+    const handleDeleteInstallment = (tx: any) => {
+        const matchDesc = tx.description.match(/^(.*) \((\d+)\/(\d+)\)$/);
+        const label = matchDesc ? `Parcela ${matchDesc[2]}/${matchDesc[3]}` : tx.description;
+        if (confirm(`Excluir apenas a "${label}" de "${baseDesc}"?`)) {
+            deleteMutation.mutate(tx.id, {
+                onSuccess: () => {
+                    removeTransaction(tx.id);
+                    toast({ title: "Parcela removida", description: `${label} foi excluída.` });
+                },
+                onError: () => {
+                    toast({ title: "Erro ao remover parcela", variant: "destructive" });
+                }
             });
         }
     };
@@ -606,8 +623,27 @@ function GroupedTransactionItem({ group }: { group: { isGroup: true, items: any[
                 <CollapsibleContent>
                     <div className="bg-gray-50 dark:bg-zinc-950/50 border-t border-gray-100 dark:border-zinc-800 pl-4">
                         {group.items.map((tx, idx) => (
-                            <div key={tx.id} className={`pr-3 ${idx !== group.items.length - 1 ? 'border-b border-gray-100 dark:border-zinc-800' : ''}`}>
-                                <TransactionItem tx={tx} isChild={true} />
+                            <div key={tx.id} className={`flex items-center ${idx !== group.items.length - 1 ? 'border-b border-gray-100 dark:border-zinc-800' : ''}`}>
+                                <div className="flex-1 pr-1">
+                                    <TransactionItem tx={tx} isChild={true} />
+                                </div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-300 hover:text-gray-600 dark:hover:text-gray-300 shrink-0 mr-1" data-testid={`btn-installment-menu-${tx.id}`}>
+                                            <MoreVertical className="w-3.5 h-3.5" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem
+                                            onClick={() => handleDeleteInstallment(tx)}
+                                            className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
+                                            data-testid={`btn-delete-installment-${tx.id}`}
+                                        >
+                                            <Trash2 className="w-4 h-4 mr-2" />
+                                            Excluir apenas esta parcela
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         ))}
                     </div>
