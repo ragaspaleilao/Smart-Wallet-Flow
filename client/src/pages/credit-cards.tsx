@@ -2647,18 +2647,18 @@ export default function CreditCards() {
                                                                         {item.purchase.description}
                                                                     </div>
                                                                     <div className="text-xs text-gray-500 mt-1" data-testid={`text-credit-delete-subtitle-${item.purchase.id}-${idx}`}>
-                                                                        {item.purchase.installments > 1 ? `Parcelado em ${item.purchase.installments}x • Remover parcela afeta as futuras no mockup.` : 'À vista'}
+                                                                        {item.purchase.installments > 1 ? `Parcelado em ${item.purchase.installments}x • Remover 1 parcela reduz o total restante.` : 'À vista'}
                                                                     </div>
                                                                 </div>
                                                                 <AlertDialogFooter>
                                                                     <AlertDialogCancel data-testid={`button-credit-delete-cancel-${item.purchase.id}-${idx}`}>Cancelar</AlertDialogCancel>
-                                                                    <Button
-                                                                        variant="outline"
+                                                                    <AlertDialogAction
+                                                                        className="border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground shadow-none"
                                                                         onClick={() => handleDeleteInstallmentOnly(item.purchase.id)}
                                                                         data-testid={`button-credit-delete-one-${item.purchase.id}-${idx}`}
                                                                     >
                                                                         Excluir só esta parcela
-                                                                    </Button>
+                                                                    </AlertDialogAction>
                                                                     <AlertDialogAction
                                                                         className="bg-red-600 hover:bg-red-700"
                                                                         onClick={() => handleDeleteEntirePurchase(item.purchase.id)}
