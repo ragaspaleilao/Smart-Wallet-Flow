@@ -232,11 +232,10 @@ export default function Analytics() {
         const card = creditCards.find((c) => c.id === purchase.creditCardId);
         if (!card) return;
 
-        // Normalize YYYY-MM-DD to local midday to avoid timezone shifting.
+        // Normalize to local midday to avoid timezone shifting (slice to date-only first).
         const purchaseDate = (() => {
-          const raw = String(purchase.purchaseDate || '');
-          if (raw.length === 10) return new Date(`${raw}T12:00:00`);
-          return new Date(raw);
+          const raw = String(purchase.purchaseDate || '').slice(0, 10);
+          return new Date(`${raw}T12:00:00`);
         })();
 
         let competencyMonth = getInvoiceCompetencyMonth(purchaseDate, card.closingDay);
@@ -415,9 +414,8 @@ export default function Analytics() {
                 if (isInvoiceMonthPaidOrPast(card.id, competenceMonth)) return;
 
                 const pDate = (() => {
-                  const raw = String(purchase.purchaseDate || '');
-                  if (raw.length === 10) return new Date(`${raw}T12:00:00`);
-                  return new Date(raw);
+                  const raw = String(purchase.purchaseDate || '').slice(0, 10);
+                  return new Date(`${raw}T12:00:00`);
                 })();
 
                 const getInvoiceDate = (date: Date) => {
