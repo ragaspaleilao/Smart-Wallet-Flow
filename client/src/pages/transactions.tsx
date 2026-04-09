@@ -484,7 +484,11 @@ function GroupedTransactionItem({ group }: { group: { isGroup: true, items: any[
 
     const handleDeleteGroup = () => {
         if (confirm(`Tem certeza que deseja excluir todas as ${totalCount} parcelas de "${baseDesc}"?`)) {
-            group.items.forEach(item => removeTransaction(item.id));
+            group.items.forEach(item => {
+                deleteMutation.mutate(item.id, {
+                    onSuccess: () => removeTransaction(item.id),
+                });
+            });
             toast({
                 title: "Grupo excluído",
                 description: `${totalCount} lançamentos foram removidos.`
