@@ -150,6 +150,23 @@ export const transactionsApi = {
   }),
 };
 
+// ===== TRANSFERS =====
+
+export interface CreateTransferInput {
+  fromAccountId: string;
+  toAccountId: string;
+  amount: string;
+  description?: string;
+  date: string;
+}
+
+export const transfersApi = {
+  create: (data: CreateTransferInput) => apiRequest<{ outgoing: Transaction; incoming: Transaction }>('/transfers', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+};
+
 // ===== CREDIT CARDS =====
 
 export interface CreditCard {

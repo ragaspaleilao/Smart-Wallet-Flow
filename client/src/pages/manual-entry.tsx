@@ -3,7 +3,7 @@ import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, CreditCard as CreditCardIcon, Wallet } from "lucide-react";
+import { ArrowLeft, CreditCard as CreditCardIcon, Wallet, ArrowLeftRight } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { useState, useEffect, useMemo } from "react";
@@ -11,7 +11,7 @@ import { useFinancialStore, Category } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import * as Popover from "@radix-ui/react-popover";
-import { useAccountsWithBalance, useCreditCards, useCreateTransaction, useCreateCreditPurchase } from "@/hooks/use-api";
+import { useAccountsWithBalance, useCreditCards, useCreateTransaction, useCreateCreditPurchase, useCreateTransfer } from "@/hooks/use-api";
 
 export default function ManualEntry() {
   const [_, setLocation] = useLocation();
@@ -22,9 +22,10 @@ export default function ManualEntry() {
   const { data: creditCards = [] } = useCreditCards();
   const createTransactionMutation = useCreateTransaction();
   const createCreditPurchaseMutation = useCreateCreditPurchase();
+  const createTransferMutation = useCreateTransfer();
   
   const [type, setType] = useState<"expense" | "income">("expense");
-  const [paymentMethod, setPaymentMethod] = useState<"debit" | "credit">("debit");
+  const [paymentMethod, setPaymentMethod] = useState<"debit" | "credit" | "transfer">("debit");
   
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -54,6 +55,7 @@ export default function ManualEntry() {
   // Account / Card Selection
   const [accountId, setAccountId] = useState<string>("");
   const [cardId, setCardId] = useState<string>("");
+  const [toAccountId, setToAccountId] = useState<string>("");
 
   useEffect(() => {
     if (accounts.length > 0 && !accountId) setAccountId(accounts[0].id);
@@ -113,6 +115,43 @@ export default function ManualEntry() {
         title: "Descrição obrigatória",
         description: "Por favor, informe uma descrição.",
         variant: "destructive",
+      });
+      return;
+    }
+
+    // TRANSFER LOGIC
+    if (paymentMethod === 'transfer') {
+      if (!accountId) {
+        toast({ title: "Conta de origem obrigatória", description: "Selecione a conta de onde o dinheiro sairá.", variant: "destructive" });
+        return;
+      }
+      if (!toAccountId) {
+        toast({ title: "Conta de destino obrigatória", description: "Selecione a conta para onde o dinheiro irá.", variant: "destructive" });
+        return;
+      }
+      if (accountId === toAccountId) {
+        toast({ title: "Contas iguais", description: "A conta de origem e destino devem ser diferentes.", variant: "destructive" });
+        return;
+      }
+      createTransferMutation.mutate({
+        fromAccountId: accountId,
+        toAccountId,
+        amount: String(numericAmount),
+        description: description || 'Transferência',
+        date,
+      }, {
+        onSuccess: () => {
+          const fromAcc = accounts.find(a => a.id === accountId);
+          const toAcc = accounts.find(a => a.id === toAccountId);
+          toast({
+            title: "Transferência realizada!",
+            description: `R$ ${numericAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} de ${fromAcc?.name} para ${toAcc?.name}.`,
+          });
+          setLocation("/dashboard");
+        },
+        onError: (error: any) => {
+          toast({ title: "Erro na transferência", description: error?.message || "Não foi possível realizar a transferência.", variant: "destructive" });
+        },
       });
       return;
     }
@@ -316,11 +355,11 @@ export default function ManualEntry() {
           <div className="w-10" />
         </div>
 
-        {/* Payment Method Switcher (Debit vs Credit) */}
-        <div className="grid grid-cols-2 gap-2 mb-6 p-1 bg-gray-100 dark:bg-zinc-900 rounded-xl">
+        {/* Payment Method Switcher (Debit vs Credit vs Transfer) */}
+        <div className="grid grid-cols-3 gap-1 mb-6 p-1 bg-gray-100 dark:bg-zinc-900 rounded-xl">
             <button
                 onClick={() => setPaymentMethod('debit')}
-                className={`flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 py-3 rounded-lg text-xs font-medium transition-all ${
                     paymentMethod === 'debit' 
                     ? 'bg-white dark:bg-zinc-800 shadow-sm text-primary' 
                     : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
@@ -332,9 +371,9 @@ export default function ManualEntry() {
             <button
                 onClick={() => {
                     setPaymentMethod('credit');
-                    setType('expense'); // Force expense for credit
+                    setType('expense');
                 }}
-                className={`flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 py-3 rounded-lg text-xs font-medium transition-all ${
                     paymentMethod === 'credit' 
                     ? 'bg-white dark:bg-zinc-800 shadow-sm text-purple-600' 
                     : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
@@ -342,6 +381,17 @@ export default function ManualEntry() {
             >
                 <CreditCardIcon className="w-4 h-4" />
                 Crédito
+            </button>
+            <button
+                onClick={() => setPaymentMethod('transfer')}
+                className={`flex items-center justify-center gap-1.5 py-3 rounded-lg text-xs font-medium transition-all ${
+                    paymentMethod === 'transfer' 
+                    ? 'bg-white dark:bg-zinc-800 shadow-sm text-blue-600' 
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+            >
+                <ArrowLeftRight className="w-4 h-4" />
+                Transferência
             </button>
         </div>
 
@@ -409,45 +459,83 @@ export default function ManualEntry() {
           </div>
           
           {/* Account OR Credit Card Selection */}
-          <div className="space-y-2">
-            <Label>{paymentMethod === 'credit' ? 'Cartão de Crédito' : 'Conta / Carteira'}</Label>
-            
-            {paymentMethod === 'credit' ? (
-                 <Select value={cardId} onValueChange={setCardId}>
-                    <SelectTrigger className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
-                        <SelectValue placeholder="Selecione o cartão" />
-                    </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={4} className="z-50">
-                        {creditCards.length > 0 ? (
-                            creditCards.map(card => (
-                                <SelectItem key={card.id} value={card.id}>
-                                    {card.name} (Dia {card.closingDay})
-                                </SelectItem>
-                            ))
-                        ) : (
-                            <SelectItem value="none" disabled>Nenhum cartão cadastrado</SelectItem>
-                        )}
-                    </SelectContent>
-                </Select>
-            ) : (
+          {paymentMethod === 'transfer' ? (
+            <>
+              <div className="space-y-2">
+                <Label>Conta de Origem (de onde sai)</Label>
                 <Select value={accountId} onValueChange={setAccountId}>
-                    <SelectTrigger className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
-                        <SelectValue placeholder="Selecione a conta" />
-                    </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={4} className="z-50">
-                        {accounts.length > 0 ? (
-                            accounts.map(acc => (
-                                <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {Number(acc.balance).toLocaleString('pt-BR')})</SelectItem>
-                            ))
-                        ) : (
-                            <SelectItem value="none" disabled>Nenhuma conta cadastrada</SelectItem>
-                        )}
-                    </SelectContent>
+                  <SelectTrigger className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800" data-testid="select-transfer-from">
+                    <SelectValue placeholder="Selecione a conta de origem" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4} className="z-50">
+                    {accounts.length > 0 ? (
+                      accounts.map(acc => (
+                        <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {Number(acc.balance).toLocaleString('pt-BR')})</SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>Nenhuma conta cadastrada</SelectItem>
+                    )}
+                  </SelectContent>
                 </Select>
-            )}
-          </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Conta de Destino (para onde vai)</Label>
+                <Select value={toAccountId} onValueChange={setToAccountId}>
+                  <SelectTrigger className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800" data-testid="select-transfer-to">
+                    <SelectValue placeholder="Selecione a conta de destino" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4} className="z-50">
+                    {accounts.length > 0 ? (
+                      accounts.filter(acc => acc.id !== accountId).map(acc => (
+                        <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {Number(acc.balance).toLocaleString('pt-BR')})</SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>Nenhuma conta cadastrada</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <Label>{paymentMethod === 'credit' ? 'Cartão de Crédito' : 'Conta / Carteira'}</Label>
+              {paymentMethod === 'credit' ? (
+                  <Select value={cardId} onValueChange={setCardId}>
+                      <SelectTrigger className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
+                          <SelectValue placeholder="Selecione o cartão" />
+                      </SelectTrigger>
+                      <SelectContent position="popper" sideOffset={4} className="z-50">
+                          {creditCards.length > 0 ? (
+                              creditCards.map(card => (
+                                  <SelectItem key={card.id} value={card.id}>
+                                      {card.name} (Dia {card.closingDay})
+                                  </SelectItem>
+                              ))
+                          ) : (
+                              <SelectItem value="none" disabled>Nenhum cartão cadastrado</SelectItem>
+                          )}
+                      </SelectContent>
+                  </Select>
+              ) : (
+                  <Select value={accountId} onValueChange={setAccountId}>
+                      <SelectTrigger className="h-12 bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
+                          <SelectValue placeholder="Selecione a conta" />
+                      </SelectTrigger>
+                      <SelectContent position="popper" sideOffset={4} className="z-50">
+                          {accounts.length > 0 ? (
+                              accounts.map(acc => (
+                                  <SelectItem key={acc.id} value={acc.id}>{acc.name} (R$ {Number(acc.balance).toLocaleString('pt-BR')})</SelectItem>
+                              ))
+                          ) : (
+                              <SelectItem value="none" disabled>Nenhuma conta cadastrada</SelectItem>
+                          )}
+                      </SelectContent>
+                  </Select>
+              )}
+            </div>
+          )}
 
-          <div className="space-y-2">
+          {paymentMethod !== 'transfer' && <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
               <Label>Categoria</Label>
 
@@ -595,7 +683,7 @@ export default function ManualEntry() {
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
 
           <div className="space-y-2">
             <Label>Data</Label>
@@ -628,7 +716,7 @@ export default function ManualEntry() {
           </div>
 
           {/* Recurrence / Projection Section */}
-          <div className="pt-4 border-t border-gray-100 dark:border-zinc-800">
+          {paymentMethod !== 'transfer' && <div className="pt-4 border-t border-gray-100 dark:border-zinc-800">
             <div className="flex items-center justify-between mb-4">
                 <Label className="text-base font-medium">Repetição / Parcelamento</Label>
                 <Switch 
@@ -750,7 +838,7 @@ export default function ManualEntry() {
                     </Tabs>
                 </div>
             )}
-          </div>
+          </div>}
         </div>
 
         {/* Submit */}

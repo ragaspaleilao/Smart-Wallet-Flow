@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   accountsApi,
   transactionsApi,
+  transfersApi,
   creditCardsApi,
   creditPurchasesApi,
   creditPaymentsApi,
@@ -19,6 +20,7 @@ import {
   type CreateAccountInput,
   type Transaction,
   type CreateTransactionInput,
+  type CreateTransferInput,
   type CreditCard,
   type CreateCreditCardInput,
   type CreditPurchase,
@@ -121,6 +123,17 @@ export function useDeleteTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => transactionsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    },
+  });
+}
+
+export function useCreateTransfer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateTransferInput) => transfersApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });

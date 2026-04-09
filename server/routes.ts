@@ -218,6 +218,61 @@ export async function registerRoutes(
     }
   });
 
+  // ===== TRANSFER ROUTE =====
+
+  app.post('/api/transfers', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { fromAccountId, toAccountId, amount, description, date } = req.body;
+
+      if (!fromAccountId || !toAccountId || !amount || !date) {
+        return res.status(400).json({ error: 'fromAccountId, toAccountId, amount e date são obrigatórios' });
+      }
+
+      if (fromAccountId === toAccountId) {
+        return res.status(400).json({ error: 'As contas de origem e destino devem ser diferentes' });
+      }
+
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ error: 'Data inválida' });
+      }
+
+      const desc = description || 'Transferência';
+
+      const [outgoing, incoming] = await Promise.all([
+        storage.createTransaction(req.userId!, {
+          accountId: fromAccountId,
+          amount: String(amount),
+          type: 'expense',
+          category: 'Transferência',
+          description: `Transferência → ${desc}`,
+          date: parsedDate,
+          source: 'manual',
+          isPersonal: true,
+          status: 'paid',
+          paymentMethod: 'transfer',
+        }),
+        storage.createTransaction(req.userId!, {
+          accountId: toAccountId,
+          amount: String(amount),
+          type: 'income',
+          category: 'Transferência',
+          description: `Transferência ← ${desc}`,
+          date: parsedDate,
+          source: 'manual',
+          isPersonal: true,
+          status: 'paid',
+          paymentMethod: 'transfer',
+        }),
+      ]);
+
+      res.status(201).json({ outgoing, incoming });
+    } catch (error: any) {
+      console.error('Transfer error:', error);
+      res.status(400).json({ error: 'Falha ao realizar transferência', details: error.message });
+    }
+  });
+
   // ===== CREDIT CARD ROUTES =====
   
   app.get('/api/credit-cards', authMiddleware, async (req: AuthRequest, res) => {
