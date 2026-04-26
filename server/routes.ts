@@ -63,6 +63,11 @@ import {
   insertBusinessProductSchema,
   insertCategorySchema,
   insertBudgetSchema,
+  insertBackupSchema,
+  insertReferralSchema,
+  updateReferralSchema,
+  insertCalendarSettingsSchema,
+  updateCreditPaymentSchema,
 } from "@shared/schema";
 
 interface AuthRequest extends Request {
@@ -411,9 +416,19 @@ export async function registerRoutes(
   app.post('/api/credit-payments', authMiddleware, async (req: AuthRequest, res) => {
     try {
       const data = insertCreditPaymentSchema.parse(req.body);
+
+      // Security: ensure the credit card and account belong to this user
+      const card = await storage.getCreditCard(data.creditCardId, req.userId!);
+      if (!card) {
+        return res.status(400).json({ error: 'Cartão não pertence ao usuário' });
+      }
+      const account = await storage.getAccount(data.accountId, req.userId!);
+      if (!account) {
+        return res.status(400).json({ error: 'Conta não pertence ao usuário' });
+      }
+
       const payment = await storage.createCreditPayment(req.userId!, data);
 
-      const card = await storage.getCreditCard(data.creditCardId, req.userId!);
       const cardName = card?.name || 'Cartão';
       const paymentAmount = parseFloat(String(data.amount));
       if (paymentAmount > 0 && data.accountId) {
@@ -422,7 +437,7 @@ export async function registerRoutes(
           amount: String(paymentAmount),
           type: 'expense',
           category: 'Cartão de Crédito',
-          description: `Pagamento fatura ${cardName}`,
+          description: `Pagamento fatura ${cardName} #${payment.id.slice(0, 8)}`,
           date: data.paymentDate,
           source: 'manual',
           isPersonal: true,
@@ -433,8 +448,84 @@ export async function registerRoutes(
       }
 
       res.status(201).json(payment);
-    } catch (error) {
-      res.status(400).json({ error: 'Invalid credit payment data' });
+    } catch (error: any) {
+      console.error('Create credit payment error:', error);
+      res.status(400).json({ error: 'Invalid credit payment data', details: error?.message });
+    }
+  });
+
+  app.patch('/api/credit-payments/:id', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const id = String(req.params.id);
+      const data = updateCreditPaymentSchema.parse(req.body);
+
+      const existing = await storage.getCreditPayment(id, req.userId!);
+      if (!existing) {
+        return res.status(404).json({ error: 'Credit payment not found' });
+      }
+
+      // If accountId changes, validate ownership
+      if (data.accountId && data.accountId !== existing.accountId) {
+        const acc = await storage.getAccount(data.accountId, req.userId!);
+        if (!acc) {
+          return res.status(400).json({ error: 'Conta não pertence ao usuário' });
+        }
+      }
+
+      const updated = await storage.updateCreditPayment(id, req.userId!, data as any);
+      if (!updated) {
+        return res.status(404).json({ error: 'Credit payment not found' });
+      }
+
+      // Sync the linked transaction (look up by description tag we set on create)
+      const card = await storage.getCreditCard(existing.creditCardId, req.userId!);
+      const cardName = card?.name || 'Cartão';
+      const tag = `Pagamento fatura ${cardName} #${existing.id.slice(0, 8)}`;
+      const userTransactions = await storage.getTransactions(req.userId!);
+      const linked = userTransactions.find(t => t.description === tag);
+      if (linked) {
+        const txUpdates: Record<string, any> = {};
+        if (data.amount !== undefined) txUpdates.amount = String(data.amount);
+        if (data.paymentDate !== undefined) txUpdates.date = data.paymentDate;
+        if (data.accountId !== undefined) txUpdates.accountId = data.accountId;
+        if (Object.keys(txUpdates).length > 0) {
+          await storage.updateTransaction(linked.id, req.userId!, txUpdates);
+        }
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error('Update credit payment error:', error);
+      res.status(400).json({ error: 'Failed to update credit payment', details: error?.message });
+    }
+  });
+
+  app.delete('/api/credit-payments/:id', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const id = String(req.params.id);
+      const existing = await storage.getCreditPayment(id, req.userId!);
+      if (!existing) {
+        return res.status(404).json({ error: 'Credit payment not found' });
+      }
+
+      // Remove the linked transaction if it exists
+      const card = await storage.getCreditCard(existing.creditCardId, req.userId!);
+      const cardName = card?.name || 'Cartão';
+      const tag = `Pagamento fatura ${cardName} #${existing.id.slice(0, 8)}`;
+      const userTransactions = await storage.getTransactions(req.userId!);
+      const linked = userTransactions.find(t => t.description === tag);
+      if (linked) {
+        await storage.deleteTransaction(linked.id, req.userId!);
+      }
+
+      const deleted = await storage.deleteCreditPayment(id, req.userId!);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Credit payment not found' });
+      }
+      res.status(204).send();
+    } catch (error: any) {
+      console.error('Delete credit payment error:', error);
+      res.status(400).json({ error: 'Failed to delete credit payment' });
     }
   });
 
@@ -1004,6 +1095,120 @@ export async function registerRoutes(
     } catch (error) {
       console.error('Sync credit cards error:', error);
       res.status(500).json({ error: 'Failed to sync credit cards' });
+    }
+  });
+
+  // ===== BACKUPS =====
+
+  app.get('/api/backups', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const backups = await storage.getBackups(req.userId!);
+      res.json(backups);
+    } catch (error) {
+      console.error('Get backups error:', error);
+      res.status(500).json({ error: 'Failed to fetch backups' });
+    }
+  });
+
+  app.post('/api/backups', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const data = insertBackupSchema.parse(req.body);
+      const backup = await storage.createBackup(req.userId!, {
+        size: data.size,
+        device: data.device,
+        auto: data.auto ?? false,
+        date: data.date ? new Date(data.date as any) : undefined,
+      });
+      res.status(201).json(backup);
+    } catch (error: any) {
+      console.error('Create backup error:', error);
+      res.status(400).json({ error: 'Invalid backup data', details: error?.message });
+    }
+  });
+
+  app.delete('/api/backups/:id', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const ok = await storage.deleteBackup(String(req.params.id), req.userId!);
+      if (!ok) return res.status(404).json({ error: 'Backup not found' });
+      res.status(204).send();
+    } catch (error) {
+      console.error('Delete backup error:', error);
+      res.status(400).json({ error: 'Failed to delete backup' });
+    }
+  });
+
+  // ===== REFERRALS =====
+
+  app.get('/api/referrals', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const referrals = await storage.getReferrals(req.userId!);
+      res.json(referrals);
+    } catch (error) {
+      console.error('Get referrals error:', error);
+      res.status(500).json({ error: 'Failed to fetch referrals' });
+    }
+  });
+
+  app.post('/api/referrals', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const data = insertReferralSchema.parse(req.body);
+      const referral = await storage.createReferral(req.userId!, {
+        name: data.name,
+        status: (data.status as 'pending' | 'confirmed') ?? 'pending',
+      });
+      res.status(201).json(referral);
+    } catch (error: any) {
+      console.error('Create referral error:', error);
+      res.status(400).json({ error: 'Invalid referral data', details: error?.message });
+    }
+  });
+
+  app.patch('/api/referrals/:id', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const data = updateReferralSchema.parse(req.body);
+      const updated = await storage.updateReferral(String(req.params.id), req.userId!, {
+        name: data.name,
+        status: data.status as 'pending' | 'confirmed' | undefined,
+      });
+      if (!updated) return res.status(404).json({ error: 'Referral not found' });
+      res.json(updated);
+    } catch (error: any) {
+      console.error('Update referral error:', error);
+      res.status(400).json({ error: 'Failed to update referral', details: error?.message });
+    }
+  });
+
+  app.delete('/api/referrals/:id', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const ok = await storage.deleteReferral(String(req.params.id), req.userId!);
+      if (!ok) return res.status(404).json({ error: 'Referral not found' });
+      res.status(204).send();
+    } catch (error) {
+      console.error('Delete referral error:', error);
+      res.status(400).json({ error: 'Failed to delete referral' });
+    }
+  });
+
+  // ===== CALENDAR SETTINGS =====
+
+  app.get('/api/calendar-settings', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const settings = await storage.getCalendarSettings(req.userId!);
+      res.json(settings ?? null);
+    } catch (error) {
+      console.error('Get calendar settings error:', error);
+      res.status(500).json({ error: 'Failed to fetch calendar settings' });
+    }
+  });
+
+  app.put('/api/calendar-settings', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const data = insertCalendarSettingsSchema.parse(req.body);
+      const settings = await storage.upsertCalendarSettings(req.userId!, data as any);
+      res.json(settings);
+    } catch (error: any) {
+      console.error('Upsert calendar settings error:', error);
+      res.status(400).json({ error: 'Invalid calendar settings', details: error?.message });
     }
   });
 

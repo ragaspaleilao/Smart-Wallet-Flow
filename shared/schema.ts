@@ -411,6 +411,53 @@ export const insertBudgetSchema = createInsertSchema(budgets).omit({
   updatedAt: true,
 });
 
+export const insertBackupSchema = createInsertSchema(backups).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+}).extend({
+  date: z.union([z.date(), z.string().transform((str) => new Date(str))]).optional(),
+  size: z.string().min(1).max(50),
+  device: z.string().min(1).max(120),
+  auto: z.boolean().optional(),
+});
+
+export const insertReferralSchema = createInsertSchema(referrals).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  date: true,
+}).extend({
+  name: z.string().min(1).max(120),
+  status: z.enum(['pending', 'confirmed']).optional(),
+});
+
+export const updateReferralSchema = z.object({
+  status: z.enum(['pending', 'confirmed']).optional(),
+  name: z.string().min(1).max(120).optional(),
+});
+
+export const insertCalendarSettingsSchema = createInsertSchema(calendarSettings).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  isEnabled: z.boolean().optional(),
+  isConnected: z.boolean().optional(),
+  syncCategories: z.array(z.string()).optional(),
+  reminderDaysBefore: z.number().int().min(0).max(30).optional(),
+});
+
+export const updateCreditPaymentSchema = z.object({
+  amount: z.union([z.string(), z.number()]).transform((v) => String(v)).optional(),
+  paymentDate: z.union([z.date(), z.string().transform((str) => new Date(str))]).optional(),
+  accountId: z.string().min(1).optional(),
+  type: z.enum(['total', 'partial']).optional(),
+  month: z.number().int().min(0).max(11).optional(),
+  year: z.number().int().min(2000).max(2100).optional(),
+});
+
 // ===== TYPE EXPORTS =====
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

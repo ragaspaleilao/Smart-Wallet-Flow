@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getUserId } from "@/lib/api";
+import { useCalendarSettings, useUpdateCalendarSettings } from "@/hooks/use-api";
 
 const categories = [
   'Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Educação', 
@@ -21,6 +22,27 @@ export default function CalendarIntegration() {
   const [selectedCalendarId, setSelectedCalendarId] = useState<string>('primary');
   const [syncCreditCards, setSyncCreditCards] = useState(true);
   const [syncTransactions, setSyncTransactions] = useState(true);
+
+  const { data: savedSettings } = useCalendarSettings();
+  const updateSettings = useUpdateCalendarSettings();
+
+  // Load persisted settings once
+  useEffect(() => {
+    if (savedSettings) {
+      if (Array.isArray(savedSettings.syncCategories)) {
+        setSelectedCategories(savedSettings.syncCategories);
+      }
+    }
+  }, [savedSettings?.id]);
+
+  const persistSettings = (overrides?: { isEnabled?: boolean; isConnected?: boolean; syncCategories?: string[]; reminderDaysBefore?: number }) => {
+    updateSettings.mutate({
+      isEnabled: overrides?.isEnabled ?? syncTransactions,
+      isConnected: overrides?.isConnected ?? false,
+      syncCategories: overrides?.syncCategories ?? selectedCategories,
+      reminderDaysBefore: overrides?.reminderDaysBefore ?? savedSettings?.reminderDaysBefore ?? 1,
+    });
+  };
 
   const { data: status, isLoading: statusLoading, refetch: refetchStatus } = useQuery({
     queryKey: ['calendar-status'],
@@ -115,11 +137,16 @@ export default function CalendarIntegration() {
   };
 
   const toggleCategory = (category: string) => {
-    if (selectedCategories.includes(category)) {
-      setSelectedCategories(prev => prev.filter(c => c !== category));
-    } else {
-      setSelectedCategories(prev => [...prev, category]);
-    }
+    const next = selectedCategories.includes(category)
+      ? selectedCategories.filter(c => c !== category)
+      : [...selectedCategories, category];
+    setSelectedCategories(next);
+    persistSettings({ syncCategories: next, isConnected: !!status?.isConnected });
+  };
+
+  const handleToggleTransactions = (v: boolean) => {
+    setSyncTransactions(v);
+    persistSettings({ isEnabled: v, isConnected: !!status?.isConnected });
   };
 
   const isSyncing = syncTransactionsMutation.isPending || syncCreditCardsMutation.isPending;
@@ -229,7 +256,7 @@ export default function CalendarIntegration() {
                       <p className="text-xs text-gray-500">Despesas e receitas programadas</p>
                     </div>
                   </div>
-                  <Switch checked={syncTransactions} onCheckedChange={setSyncTransactions} />
+                  <Switch checked={syncTransactions} onCheckedChange={handleToggleTransactions} data-testid="switch-sync-transactions" />
                 </div>
 
                 <div className="flex items-center justify-between">

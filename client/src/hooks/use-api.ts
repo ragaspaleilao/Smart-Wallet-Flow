@@ -15,6 +15,16 @@ import {
   budgetApi,
   businessProductsApi,
   businessSettingsApi,
+  backupsApi,
+  referralsApi,
+  calendarSettingsApi,
+  type Backup,
+  type CreateBackupInput,
+  type Referral,
+  type CreateReferralInput,
+  type UpdateReferralInput,
+  type CalendarSettings,
+  type UpsertCalendarSettingsInput,
   getUserId,
   type Account,
   type CreateAccountInput,
@@ -643,4 +653,120 @@ export function useAccountsWithBalance() {
   });
 
   return { data: accountsWithBalance, isSuccess, isLoading };
+}
+
+// ===== BACKUPS =====
+
+export function useBackups() {
+  return useQuery({
+    queryKey: ['backups'],
+    queryFn: backupsApi.list,
+    enabled: !!getUserId(),
+  });
+}
+
+export function useCreateBackup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateBackupInput) => backupsApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['backups'] });
+    },
+  });
+}
+
+export function useDeleteBackup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => backupsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['backups'] });
+    },
+  });
+}
+
+// ===== REFERRALS =====
+
+export function useReferrals() {
+  return useQuery({
+    queryKey: ['referrals'],
+    queryFn: referralsApi.list,
+    enabled: !!getUserId(),
+  });
+}
+
+export function useCreateReferral() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateReferralInput) => referralsApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['referrals'] });
+    },
+  });
+}
+
+export function useUpdateReferral() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateReferralInput }) => referralsApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['referrals'] });
+    },
+  });
+}
+
+export function useDeleteReferral() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => referralsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['referrals'] });
+    },
+  });
+}
+
+// ===== CALENDAR SETTINGS =====
+
+export function useCalendarSettings() {
+  return useQuery({
+    queryKey: ['calendarSettings'],
+    queryFn: calendarSettingsApi.get,
+    enabled: !!getUserId(),
+  });
+}
+
+export function useUpdateCalendarSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: UpsertCalendarSettingsInput) => calendarSettingsApi.update(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendarSettings'] });
+    },
+  });
+}
+
+// ===== CREDIT PAYMENTS UPDATE/DELETE =====
+
+export function useUpdateCreditPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateCreditPaymentInput> }) => creditPaymentsApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['creditPayments'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    },
+  });
+}
+
+export function useDeleteCreditPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => creditPaymentsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['creditPayments'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    },
+  });
 }

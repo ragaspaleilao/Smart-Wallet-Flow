@@ -293,6 +293,13 @@ export const creditPaymentsApi = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
+  update: (id: string, data: Partial<CreateCreditPaymentInput>) => apiRequest<CreditPayment>(`/credit-payments/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }),
+  delete: (id: string) => apiRequest<void>(`/credit-payments/${id}`, {
+    method: 'DELETE',
+  }),
 };
 
 // ===== GOALS =====
@@ -617,6 +624,100 @@ export interface BusinessSettings {
 export const businessSettingsApi = {
   get: () => apiRequest<BusinessSettings>('/business/settings'),
   update: (data: BusinessSettings) => apiRequest<BusinessSettings>('/business/settings', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+};
+
+// ===== BACKUPS =====
+
+export interface Backup {
+  id: string;
+  userId: string;
+  date: string;
+  size: string;
+  device: string;
+  auto: boolean;
+  createdAt: string;
+}
+
+export interface CreateBackupInput {
+  size: string;
+  device: string;
+  auto?: boolean;
+  date?: string;
+}
+
+export const backupsApi = {
+  list: () => apiRequest<Backup[]>('/backups'),
+  create: (data: CreateBackupInput) => apiRequest<Backup>('/backups', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  delete: (id: string) => apiRequest<void>(`/backups/${id}`, {
+    method: 'DELETE',
+  }),
+};
+
+// ===== REFERRALS =====
+
+export interface Referral {
+  id: string;
+  userId: string;
+  name: string;
+  status: 'pending' | 'confirmed';
+  date: string;
+  createdAt: string;
+}
+
+export interface CreateReferralInput {
+  name: string;
+  status?: 'pending' | 'confirmed';
+}
+
+export interface UpdateReferralInput {
+  name?: string;
+  status?: 'pending' | 'confirmed';
+}
+
+export const referralsApi = {
+  list: () => apiRequest<Referral[]>('/referrals'),
+  create: (data: CreateReferralInput) => apiRequest<Referral>('/referrals', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  update: (id: string, data: UpdateReferralInput) => apiRequest<Referral>(`/referrals/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }),
+  delete: (id: string) => apiRequest<void>(`/referrals/${id}`, {
+    method: 'DELETE',
+  }),
+};
+
+// ===== CALENDAR SETTINGS =====
+
+export interface CalendarSettings {
+  id: string;
+  userId: string;
+  isEnabled: boolean;
+  isConnected: boolean;
+  syncCategories: string[];
+  reminderDaysBefore: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertCalendarSettingsInput {
+  isEnabled?: boolean;
+  isConnected?: boolean;
+  syncCategories?: string[];
+  reminderDaysBefore?: number;
+}
+
+export const calendarSettingsApi = {
+  get: () => apiRequest<CalendarSettings | null>('/calendar-settings'),
+  update: (data: UpsertCalendarSettingsInput) => apiRequest<CalendarSettings>('/calendar-settings', {
     method: 'PUT',
     body: JSON.stringify(data),
   }),

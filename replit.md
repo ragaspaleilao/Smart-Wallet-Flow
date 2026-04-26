@@ -163,3 +163,21 @@ shared/
 ### Recent Changes (Mar 2026)
 - **Transaction Date Filters**: Backend now supports `startDate` and `endDate` query parameters on GET `/api/transactions` for server-side date filtering (previously all filtering was client-side only)
 - **Backup Deduplication**: Import/restore now checks for existing data before inserting — accounts matched by name+type, transactions by description+amount+date+type, credit cards by name, subscriptions by name, vehicles by name/plate, goals by name, investments by name+institution. Shows summary of imported vs skipped items.
+
+### Recent Changes (Apr 26, 2026) — API Coverage Fill-in
+- **New endpoints added** (all guarded by Replit auth + scoped by userId):
+  - `GET/POST /api/backups`, `DELETE /api/backups/:id` — backup history persistence
+  - `GET/POST /api/referrals`, `PATCH/DELETE /api/referrals/:id` — referrals stored server-side
+  - `GET /api/calendar-settings`, `PUT /api/calendar-settings` — persists calendar sync prefs (categories, reminderDaysBefore, isEnabled)
+  - `PATCH /api/credit-payments/:id`, `DELETE /api/credit-payments/:id` — full CRUD; auto-syncs the auto-created "Pagamento fatura {card} #{id8}" transaction (description tag is now unique-per-payment for safe lookup)
+- **Security hardening on `/api/credit-payments`**:
+  - On `POST`: validates that `creditCardId` and `accountId` belong to the requesting user before creating the linked transaction
+  - On `PATCH`: validates account ownership when accountId changes
+  - On `DELETE`: removes the linked transaction first (uses unique description tag) so balances stay consistent
+- **Schemas added** (`shared/schema.ts`): `insertBackupSchema`, `insertReferralSchema`, `updateReferralSchema`, `insertCalendarSettingsSchema`, `updateCreditPaymentSchema`
+- **Storage methods added** (`server/storage.ts`): backup CRUD, referrals CRUD (status restricted to 'pending'|'confirmed'), calendar settings upsert (per-user), `getCreditPayment`, `updateCreditPayment`, `deleteCreditPayment`
+- **Client API & hooks** (`client/src/lib/api.ts`, `client/src/hooks/use-api.ts`): `backupsApi`/`useBackups`/`useCreateBackup`/`useDeleteBackup`, `referralsApi`/`useReferrals`/`useCreateReferral`/`useUpdateReferral`/`useDeleteReferral`, `calendarSettingsApi`/`useCalendarSettings`/`useUpdateCalendarSettings`, `useUpdateCreditPayment`/`useDeleteCreditPayment`
+- **UI updates**:
+  - `refer-and-earn.tsx`: now reads/writes the database (instead of Zustand local), with add / confirm / delete actions per referral
+  - `calendar-integration.tsx`: persists `syncCategories` and the transactions toggle to `/api/calendar-settings` (auto-loaded on open)
+  - `backup.tsx`: records every export in the new "Histórico de Backups" card (size in KB/MB and device auto-detected); items can be removed individually

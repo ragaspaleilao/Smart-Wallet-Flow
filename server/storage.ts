@@ -33,6 +33,10 @@ import type {
   InsertBudget,
 } from "@shared/schema";
 
+type BackupRow = typeof schema.backups.$inferSelect;
+type ReferralRow = typeof schema.referrals.$inferSelect;
+type CalendarSettingsRow = typeof schema.calendarSettings.$inferSelect;
+
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<AuthUser | undefined>;
@@ -69,7 +73,10 @@ export interface IStorage {
 
   // Credit Payment operations
   getCreditPayments(userId: string, cardId?: string): Promise<CreditPayment[]>;
+  getCreditPayment(id: string, userId: string): Promise<CreditPayment | undefined>;
   createCreditPayment(userId: string, payment: InsertCreditPayment): Promise<CreditPayment>;
+  updateCreditPayment(id: string, userId: string, updates: Partial<CreditPayment>): Promise<CreditPayment | undefined>;
+  deleteCreditPayment(id: string, userId: string): Promise<boolean>;
 
   // Goal operations
   getGoals(userId: string): Promise<Goal[]>;
@@ -119,6 +126,21 @@ export interface IStorage {
   // Business Settings
   getBusinessSettings(userId: string): Promise<any>;
   updateBusinessSettings(userId: string, settings: any): Promise<any>;
+
+  // Backup history
+  getBackups(userId: string): Promise<BackupRow[]>;
+  createBackup(userId: string, data: { date?: Date; size: string; device: string; auto?: boolean }): Promise<BackupRow>;
+  deleteBackup(id: string, userId: string): Promise<boolean>;
+
+  // Referrals
+  getReferrals(userId: string): Promise<ReferralRow[]>;
+  createReferral(userId: string, data: { name: string; status?: 'pending' | 'confirmed' }): Promise<ReferralRow>;
+  updateReferral(id: string, userId: string, updates: { name?: string; status?: 'pending' | 'confirmed' }): Promise<ReferralRow | undefined>;
+  deleteReferral(id: string, userId: string): Promise<boolean>;
+
+  // Calendar settings
+  getCalendarSettings(userId: string): Promise<CalendarSettingsRow | undefined>;
+  upsertCalendarSettings(userId: string, settings: Partial<CalendarSettingsRow>): Promise<CalendarSettingsRow>;
 
   // Reset all user data
   resetAllData(userId: string): Promise<void>;
@@ -342,12 +364,34 @@ export class DbStorage implements IStorage {
     return await query.orderBy(desc(schema.creditPayments.paymentDate));
   }
 
+  async getCreditPayment(id: string, userId: string): Promise<CreditPayment | undefined> {
+    const result = await this.db.select().from(schema.creditPayments)
+      .where(and(eq(schema.creditPayments.id, id), eq(schema.creditPayments.userId, userId)))
+      .limit(1);
+    return result[0];
+  }
+
   async createCreditPayment(userId: string, payment: InsertCreditPayment): Promise<CreditPayment> {
     const result = await this.db.insert(schema.creditPayments).values({
       ...payment,
       userId,
     }).returning();
     return result[0];
+  }
+
+  async updateCreditPayment(id: string, userId: string, updates: Partial<CreditPayment>): Promise<CreditPayment | undefined> {
+    const result = await this.db.update(schema.creditPayments)
+      .set(updates)
+      .where(and(eq(schema.creditPayments.id, id), eq(schema.creditPayments.userId, userId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteCreditPayment(id: string, userId: string): Promise<boolean> {
+    const result = await this.db.delete(schema.creditPayments)
+      .where(and(eq(schema.creditPayments.id, id), eq(schema.creditPayments.userId, userId)))
+      .returning();
+    return result.length > 0;
   }
 
   // ===== GOAL OPERATIONS =====
@@ -626,6 +670,93 @@ export class DbStorage implements IStorage {
       }).returning();
       return result[0];
     }
+  }
+
+  // ===== BACKUP HISTORY =====
+
+  async getBackups(userId: string): Promise<BackupRow[]> {
+    return await this.db.select().from(schema.backups)
+      .where(eq(schema.backups.userId, userId))
+      .orderBy(desc(schema.backups.date));
+  }
+
+  async createBackup(userId: string, data: { date?: Date; size: string; device: string; auto?: boolean }): Promise<BackupRow> {
+    const result = await this.db.insert(schema.backups).values({
+      userId,
+      date: data.date ?? new Date(),
+      size: data.size,
+      device: data.device,
+      auto: data.auto ?? false,
+    }).returning();
+    return result[0];
+  }
+
+  async deleteBackup(id: string, userId: string): Promise<boolean> {
+    const result = await this.db.delete(schema.backups)
+      .where(and(eq(schema.backups.id, id), eq(schema.backups.userId, userId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  // ===== REFERRALS =====
+
+  async getReferrals(userId: string): Promise<ReferralRow[]> {
+    return await this.db.select().from(schema.referrals)
+      .where(eq(schema.referrals.userId, userId))
+      .orderBy(desc(schema.referrals.date));
+  }
+
+  async createReferral(userId: string, data: { name: string; status?: 'pending' | 'confirmed' }): Promise<ReferralRow> {
+    const result = await this.db.insert(schema.referrals).values({
+      userId,
+      name: data.name,
+      status: data.status ?? 'pending',
+      date: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async updateReferral(id: string, userId: string, updates: { name?: string; status?: 'pending' | 'confirmed' }): Promise<ReferralRow | undefined> {
+    const result = await this.db.update(schema.referrals)
+      .set(updates)
+      .where(and(eq(schema.referrals.id, id), eq(schema.referrals.userId, userId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteReferral(id: string, userId: string): Promise<boolean> {
+    const result = await this.db.delete(schema.referrals)
+      .where(and(eq(schema.referrals.id, id), eq(schema.referrals.userId, userId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  // ===== CALENDAR SETTINGS =====
+
+  async getCalendarSettings(userId: string): Promise<CalendarSettingsRow | undefined> {
+    const result = await this.db.select().from(schema.calendarSettings)
+      .where(eq(schema.calendarSettings.userId, userId))
+      .limit(1);
+    return result[0];
+  }
+
+  async upsertCalendarSettings(userId: string, settings: Partial<CalendarSettingsRow>): Promise<CalendarSettingsRow> {
+    const existing = await this.getCalendarSettings(userId);
+    if (existing) {
+      const result = await this.db.update(schema.calendarSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(schema.calendarSettings.userId, userId))
+        .returning();
+      return result[0];
+    }
+    const result = await this.db.insert(schema.calendarSettings).values({
+      userId,
+      isEnabled: settings.isEnabled ?? false,
+      isConnected: settings.isConnected ?? false,
+      syncCategories: settings.syncCategories ?? [],
+      reminderDaysBefore: settings.reminderDaysBefore ?? 1,
+    }).returning();
+    return result[0];
   }
 
   // ===== RESET ALL USER DATA =====

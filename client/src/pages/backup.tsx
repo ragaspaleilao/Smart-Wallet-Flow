@@ -1,13 +1,13 @@
 import { MobileLayout } from "@/components/mobile-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Cloud, Download, Upload, ShieldCheck, Lock, Database, HardDrive, FileJson } from "lucide-react";
+import { ArrowLeft, Cloud, Download, Upload, ShieldCheck, Lock, Database, HardDrive, FileJson, Trash2, Clock } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { getUserId } from "@/lib/api";
-import { useAccounts, useTransactions, useCreditCards, useSubscriptions, useVehicles, useGoals, useInvestments } from "@/hooks/use-api";
+import { useAccounts, useTransactions, useCreditCards, useSubscriptions, useVehicles, useGoals, useInvestments, useBackups, useCreateBackup, useDeleteBackup } from "@/hooks/use-api";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface BackupData {
@@ -28,6 +28,10 @@ export default function Backup() {
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+
+  const { data: backupHistory = [] } = useBackups();
+  const createBackupRecord = useCreateBackup();
+  const deleteBackupRecord = useDeleteBackup();
 
   const { data: accounts = [] } = useAccounts();
   const { data: transactions = [] } = useTransactions();
@@ -76,6 +80,21 @@ export default function Backup() {
       URL.revokeObjectURL(url);
 
       setProgress(100);
+
+      // Record the backup in history
+      const sizeKb = Math.max(1, Math.round(jsonString.length / 1024));
+      const sizeStr = sizeKb >= 1024
+        ? `${(sizeKb / 1024).toFixed(2)} MB`
+        : `${sizeKb} KB`;
+      const device = (typeof navigator !== 'undefined' && navigator.userAgent)
+        ? navigator.userAgent.includes('Mobile') ? 'Celular' : 'Computador'
+        : 'Desconhecido';
+      try {
+        await createBackupRecord.mutateAsync({ size: sizeStr, device, auto: false });
+      } catch {
+        // Non-fatal: history record is optional
+      }
+
       toast({ 
         title: "Backup exportado!", 
         description: `Arquivo ${filename} salvo no seu computador.` 
@@ -453,6 +472,36 @@ export default function Backup() {
             className="hidden"
           />
         </Card>
+
+        {backupHistory.length > 0 && (
+          <Card className="p-5 border-none shadow-lg mb-6 bg-white dark:bg-zinc-900">
+            <div className="flex items-center gap-3 mb-3">
+              <Clock className="w-5 h-5 text-gray-500" />
+              <h3 className="font-bold text-gray-900 dark:text-white">Histórico de Backups</h3>
+            </div>
+            <div className="space-y-2">
+              {backupHistory.slice(0, 8).map((b) => (
+                <div key={b.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-zinc-800/50 rounded-lg" data-testid={`row-backup-${b.id}`}>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {new Date(b.date).toLocaleString('pt-BR')}
+                    </p>
+                    <p className="text-xs text-gray-500">{b.device} • {b.size} {b.auto ? '• Auto' : ''}</p>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-gray-400 hover:text-red-500"
+                    onClick={() => deleteBackupRecord.mutate(b.id)}
+                    data-testid={`button-delete-backup-${b.id}`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         <div className="p-4 bg-yellow-50 dark:bg-yellow-900/10 rounded-xl border border-yellow-100 dark:border-yellow-900/30">
           <div className="flex gap-3">
