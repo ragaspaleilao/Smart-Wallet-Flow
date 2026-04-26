@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 
 // Pages
 import Landing from "@/pages/landing";
+import AuthPage from "@/pages/auth";
 import Onboarding from "@/pages/onboarding";
 import Permissions from "@/pages/permissions";
 import Dashboard from "@/pages/dashboard";
@@ -60,6 +61,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={HomePage} />
+      <Route path="/login" component={AuthPage} />
+      <Route path="/register" component={AuthPage} />
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/permissions" component={Permissions} />
       <Route path="/setup-accounts" component={SetupAccounts} />

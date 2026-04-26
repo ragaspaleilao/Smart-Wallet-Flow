@@ -25,7 +25,7 @@ Preferred communication style: Simple, everyday language.
 - **Language**: TypeScript with ESM modules
 - **Database ORM**: Drizzle ORM with PostgreSQL dialect
 - **API Style**: RESTful endpoints under `/api` prefix
-- **Authentication**: Simple user ID header-based auth (`x-user-id`)
+- **Authentication**: Email/password login with bcrypt-hashed passwords and PG-backed sessions (`express-session` + `connect-pg-simple`). Server resolves the current user from `req.session.userId`; the client also sends `x-user-id` for legacy compatibility. Endpoints: `POST /api/register`, `POST /api/login`, `POST /api/logout`, `GET /api/auth/user`.
 
 ### Data Storage
 - **Primary Database**: PostgreSQL (configured via DATABASE_URL)

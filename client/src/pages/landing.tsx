@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Link } from "wouter";
 import { 
   Wallet, 
   TrendingUp, 
@@ -22,11 +23,11 @@ export default function Landing() {
               Finanças Fácil
             </span>
           </div>
-          <a href="/api/login">
+          <Link href="/login">
             <Button className="bg-gradient-to-r from-purple-600 to-green-500 hover:opacity-90" data-testid="button-login">
               Entrar
             </Button>
-          </a>
+          </Link>
         </div>
       </nav>
 
@@ -43,11 +44,11 @@ export default function Landing() {
             Registre gastos por voz, foto ou texto. Deixe a IA cuidar do resto.
             Simples assim.
           </p>
-          <a href="/api/login">
+          <Link href="/register">
             <Button size="lg" className="bg-gradient-to-r from-purple-600 to-green-500 hover:opacity-90 text-lg px-8 py-6" data-testid="button-get-started">
               Comecar Gratis
             </Button>
-          </a>
+          </Link>
           <p className="text-sm text-gray-500 mt-4">
             Gratis para sempre. Sem cartao de credito.
           </p>
@@ -142,11 +143,11 @@ export default function Landing() {
               Cada usuario tem seu proprio banco de dados separado.
               Suas informacoes nunca sao compartilhadas.
             </p>
-            <a href="/api/login">
+            <Link href="/register">
               <Button size="lg" variant="secondary" className="text-lg px-8" data-testid="button-start-now">
                 Comecar Agora
               </Button>
-            </a>
+            </Link>
           </div>
         </section>
       </main>

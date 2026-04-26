@@ -72,20 +72,15 @@ import {
 
 interface AuthRequest extends Request {
   userId?: string;
-  user?: {
-    claims?: {
-      sub?: string;
-    };
-  };
 }
 
 async function authMiddleware(req: AuthRequest, res: Response, next: Function) {
-  const userId = req.user?.claims?.sub;
-  
+  const userId = req.session?.userId;
+
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  
+
   req.userId = userId;
   next();
 }

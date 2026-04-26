@@ -18,7 +18,7 @@ export default function Onboarding() {
   }, [isAuthenticated, setLocation]);
 
   const handleStart = () => {
-    window.location.href = "/api/login";
+    setLocation("/register");
   };
 
   return (

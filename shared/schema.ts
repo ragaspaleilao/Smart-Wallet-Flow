@@ -25,11 +25,11 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)]
 );
 
-// Users - Updated for Replit Auth
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+// Users
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
+  passwordHash: varchar("password_hash"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
@@ -39,6 +39,20 @@ export const users = pgTable("users", {
 
 export type UpsertUser = typeof users.$inferInsert;
 export type AuthUser = typeof users.$inferSelect;
+
+export const registerSchema = z.object({
+  email: z.string().email("Email inválido").transform((s) => s.trim().toLowerCase()),
+  password: z.string().min(6, "A senha precisa ter pelo menos 6 caracteres"),
+  name: z.string().trim().min(1, "Informe seu nome").optional(),
+});
+
+export const loginSchema = z.object({
+  email: z.string().email("Email inválido").transform((s) => s.trim().toLowerCase()),
+  password: z.string().min(1, "Informe sua senha"),
+});
+
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
 
 // Accounts
 export const accounts = pgTable("accounts", {
