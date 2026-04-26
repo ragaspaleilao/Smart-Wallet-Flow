@@ -144,6 +144,7 @@ export interface CreditPurchase {
   createdAt: string;
   updatedAt: string;
   refundedAmount?: number;
+  isRecurring?: boolean;
 }
 
 export interface CreditInvoicePayment {

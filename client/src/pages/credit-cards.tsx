@@ -938,6 +938,7 @@ export default function CreditCards() {
         status: (p.status === 'active' || p.status === 'partial_refund' || p.status === 'refunded') 
           ? p.status as "active" | "partial_refund" | "refunded"
           : 'active',
+        isRecurring: (p as any).isRecurring ?? false,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
       }));
@@ -1154,8 +1155,25 @@ export default function CreditCards() {
     creditPurchases.filter(p => p.creditCardId === cardId && p.status === 'active').forEach(purchase => {
         const pDate = parseDateSafe(purchase.purchaseDate);
         // First installment month
-        let currentInstallmentMonth = getInvoiceMonthDate(pDate, card.closingDay);
-        
+        const firstInstallmentMonth = getInvoiceMonthDate(pDate, card.closingDay);
+
+        if (purchase.isRecurring) {
+            // Recurring: appears in every invoice from firstInstallmentMonth onwards
+            const startMonth = startOfMonth(firstInstallmentMonth);
+            const targetMonthStart = new Date(targetYear, targetMonth, 1);
+            if (!isBefore(targetMonthStart, startMonth)) {
+                items.push({
+                    purchase,
+                    installment: 1,
+                    value: purchase.installmentValue,
+                    date: purchase.purchaseDate
+                });
+            }
+            return;
+        }
+
+        let currentInstallmentMonth = firstInstallmentMonth;
+
         for (let i = 1; i <= purchase.installments; i++) {
             if (currentInstallmentMonth.getMonth() === targetMonth && currentInstallmentMonth.getFullYear() === targetYear) {
                 items.push({
@@ -1372,6 +1390,8 @@ export default function CreditCards() {
         .filter(p => p.creditCardId === selectedCardId && p.status === 'active')
         // exclude synthetic fee objects
         .filter(p => !String(p.id).startsWith('fee-'))
+        // Recurring purchases don't reserve future limit (they only count in the month they hit)
+        .filter(p => !p.isRecurring)
         // Only real installments can create "future installments".
         .filter(p => (p.installments || 1) > 1)
         .reduce((sum, purchase) => {
@@ -1407,7 +1427,8 @@ export default function CreditCards() {
       installmentAmount: "",
       installments: "1",
       category: "Outros",
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split('T')[0],
+      isRecurring: false,
   });
   const [isPurchaseOpen, setIsPurchaseOpen] = useState(false);
   const [editingPurchaseId, setEditingPurchaseId] = useState<string | null>(null);
@@ -1422,7 +1443,8 @@ export default function CreditCards() {
           installmentAmount: "",
           installments: "1",
           category: "Outros",
-          date: new Date().toISOString().split('T')[0]
+          date: new Date().toISOString().split('T')[0],
+          isRecurring: false,
       });
       setEditingPurchaseId(null);
   };
@@ -1432,20 +1454,24 @@ export default function CreditCards() {
       setNewPurchase({
           description: purchase.description,
           amountMode: "total",
-          amount: formatCurrencyInput(String(purchase.totalAmount * 100)),
+          amount: formatCurrencyInput(String((purchase.isRecurring ? purchase.installmentValue : purchase.totalAmount) * 100)),
           installmentAmount: formatCurrencyInput(String((purchase.installmentValue || 0) * 100)),
           installments: String(purchase.installments),
           category: purchase.category as any,
-          date: purchase.purchaseDate?.slice(0, 10) || new Date().toISOString().slice(0, 10)
+          date: purchase.purchaseDate?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+          isRecurring: !!purchase.isRecurring,
       });
       setIsPurchaseOpen(true);
   };
 
   const handleSavePurchase = () => {
-      const inst = Number(newPurchase.installments || '1') || 1;
+      const isRecurring = newPurchase.isRecurring;
+      const inst = isRecurring ? 1 : (Number(newPurchase.installments || '1') || 1);
       const totalFromTotal = Number((newPurchase.amount || '').replace(/\D/g, "")) / 100;
       const totalFromInstallment = (Number((newPurchase.installmentAmount || '').replace(/\D/g, "")) / 100) * inst;
-      const total = newPurchase.amountMode === 'installment' ? totalFromInstallment : totalFromTotal;
+      const total = isRecurring
+          ? totalFromTotal
+          : (newPurchase.amountMode === 'installment' ? totalFromInstallment : totalFromTotal);
 
       if (!newPurchase.description || !total || !selectedCardId) {
           toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
@@ -1462,6 +1488,7 @@ export default function CreditCards() {
                   installmentValue: String(total / inst),
                   category: newPurchase.category || 'Outros',
                   purchaseDate: newPurchase.date,
+                  isRecurring,
               }
           }, {
               onSuccess: () => {
@@ -1482,6 +1509,7 @@ export default function CreditCards() {
               installmentValue: String(total / inst),
               category: newPurchase.category || 'Outros',
               purchaseDate: newPurchase.date,
+              isRecurring,
           }, {
               onSuccess: () => {
                   toast({ title: "Compra adicionada com sucesso!" });
@@ -2122,45 +2150,67 @@ export default function CreditCards() {
                                         data-testid="input-credit-purchase-description"
                                     />
                                 </div>
+                                <div className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 p-3 flex items-start gap-3">
+                                    <input
+                                        id="credit-purchase-recurring"
+                                        type="checkbox"
+                                        className="mt-1 h-4 w-4 accent-primary"
+                                        checked={newPurchase.isRecurring}
+                                        onChange={(e) => setNewPurchase({
+                                            ...newPurchase,
+                                            isRecurring: e.target.checked,
+                                            installments: e.target.checked ? '1' : newPurchase.installments,
+                                            amountMode: e.target.checked ? 'total' : newPurchase.amountMode,
+                                        })}
+                                        data-testid="checkbox-credit-purchase-recurring"
+                                    />
+                                    <label htmlFor="credit-purchase-recurring" className="flex-1 cursor-pointer">
+                                        <div className="text-sm font-semibold text-gray-900 dark:text-white">Crédito recorrente</div>
+                                        <div className="text-[11px] text-gray-500 mt-0.5">Cai todo mês automaticamente na fatura. Não reserva limite dos meses futuros.</div>
+                                    </label>
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <div className="flex items-center justify-between">
-                                            <Label>Valor</Label>
-                                            <div className="flex items-center gap-1 bg-gray-100 dark:bg-zinc-900 rounded-full p-1">
-                                                <button
-                                                    type="button"
-                                                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${newPurchase.amountMode === 'total' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-500'}`}
-                                                    onClick={() => {
-                                                        // When switching to Total, calculate total from installment amount
-                                                        const inst = Number(newPurchase.installments || '1') || 1;
-                                                        const instAmountCents = Number((newPurchase.installmentAmount || '').replace(/\D/g, ""));
-                                                        const totalCents = instAmountCents * inst;
-                                                        const newAmount = totalCents > 0 ? formatCurrencyInput(String(totalCents)) : newPurchase.amount;
-                                                        setNewPurchase({ ...newPurchase, amountMode: 'total', amount: newAmount });
-                                                    }}
-                                                    data-testid="button-credit-amountmode-total"
-                                                >
-                                                    Total
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${newPurchase.amountMode === 'installment' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-500'}`}
-                                                    onClick={() => {
-                                                        // When switching to Parcela, calculate installment from total
-                                                        const inst = Number(newPurchase.installments || '1') || 1;
-                                                        const totalCents = Number((newPurchase.amount || '').replace(/\D/g, ""));
-                                                        const instCents = Math.round(totalCents / inst);
-                                                        const newInstAmount = instCents > 0 ? formatCurrencyInput(String(instCents)) : newPurchase.installmentAmount;
-                                                        setNewPurchase({ ...newPurchase, amountMode: 'installment', installmentAmount: newInstAmount });
-                                                    }}
-                                                    data-testid="button-credit-amountmode-installment"
-                                                >
-                                                    Parcela
-                                                </button>
-                                            </div>
+                                            <Label>{newPurchase.isRecurring ? 'Valor mensal' : 'Valor'}</Label>
+                                            {!newPurchase.isRecurring && (
+                                                <div className="flex items-center gap-1 bg-gray-100 dark:bg-zinc-900 rounded-full p-1">
+                                                    <button
+                                                        type="button"
+                                                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${newPurchase.amountMode === 'total' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-500'}`}
+                                                        onClick={() => {
+                                                            // When switching to Total, calculate total from installment amount
+                                                            const inst = Number(newPurchase.installments || '1') || 1;
+                                                            const instAmountCents = Number((newPurchase.installmentAmount || '').replace(/\D/g, ""));
+                                                            const totalCents = instAmountCents * inst;
+                                                            const newAmount = totalCents > 0 ? formatCurrencyInput(String(totalCents)) : newPurchase.amount;
+                                                            setNewPurchase({ ...newPurchase, amountMode: 'total', amount: newAmount });
+                                                        }}
+                                                        data-testid="button-credit-amountmode-total"
+                                                    >
+                                                        Total
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${newPurchase.amountMode === 'installment' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-500'}`}
+                                                        onClick={() => {
+                                                            // When switching to Parcela, calculate installment from total
+                                                            const inst = Number(newPurchase.installments || '1') || 1;
+                                                            const totalCents = Number((newPurchase.amount || '').replace(/\D/g, ""));
+                                                            const instCents = Math.round(totalCents / inst);
+                                                            const newInstAmount = instCents > 0 ? formatCurrencyInput(String(instCents)) : newPurchase.installmentAmount;
+                                                            setNewPurchase({ ...newPurchase, amountMode: 'installment', installmentAmount: newInstAmount });
+                                                        }}
+                                                        data-testid="button-credit-amountmode-installment"
+                                                    >
+                                                        Parcela
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        {newPurchase.amountMode === 'total' ? (
+                                        {newPurchase.isRecurring || newPurchase.amountMode === 'total' ? (
                                             <Input 
                                                 value={newPurchase.amount}
                                                 placeholder="R$ 0,00"
@@ -2178,28 +2228,51 @@ export default function CreditCards() {
                                             />
                                         )}
                                         <p className="text-[10px] text-gray-400 mt-1" data-testid="text-credit-amount-hint">
-                                            {newPurchase.amountMode === 'total' ? 'Digite o valor total da compra.' : 'Digite o valor de cada parcela. O total será calculado automaticamente.'}
+                                            {newPurchase.isRecurring
+                                                ? 'Valor cobrado todo mês na fatura.'
+                                                : (newPurchase.amountMode === 'total' ? 'Digite o valor total da compra.' : 'Digite o valor de cada parcela. O total será calculado automaticamente.')}
                                         </p>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Parcelas</Label>
-                                        <Select 
-                                            value={newPurchase.installments} 
-                                            onValueChange={(v) => setNewPurchase({...newPurchase, installments: v})}
-                                        >
-                                            <SelectTrigger data-testid="select-credit-purchase-installments">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="1">À vista (1x)</SelectItem>
-                                                {Array.from({ length: 59 }, (_, idx) => idx + 2).map(i => (
-                                                    <SelectItem key={i} value={String(i)}>{i}x</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <Label>{newPurchase.isRecurring ? 'Tipo' : 'Parcelas'}</Label>
+                                        {newPurchase.isRecurring ? (
+                                            <div className="rounded-md border border-gray-200 dark:border-zinc-800 bg-gray-100 dark:bg-zinc-900 px-3 py-2 text-sm text-gray-700 dark:text-zinc-300" data-testid="text-credit-recurring-info">
+                                                Recorrente (mensal)
+                                            </div>
+                                        ) : (
+                                            <Select 
+                                                value={newPurchase.installments} 
+                                                onValueChange={(v) => setNewPurchase({...newPurchase, installments: v})}
+                                            >
+                                                <SelectTrigger data-testid="select-credit-purchase-installments">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="1">À vista (1x)</SelectItem>
+                                                    {Array.from({ length: 59 }, (_, idx) => idx + 2).map(i => (
+                                                        <SelectItem key={i} value={String(i)}>{i}x</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
 
                                         <div className="mt-2 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 p-3" data-testid="card-credit-installment-preview">
                                             {(() => {
+                                                if (newPurchase.isRecurring) {
+                                                    const monthly = (Number((newPurchase.amount || '').replace(/\D/g, '')) / 100) || 0;
+                                                    return (
+                                                        <>
+                                                            <div className="flex items-center justify-between text-xs text-gray-500">
+                                                                <span>Mensalidade</span>
+                                                                <span className="font-medium" data-testid="text-credit-recurring-preview">{monthly.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                            </div>
+                                                            <div className="flex items-center justify-between text-sm mt-1">
+                                                                <span className="font-semibold">Cobrança</span>
+                                                                <span className="font-bold">Todo mês</span>
+                                                            </div>
+                                                        </>
+                                                    );
+                                                }
                                                 const inst = Number(newPurchase.installments || '1') || 1;
                                                 const total = (Number((newPurchase.amount || '').replace(/\D/g, '')) / 100) || 0;
                                                 const per = inst > 0 ? total / inst : 0;
@@ -2588,9 +2661,11 @@ export default function CreditCards() {
                                                     className="text-xs text-gray-500"
                                                     data-testid={`text-credit-invoice-item-meta-${item.purchase.id}-${idx}`}
                                                 >
-                                                    {item.purchase.description === 'Anuidade' ? 
-                                                        'Cobrança Mensal' : 
-                                                        `${format(parseDateSafe(item.purchase.purchaseDate), 'dd/MM')} • Parcela ${item.installment}/${item.purchase.installments}`
+                                                    {item.purchase.description === 'Anuidade'
+                                                        ? 'Cobrança Mensal'
+                                                        : item.purchase.isRecurring
+                                                            ? `${format(parseDateSafe(item.purchase.purchaseDate), 'dd/MM')} • Recorrente`
+                                                            : `${format(parseDateSafe(item.purchase.purchaseDate), 'dd/MM')} • Parcela ${item.installment}/${item.purchase.installments}`
                                                     }
                                                 </p>
                                             </div>
@@ -2647,7 +2722,9 @@ export default function CreditCards() {
                                                                         {item.purchase.description}
                                                                     </div>
                                                                     <div className="text-xs text-gray-500 mt-1" data-testid={`text-credit-delete-subtitle-${item.purchase.id}-${idx}`}>
-                                                                        {item.purchase.installments > 1 ? `Parcelado em ${item.purchase.installments}x • Remover 1 parcela reduz o total restante.` : 'À vista'}
+                                                                        {item.purchase.isRecurring
+                                                                            ? 'Crédito recorrente (mensal). A exclusão remove a cobrança de todos os meses.'
+                                                                            : (item.purchase.installments > 1 ? `Parcelado em ${item.purchase.installments}x • Remover 1 parcela reduz o total restante.` : 'À vista')}
                                                                     </div>
                                                                 </div>
                                                                 <AlertDialogFooter>
@@ -2698,7 +2775,7 @@ export default function CreditCards() {
                                         <div className="space-y-2">
                                             {inv.items.map((item, i) => (
                                                 <div key={i} className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                                                    <span>{item.purchase.description} ({item.installment}/{item.purchase.installments})</span>
+                                                    <span>{item.purchase.description} {item.purchase.isRecurring ? '(Recorrente)' : `(${item.installment}/${item.purchase.installments})`}</span>
                                                     <span>{formatCurrency(item.value)}</span>
                                                 </div>
                                             ))}

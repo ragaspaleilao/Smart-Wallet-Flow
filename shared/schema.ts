@@ -107,6 +107,7 @@ export const creditPurchases = pgTable("credit_purchases", {
   description: text("description").notNull(),
   status: text("status").notNull().default('active'), // 'active' | 'partial_refund' | 'refunded'
   refundedAmount: decimal("refunded_amount", { precision: 12, scale: 2 }),
+  isRecurring: boolean("is_recurring").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

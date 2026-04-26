@@ -227,6 +227,7 @@ export interface CreditPurchase {
   description: string;
   status: string;
   refundedAmount: string | null;
+  isRecurring: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -239,6 +240,7 @@ export interface CreateCreditPurchaseInput {
   installmentValue: string;
   category: string;
   description: string;
+  isRecurring?: boolean;
 }
 
 export const creditPurchasesApi = {
