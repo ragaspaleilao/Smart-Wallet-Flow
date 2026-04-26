@@ -2247,9 +2247,9 @@ export default function CreditCards() {
                                                 <SelectTrigger data-testid="select-credit-purchase-installments">
                                                     <SelectValue />
                                                 </SelectTrigger>
-                                                <SelectContent>
+                                                <SelectContent className="max-h-72">
                                                     <SelectItem value="1">À vista (1x)</SelectItem>
-                                                    {Array.from({ length: 59 }, (_, idx) => idx + 2).map(i => (
+                                                    {Array.from({ length: 23 }, (_, idx) => idx + 2).map(i => (
                                                         <SelectItem key={i} value={String(i)}>{i}x</SelectItem>
                                                     ))}
                                                 </SelectContent>
