@@ -40,7 +40,7 @@ async function apiRequest<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || error.message || 'Request failed');
+    throw new Error(error.message || error.error || 'Request failed');
   }
 
   if (response.status === 204) {

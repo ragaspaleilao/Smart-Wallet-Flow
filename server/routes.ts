@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { extractTransactionFromImage, extractMultipleTransactions, extractCreditCardInvoice, transcribeVoiceCommand } from "./ocr";
+import { extractTransactionFromImage, extractMultipleTransactions, extractCreditCardInvoice, transcribeVoiceCommand, RateLimitError } from "./ocr";
 import { processAiChat } from "./ai-chat";
 import { checkConnection, getCalendarList, createAllDayEvent, listEvents, getUserEmail } from "./google-calendar";
 import type { Transaction, CreditPurchase } from "@shared/schema";
@@ -895,6 +895,9 @@ export async function registerRoutes(
       const result = await extractTransactionFromImage(image, mimeType || 'image/jpeg');
       res.json(result);
     } catch (error) {
+      if (error instanceof RateLimitError) {
+        return res.status(429).json({ error: 'rate_limit', message: error.message });
+      }
       console.error('OCR error:', error);
       res.status(500).json({ error: 'Failed to process image' });
     }
@@ -911,6 +914,9 @@ export async function registerRoutes(
       const result = await extractMultipleTransactions(image, mimeType || 'image/jpeg');
       res.json(result);
     } catch (error) {
+      if (error instanceof RateLimitError) {
+        return res.status(429).json({ error: 'rate_limit', message: error.message });
+      }
       console.error('OCR batch error:', error);
       res.status(500).json({ error: 'Failed to process image' });
     }
@@ -927,6 +933,9 @@ export async function registerRoutes(
       const result = await extractCreditCardInvoice(image, mimeType || 'image/jpeg');
       res.json(result);
     } catch (error) {
+      if (error instanceof RateLimitError) {
+        return res.status(429).json({ error: 'rate_limit', message: error.message });
+      }
       console.error('OCR credit invoice error:', error);
       res.status(500).json({ error: 'Failed to process image' });
     }
@@ -943,6 +952,9 @@ export async function registerRoutes(
       const result = await transcribeVoiceCommand(audio, mimeType || 'audio/webm');
       res.json(result);
     } catch (error) {
+      if (error instanceof RateLimitError) {
+        return res.status(429).json({ error: 'rate_limit', message: error.message });
+      }
       console.error('Voice transcription error:', error);
       res.status(500).json({ error: 'Failed to process audio' });
     }

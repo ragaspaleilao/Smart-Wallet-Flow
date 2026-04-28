@@ -203,6 +203,14 @@ function CreditCardPhotoScanner({ cardId, creditCards: allCreditCards, onPurchas
             setEditDate(format(new Date(), "yyyy-MM-dd"));
           }
         }
+      } else if (response.status === 429) {
+        toast({
+          title: "Limite de leitura atingido",
+          description: "Aguarde alguns minutos e tente novamente.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Erro ao processar imagem", variant: "destructive" });
       }
     } catch (error) {
       toast({ title: "Erro ao processar imagem", variant: "destructive" });
@@ -229,6 +237,14 @@ function CreditCardPhotoScanner({ cardId, creditCards: allCreditCards, onPurchas
         } else {
           toast({ title: "Nenhuma compra encontrada", description: "Tente com outra imagem", variant: "destructive" });
         }
+      } else if (response.status === 429) {
+        toast({
+          title: "Limite de leitura atingido",
+          description: "Aguarde alguns minutos e tente novamente.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Erro ao processar fatura", variant: "destructive" });
       }
     } catch (error) {
       toast({ title: "Erro ao processar fatura", variant: "destructive" });

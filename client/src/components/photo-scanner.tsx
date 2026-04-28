@@ -195,8 +195,14 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
           variant: "destructive" 
         });
       }
-    } catch (error) {
-      toast({ title: "Erro ao processar imagem", variant: "destructive" });
+    } catch (error: any) {
+      const msg = error?.message || "";
+      const isLimit = /Limite de uso|rate_limit|429/i.test(msg);
+      toast({
+        title: isLimit ? "Limite de leitura atingido" : "Erro ao processar imagem",
+        description: isLimit ? "Aguarde alguns minutos e tente novamente." : undefined,
+        variant: "destructive",
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -221,8 +227,14 @@ export function PhotoScanner({ open, onOpenChange, accounts, creditCards = [], o
           variant: "destructive" 
         });
       }
-    } catch (error) {
-      toast({ title: "Erro ao processar extrato", variant: "destructive" });
+    } catch (error: any) {
+      const msg = error?.message || "";
+      const isLimit = /Limite de uso|rate_limit|429/i.test(msg);
+      toast({
+        title: isLimit ? "Limite de leitura atingido" : "Erro ao processar extrato",
+        description: isLimit ? "Aguarde alguns minutos e tente novamente." : undefined,
+        variant: "destructive",
+      });
     } finally {
       setIsProcessing(false);
     }

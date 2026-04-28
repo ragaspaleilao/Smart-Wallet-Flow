@@ -1,7 +1,34 @@
 import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-const MODELO_ECONOMICO = "gemini-2.0-flash";
+const MODELO_ECONOMICO = "gemini-2.5-flash-lite";
+
+export class RateLimitError extends Error {
+  constructor(message = "Limite de uso da IA atingido. Aguarde alguns minutos e tente novamente.") {
+    super(message);
+    this.name = "RateLimitError";
+  }
+}
+
+function isRateLimit(err: any): boolean {
+  return err?.status === 429 || /RESOURCE_EXHAUSTED|429|rate/i.test(String(err?.message || ""));
+}
+
+async function generateWithRetry(params: Parameters<typeof ai.models.generateContent>[0]) {
+  const delays = [800, 2500];
+  let lastErr: any;
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      return await ai.models.generateContent(params);
+    } catch (err: any) {
+      lastErr = err;
+      if (!isRateLimit(err) || attempt === delays.length) break;
+      await new Promise(r => setTimeout(r, delays[attempt]));
+    }
+  }
+  if (isRateLimit(lastErr)) throw new RateLimitError();
+  throw lastErr;
+}
 
 export interface OCRTransactionResult {
   amount: number | null;
@@ -52,7 +79,7 @@ Responda APENAS o JSON:
       { text: prompt }
     ];
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry({
       model: MODELO_ECONOMICO,
       contents: contents,
       config: {
@@ -68,6 +95,7 @@ Responda APENAS o JSON:
     return JSON.parse(jsonMatch[0]) as OCRTransactionResult;
 
   } catch (error) {
+    if (error instanceof RateLimitError) throw error;
     console.error("Erro no OCR:", error);
     return { amount: null, description: null, category: null, date: null, merchant: null, confidence: 0, rawText: "Erro na leitura" };
   }
@@ -112,7 +140,7 @@ Responda APENAS o JSON:
       { text: prompt }
     ];
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry({
       model: MODELO_ECONOMICO,
       contents: contents,
       config: {
@@ -149,6 +177,7 @@ Responda APENAS o JSON:
     return parsed;
 
   } catch (error) {
+    if (error instanceof RateLimitError) throw error;
     console.error("Erro no OCR batch:", error);
     return { transactions: [], totalFound: 0, confidence: 0, rawText: "Erro na leitura" };
   }
@@ -212,7 +241,7 @@ Responda APENAS o JSON:
       { text: prompt }
     ];
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry({
       model: MODELO_ECONOMICO,
       contents: contents,
       config: {
@@ -248,6 +277,7 @@ Responda APENAS o JSON:
     return parsed;
 
   } catch (error) {
+    if (error instanceof RateLimitError) throw error;
     console.error("Erro no OCR fatura:", error);
     return { purchases: [], totalFound: 0, invoiceTotal: 0, confidence: 0, rawText: "Erro na leitura" };
   }
@@ -281,7 +311,7 @@ Responda APENAS JSON:
       { text: prompt }
     ];
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry({
       model: MODELO_ECONOMICO,
       contents: contents,
       config: {
@@ -297,6 +327,7 @@ Responda APENAS JSON:
     return JSON.parse(jsonMatch[0]);
 
   } catch (error) {
+    if (error instanceof RateLimitError) throw error;
     console.error("Erro na Voz:", error);
     return { text: "Erro ao ouvir", transaction: { amount: null, description: null, category: null, type: null } };
   }
