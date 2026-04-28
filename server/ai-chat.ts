@@ -15,38 +15,46 @@ async function buildCompleteContext(userId: string): Promise<string> {
     storage.getCreditCards(userId),
   ]);
 
-  const now = new Date();
   const totalBalance = accounts.reduce((sum, a) => sum + parseFloat(a.balance), 0);
-  
-  let context = `💰 SALDO ATUAL: R$ ${totalBalance.toFixed(2)}\n`;
-  
+
+  const lines: string[] = [];
+  lines.push(`Saldo: R$ ${totalBalance.toFixed(2)}`);
+
   const recent = transactions.slice(-5);
-  context += `\n📅 ÚLTIMAS MOVIMENTAÇÕES:\n`;
-  for (const t of recent) {
-    const tipo = t.type === 'income' ? '🟢 RECEBIMENTO' : '🔴 DESPESA';
-    context += `- ${tipo}: ${t.description} (R$ ${t.amount})\n`;
+  if (recent.length > 0) {
+    const movs = recent
+      .map(t => `${t.type === 'income' ? '+' : '-'}R$ ${t.amount} ${t.description}`)
+      .join('; ');
+    lines.push(`Últimas movimentações: ${movs}`);
   }
 
-  context += `\n💳 CARTÕES DE CRÉDITO:\n`;
-  for (const card of creditCards) {
-    const purchases = await storage.getCreditPurchases(userId, card.id);
-    let faturaAtual = 0;
-    let proximasFaturas = 0;
-
-    for (const p of purchases) {
-      if (p.status === 'active') {
-        faturaAtual += parseFloat(p.installmentValue);
-        if (p.installments > 1) proximasFaturas += parseFloat(p.installmentValue) * (p.installments - 1);
+  if (creditCards.length > 0) {
+    const cardLines: string[] = [];
+    for (const card of creditCards) {
+      const purchases = await storage.getCreditPurchases(userId, card.id);
+      let faturaAtual = 0;
+      let proximasFaturas = 0;
+      for (const p of purchases) {
+        if (p.status === 'active') {
+          faturaAtual += parseFloat(p.installmentValue);
+          if (p.installments > 1) proximasFaturas += parseFloat(p.installmentValue) * (p.installments - 1);
+        }
       }
+      let line = `${card.name}: fatura R$ ${faturaAtual.toFixed(2)} (limite ${card.creditLimit}, vence dia ${card.dueDay})`;
+      if (proximasFaturas > 0) line += ` | parcelas futuras R$ ${proximasFaturas.toFixed(2)}`;
+      cardLines.push(line);
     }
-
-    context += `- ${card.name}: Limite R$ ${card.creditLimit} | FATURA ATUAL: R$ ${faturaAtual.toFixed(2)} | Vence dia ${card.dueDay}\n`;
-    if (proximasFaturas > 0) context += `  (Atenção: Você tem R$ ${proximasFaturas.toFixed(2)} comprometidos em parcelas futuras neste cartão)\n`;
+    lines.push(`Cartões: ${cardLines.join(' || ')}`);
   }
 
-  context += `\n🎯 METAS: ` + goals.map(g => `${g.name} (${((parseFloat(g.current)/parseFloat(g.target))*100).toFixed(0)}%)`).join(', ');
+  if (goals.length > 0) {
+    const metas = goals
+      .map(g => `${g.name} ${((parseFloat(g.current) / parseFloat(g.target)) * 100).toFixed(0)}%`)
+      .join(', ');
+    lines.push(`Metas: ${metas}`);
+  }
 
-  return context;
+  return lines.join('\n');
 }
 
 export async function processAiChat(
@@ -57,25 +65,27 @@ export async function processAiChat(
   const context = await buildCompleteContext(userId);
   const formattedToday = format(new Date(), "dd/MM/yyyy", { locale: ptBR });
 
-  const systemPrompt = `Você é o Mentor Financeiro do app "Finanças Fácil". 
-Analise o saldo e as FATURAS DE CARTÃO abaixo.
+  const systemPrompt = `Você é o mentor financeiro do app "Finanças Fácil". Responda em português, de forma curta, direta e prática (sem encheção).
 
-📅 HOJE: ${formattedToday}
+Hoje: ${formattedToday}
 ${context}
 
-REGRAS:
-1. CARTÃO DE CRÉDITO: Se a fatura estiver alta em relação ao saldo, ALERTE o usuário. 
-2. Dê dicas práticas de como não cair na armadilha dos juros.
-3. Se houver parcelas futuras altas, avise que o orçamento dos próximos meses já está comprometido.
-4. Responda em até 3 parágrafos curtos e diretos.`;
+Diretrizes:
+- Responda primeiro o que o usuário perguntou.
+- Só alerte sobre cartão, parcelas ou metas se for relevante à pergunta ou houver risco real (ex.: fatura acima de 50% do saldo).
+- Use apenas os números do contexto, nunca invente valores.
+- Máximo 4 frases, salvo se o usuário pedir detalhe.`;
 
-  const historyText = conversationHistory.slice(-2).map(m => `${m.role}: ${m.content}`).join('\n');
+  const historyText = conversationHistory
+    .slice(-6)
+    .map(m => `${m.role === 'user' ? 'Usuário' : 'Mentor'}: ${m.content}`)
+    .join('\n');
 
   try {
     const result = await client.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash-lite",
       contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n${historyText}\nUsuário: ${message}` }] }],
-      config: { temperature: 0.3, maxOutputTokens: 1000 }
+      config: { temperature: 0.4, maxOutputTokens: 400 }
     });
     return result.text || "Não consegui analisar agora.";
   } catch (error) {
