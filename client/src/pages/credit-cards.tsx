@@ -25,7 +25,10 @@ import {
   Edit,
   Trash2,
   Loader2,
-  Wifi
+  Wifi,
+  ChevronUp,
+  ChevronDown,
+  FileText
 } from "lucide-react";
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
@@ -978,6 +981,17 @@ export default function CreditCards() {
   const [isProjectionOpen, setIsProjectionOpen] = useState(false);
   const [isAddCardOpen, setIsAddCardOpen] = useState(false);
   const [isEditCardOpen, setIsEditCardOpen] = useState(false);
+  const [cardsCollapsed, setCardsCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = localStorage.getItem('credit-cards-collapsed');
+    return stored === null ? true : stored === 'true';
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('credit-cards-collapsed', String(cardsCollapsed));
+    }
+  }, [cardsCollapsed]);
   const [newCardData, setNewCardData] = useState({
     name: "",
     brand: "mastercard",
@@ -1579,6 +1593,131 @@ export default function CreditCards() {
       date: new Date().toISOString().split('T')[0]
   });
 
+  const handleOpenInvoicePdf = () => {
+    if (!selectedCard) return;
+
+    const monthLabel = format(currentInvoiceDate, "MMMM 'de' yyyy", { locale: ptBR });
+    const dueLabel = `${String(selectedCard.dueDay).padStart(2, '0')}/${format(addMonths(currentInvoiceDate, 1), 'MM/yyyy')}`;
+    const escapeHtml = (s: string) =>
+      String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const itemsHtml = invoiceItems.map((item) => {
+      const date = format(parseDateSafe(item.purchase.purchaseDate), 'dd/MM/yyyy');
+      const desc = escapeHtml(item.purchase.description);
+      const cat = escapeHtml(item.purchase.category || '-');
+      const meta = item.purchase.description === 'Anuidade'
+        ? 'Cobrança Mensal'
+        : (item.purchase.isRecurring
+            ? 'Recorrente'
+            : `Parcela ${item.installment}/${item.purchase.installments}`);
+      return `
+        <tr>
+          <td>${date}</td>
+          <td>${desc}</td>
+          <td>${cat}</td>
+          <td>${meta}</td>
+          <td class="num">${formatCurrency(item.value)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Fatura ${escapeHtml(selectedCard.name)} - ${monthLabel}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 32px; color: #111827; background: #fff; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111827; padding-bottom: 16px; margin-bottom: 20px; gap: 16px; }
+  .brand { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .subtitle { color: #6b7280; font-size: 13px; }
+  .totals { text-align: right; }
+  .total-label { color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .total-value { font-size: 26px; font-weight: 700; margin-top: 2px; }
+  .info { display: flex; flex-wrap: wrap; gap: 16px 24px; margin-bottom: 18px; font-size: 13px; color: #374151; }
+  .info strong { color: #111827; margin-right: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; background: #f3f4f6; padding: 10px 8px; font-weight: 600; border-bottom: 2px solid #e5e7eb; }
+  td { padding: 9px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  tfoot td { font-weight: 700; border-top: 2px solid #111827; background: #f9fafb; }
+  .empty { text-align: center; color: #6b7280; padding: 28px; border: 1px dashed #e5e7eb; border-radius: 8px; }
+  .footer { margin-top: 24px; font-size: 11px; color: #9ca3af; text-align: center; }
+  .actions { position: fixed; top: 12px; right: 12px; display: flex; gap: 8px; }
+  .actions button { background: #111827; color: #fff; border: 0; padding: 8px 14px; border-radius: 8px; font-size: 12px; cursor: pointer; font-weight: 600; }
+  .actions button.secondary { background: #e5e7eb; color: #111827; }
+  @media print {
+    body { padding: 16px; }
+    .actions { display: none; }
+    @page { margin: 14mm; }
+  }
+</style>
+</head>
+<body>
+  <div class="actions">
+    <button onclick="window.print()">Imprimir / Salvar PDF</button>
+    <button class="secondary" onclick="window.close()">Fechar</button>
+  </div>
+  <div class="header">
+    <div>
+      <div class="brand">Fatura do Cartão</div>
+      <h1>${escapeHtml(selectedCard.name)}</h1>
+      <div class="subtitle">Competência: ${monthLabel}</div>
+    </div>
+    <div class="totals">
+      <div class="total-label">Total da Fatura</div>
+      <div class="total-value">${formatCurrency(invoiceTotal)}</div>
+      ${invoicePaymentsTotal > 0 ? `<div class="subtitle" style="margin-top:4px;">Pago: ${formatCurrency(invoicePaymentsTotal)}</div>` : ''}
+    </div>
+  </div>
+  <div class="info">
+    <span><strong>Vencimento:</strong> ${dueLabel}</span>
+    <span><strong>Fechamento:</strong> dia ${selectedCard.closingDay}</span>
+    ${selectedCard.brand ? `<span><strong>Bandeira:</strong> ${escapeHtml(selectedCard.brand)}</span>` : ''}
+    <span><strong>Itens:</strong> ${invoiceItems.length}</span>
+  </div>
+  ${invoiceItems.length === 0 ? `<div class="empty">Nenhuma compra nesta fatura.</div>` : `
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 90px;">Data</th>
+        <th>Descrição</th>
+        <th style="width: 120px;">Categoria</th>
+        <th style="width: 140px;">Detalhes</th>
+        <th class="num" style="width: 110px;">Valor</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${itemsHtml}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" class="num">TOTAL</td>
+        <td class="num">${formatCurrency(invoiceTotal)}</td>
+      </tr>
+    </tfoot>
+  </table>
+  `}
+  <div class="footer">Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")} • Xô Preguiça</div>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) {
+      toast({
+        title: 'Bloqueado pelo navegador',
+        description: 'Permita pop-ups deste site para abrir o PDF.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+  };
+
   const handlePayInvoice = () => {
       if (!paymentData.amount || !paymentData.accountId) {
           toast({ title: "Preencha os dados do pagamento", variant: "destructive" });
@@ -1742,8 +1881,33 @@ export default function CreditCards() {
             </div>
 
             {/* Card Carousel / Selector */}
+            <div className="flex items-center justify-between mb-2 px-1">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide" data-testid="text-cards-section-title">
+                    {cardsCollapsed ? `${creditCards.length} cartão${creditCards.length === 1 ? '' : 'es'}` : 'Meus Cartões'}
+                </span>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    onClick={() => setCardsCollapsed(prev => !prev)}
+                    data-testid="button-toggle-cards-view"
+                >
+                    {cardsCollapsed ? (
+                        <>
+                            <ChevronDown className="w-3.5 h-3.5 mr-1" />
+                            Expandir cartões
+                        </>
+                    ) : (
+                        <>
+                            <ChevronUp className="w-3.5 h-3.5 mr-1" />
+                            Minimizar cartões
+                        </>
+                    )}
+                </Button>
+            </div>
+
             <div className="relative">
-                {creditCards.length > 1 && (
+                {!cardsCollapsed && creditCards.length > 1 && (
                     <>
                         <button
                             onClick={() => {
@@ -1776,6 +1940,47 @@ export default function CreditCards() {
                     </>
                 )}
 
+                {cardsCollapsed ? (
+                    <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar px-1">
+                        {creditCards.map(card => {
+                            const availableLimit = card.creditLimit - (selectedCardId === card.id ? (openInvoiceTotal + futureInstallmentsTotal) : 0);
+                            const isSelected = selectedCardId === card.id;
+                            return (
+                                <button
+                                    key={card.id}
+                                    onClick={() => { setSelectedCardId(card.id); setInvoiceMonthOffset(0); setInvoiceTargetDate(null); }}
+                                    data-testid={`card-credit-mini-${card.id}`}
+                                    className={`shrink-0 flex items-center gap-2.5 pl-2 pr-3 py-2 rounded-xl border transition-all ${
+                                        isSelected
+                                            ? 'border-primary bg-primary/5 shadow-sm'
+                                            : 'border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-gray-300 dark:hover:border-zinc-600 opacity-80'
+                                    }`}
+                                >
+                                    <div className={`w-8 h-8 rounded-lg ${card.color} shrink-0 shadow-sm flex items-center justify-center`}>
+                                        <CreditCardIcon className="w-4 h-4 text-white/90" />
+                                    </div>
+                                    <div className="text-left min-w-0">
+                                        <div className="text-xs font-semibold text-gray-900 dark:text-white whitespace-nowrap leading-tight" data-testid={`text-credit-mini-name-${card.id}`}>
+                                            {card.name}
+                                        </div>
+                                        <div className="text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap leading-tight">
+                                            Disp. {formatCurrency(availableLimit)}
+                                        </div>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                        <Button
+                            variant="outline"
+                            className="shrink-0 h-auto py-2 px-3 rounded-xl border-dashed border-2 flex items-center gap-1.5"
+                            onClick={() => { setCardsCollapsed(false); setIsAddCardOpen(true); }}
+                            data-testid="button-add-card-mini"
+                        >
+                            <Plus className="w-4 h-4 text-gray-400" />
+                            <span className="text-xs text-gray-500 font-medium">Novo</span>
+                        </Button>
+                    </div>
+                ) : (
                 <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar px-1">
                 {creditCards.map(card => {
                     const availableLimit = card.creditLimit - (selectedCardId === card.id ? (openInvoiceTotal + futureInstallmentsTotal) : 0);
@@ -2107,6 +2312,7 @@ export default function CreditCards() {
                     </DialogContent>
                 </Dialog>
             </div>
+                )}
             </div>
         </div>
 
@@ -2628,11 +2834,21 @@ export default function CreditCards() {
                                                 </button>
                                             )}
                                         </div>
-                                        <div className="text-right">
+                                        <div className="text-right flex flex-col items-end gap-1">
                                             <span className="text-sm text-gray-500 block">Total da Fatura</span>
                                             <span className="text-2xl font-bold text-gray-900 dark:text-white" data-testid="text-invoice-total">
                                                 {formatCurrency(invoiceTotal)}
                                             </span>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 px-2 text-xs gap-1.5 mt-1"
+                                                onClick={handleOpenInvoicePdf}
+                                                data-testid="button-open-invoice-pdf"
+                                            >
+                                                <FileText className="w-3.5 h-3.5" />
+                                                Abrir PDF
+                                            </Button>
                                         </div>
                                     </div>
                                 </>
