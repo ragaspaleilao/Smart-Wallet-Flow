@@ -28,7 +28,11 @@ import {
   Wifi,
   ChevronUp,
   ChevronDown,
-  FileText
+  FileText,
+  CheckCircle2,
+  Circle,
+  X,
+  ListChecks
 } from "lucide-react";
 import { useFinancialStore, CreditCard, CreditPurchase } from "@/lib/store";
 import { formatCurrency } from "@/lib/utils";
@@ -992,6 +996,9 @@ export default function CreditCards() {
       localStorage.setItem('credit-cards-collapsed', String(cardsCollapsed));
     }
   }, [cardsCollapsed]);
+
+  const [isConferenceOpen, setIsConferenceOpen] = useState(false);
+  const [verifiedItems, setVerifiedItems] = useState<Set<string>>(new Set());
   const [newCardData, setNewCardData] = useState({
     name: "",
     brand: "mastercard",
@@ -1296,6 +1303,57 @@ export default function CreditCards() {
   }, [selectedCardId, currentInvoiceDate, creditPurchases, creditCards]);
 
   const invoiceTotal = invoiceItems.reduce((acc, item) => acc + item.value, 0);
+
+  const conferenceStorageKey = useMemo(() => {
+    if (!selectedCardId) return null;
+    return `invoice-conference-${selectedCardId}-${currentInvoiceDate.getFullYear()}-${currentInvoiceDate.getMonth()}`;
+  }, [selectedCardId, currentInvoiceDate]);
+
+  useEffect(() => {
+    if (!conferenceStorageKey || typeof window === 'undefined') {
+      setVerifiedItems(new Set());
+      return;
+    }
+    try {
+      const stored = localStorage.getItem(conferenceStorageKey);
+      setVerifiedItems(stored ? new Set(JSON.parse(stored)) : new Set());
+    } catch {
+      setVerifiedItems(new Set());
+    }
+  }, [conferenceStorageKey]);
+
+  useEffect(() => {
+    if (!conferenceStorageKey || typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(conferenceStorageKey, JSON.stringify(Array.from(verifiedItems)));
+    } catch {}
+  }, [verifiedItems, conferenceStorageKey]);
+
+  const getItemKey = (purchaseId: string, installment: number, idx: number) =>
+    `${purchaseId}-${installment}-${idx}`;
+
+  const toggleVerified = (key: string) => {
+    setVerifiedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const verifiedTotal = useMemo(() => {
+    return invoiceItems.reduce((sum, item, idx) => {
+      const key = getItemKey(item.purchase.id, item.installment, idx);
+      return sum + (verifiedItems.has(key) ? item.value : 0);
+    }, 0);
+  }, [invoiceItems, verifiedItems]);
+
+  const verifiedCount = useMemo(() => {
+    return invoiceItems.reduce((count, item, idx) => {
+      const key = getItemKey(item.purchase.id, item.installment, idx);
+      return count + (verifiedItems.has(key) ? 1 : 0);
+    }, 0);
+  }, [invoiceItems, verifiedItems]);
 
   const invoicePaymentsTotal = useMemo(() => {
     if (!selectedCard) return 0;
@@ -2644,6 +2702,176 @@ export default function CreditCards() {
                             </div>
                         </DialogContent>
                     </Dialog>
+
+                    {/* Conference (Reconciliation) Dialog - Fullscreen */}
+                    <Dialog open={isConferenceOpen} onOpenChange={setIsConferenceOpen}>
+                        <DialogContent
+                            className="max-w-full w-screen h-[100dvh] sm:h-[100dvh] p-0 gap-0 rounded-none border-0 flex flex-col"
+                            data-testid="dialog-invoice-conference"
+                        >
+                            <DialogHeader className="px-4 pt-4 pb-3 border-b border-gray-200 dark:border-zinc-800 shrink-0">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0 flex-1">
+                                        <DialogTitle className="text-base flex items-center gap-2" data-testid="text-conference-title">
+                                            <ListChecks className="w-5 h-5 text-emerald-600" />
+                                            Conferência da Fatura
+                                        </DialogTitle>
+                                        <DialogDescription className="text-xs mt-0.5 truncate">
+                                            {selectedCard.name} • <span className="capitalize">{format(currentInvoiceDate, 'MMMM yyyy', { locale: ptBR })}</span>
+                                        </DialogDescription>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full shrink-0"
+                                        onClick={() => setIsConferenceOpen(false)}
+                                        data-testid="button-close-conference"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </Button>
+                                </div>
+
+                                {/* Stats bar */}
+                                <div className="grid grid-cols-3 gap-2 mt-3">
+                                    <div className="bg-gray-50 dark:bg-zinc-900 rounded-lg p-2 text-center">
+                                        <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Conferidos</p>
+                                        <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400" data-testid="text-conference-progress">
+                                            {verifiedCount}/{invoiceItems.length}
+                                        </p>
+                                    </div>
+                                    <div className="bg-gray-50 dark:bg-zinc-900 rounded-lg p-2 text-center">
+                                        <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Conferido</p>
+                                        <p className="text-sm font-bold text-gray-900 dark:text-white" data-testid="text-conference-verified-total">
+                                            {formatCurrency(verifiedTotal)}
+                                        </p>
+                                    </div>
+                                    <div className="bg-gray-50 dark:bg-zinc-900 rounded-lg p-2 text-center">
+                                        <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Falta conferir</p>
+                                        <p className="text-sm font-bold text-amber-600 dark:text-amber-400" data-testid="text-conference-pending-total">
+                                            {formatCurrency(invoiceTotal - verifiedTotal)}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <Progress
+                                    value={invoiceItems.length > 0 ? (verifiedCount / invoiceItems.length) * 100 : 0}
+                                    className="h-1.5 mt-3"
+                                />
+
+                                <div className="flex items-center justify-between mt-2">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400" data-testid="text-conference-total">
+                                        Total da fatura: <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(invoiceTotal)}</span>
+                                    </span>
+                                    <div className="flex gap-1.5">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 px-2 text-xs"
+                                            onClick={() => {
+                                                const all = new Set(invoiceItems.map((item, idx) => getItemKey(item.purchase.id, item.installment, idx)));
+                                                setVerifiedItems(all);
+                                            }}
+                                            data-testid="button-conference-mark-all"
+                                        >
+                                            Marcar todas
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 px-2 text-xs text-red-600 hover:text-red-700"
+                                            onClick={() => setVerifiedItems(new Set())}
+                                            disabled={verifiedCount === 0}
+                                            data-testid="button-conference-clear"
+                                        >
+                                            Limpar
+                                        </Button>
+                                    </div>
+                                </div>
+                            </DialogHeader>
+
+                            {/* Items list */}
+                            <div className="flex-1 overflow-y-auto px-4 py-3 bg-gray-50/50 dark:bg-zinc-950/50">
+                                {invoiceItems.length === 0 ? (
+                                    <div className="text-center py-12 text-gray-500" data-testid="text-conference-empty">
+                                        Nenhuma compra nesta fatura.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {invoiceItems.map((item, idx) => {
+                                            const key = getItemKey(item.purchase.id, item.installment, idx);
+                                            const isVerified = verifiedItems.has(key);
+                                            return (
+                                                <button
+                                                    key={key}
+                                                    type="button"
+                                                    onClick={() => toggleVerified(key)}
+                                                    data-testid={`button-conference-item-${item.purchase.id}-${idx}`}
+                                                    className={`w-full text-left flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                                                        isVerified
+                                                            ? 'bg-emerald-50 border-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-700'
+                                                            : 'bg-white border-gray-200 dark:bg-zinc-900 dark:border-zinc-800 hover:border-gray-300 dark:hover:border-zinc-700'
+                                                    }`}
+                                                >
+                                                    <div className="shrink-0">
+                                                        {isVerified ? (
+                                                            <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                                                        ) : (
+                                                            <Circle className="w-6 h-6 text-gray-300 dark:text-zinc-600" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className={`text-[10px] font-semibold tracking-wide uppercase truncate ${
+                                                            isVerified ? 'text-emerald-700/80 dark:text-emerald-400/80' : 'text-primary/70'
+                                                        }`} data-testid={`text-conference-item-category-${item.purchase.id}-${idx}`}>
+                                                            {item.purchase.category}
+                                                        </p>
+                                                        <p className={`font-semibold truncate ${
+                                                            isVerified
+                                                                ? 'text-emerald-900 dark:text-emerald-100 line-through decoration-emerald-500/40'
+                                                                : 'text-gray-900 dark:text-white'
+                                                        }`} data-testid={`text-conference-item-description-${item.purchase.id}-${idx}`}>
+                                                            {item.purchase.description}
+                                                        </p>
+                                                        <p className={`text-xs ${isVerified ? 'text-emerald-700/70 dark:text-emerald-400/70' : 'text-gray-500'}`}>
+                                                            {item.purchase.description === 'Anuidade'
+                                                                ? 'Cobrança Mensal'
+                                                                : item.purchase.isRecurring
+                                                                    ? `${format(parseDateSafe(item.purchase.purchaseDate), 'dd/MM')} • Recorrente`
+                                                                    : `${format(parseDateSafe(item.purchase.purchaseDate), 'dd/MM')} • Parcela ${item.installment}/${item.purchase.installments}`}
+                                                        </p>
+                                                    </div>
+                                                    <div className="shrink-0 text-right">
+                                                        <p className={`font-bold ${
+                                                            isVerified ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-900 dark:text-white'
+                                                        }`} data-testid={`text-conference-item-amount-${item.purchase.id}-${idx}`}>
+                                                            {formatCurrency(item.value)}
+                                                        </p>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="border-t border-gray-200 dark:border-zinc-800 px-4 py-3 bg-white dark:bg-zinc-900 shrink-0">
+                                {invoiceItems.length > 0 && verifiedCount === invoiceItems.length ? (
+                                    <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm font-semibold mb-2" data-testid="text-conference-complete">
+                                        <CheckCircle2 className="w-4 h-4" /> Tudo conferido!
+                                    </div>
+                                ) : null}
+                                <Button
+                                    className="w-full"
+                                    variant="outline"
+                                    onClick={() => setIsConferenceOpen(false)}
+                                    data-testid="button-conference-done"
+                                >
+                                    Concluir
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                 </div>
 
                 {/* Limit Progress */}
@@ -2839,16 +3067,29 @@ export default function CreditCards() {
                                             <span className="text-2xl font-bold text-gray-900 dark:text-white" data-testid="text-invoice-total">
                                                 {formatCurrency(invoiceTotal)}
                                             </span>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-7 px-2 text-xs gap-1.5 mt-1"
-                                                onClick={handleOpenInvoicePdf}
-                                                data-testid="button-open-invoice-pdf"
-                                            >
-                                                <FileText className="w-3.5 h-3.5" />
-                                                Abrir PDF
-                                            </Button>
+                                            <div className="flex gap-1.5 mt-1">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 px-2 text-xs gap-1.5"
+                                                    onClick={handleOpenInvoicePdf}
+                                                    data-testid="button-open-invoice-pdf"
+                                                >
+                                                    <FileText className="w-3.5 h-3.5" />
+                                                    PDF
+                                                </Button>
+                                                <Button
+                                                    variant="default"
+                                                    size="sm"
+                                                    className="h-7 px-2 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                    onClick={() => setIsConferenceOpen(true)}
+                                                    disabled={invoiceItems.length === 0}
+                                                    data-testid="button-open-invoice-conference"
+                                                >
+                                                    <ListChecks className="w-3.5 h-3.5" />
+                                                    Conferir
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
                                 </>
