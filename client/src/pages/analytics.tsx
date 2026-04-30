@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useAccounts, useTransactions, useCreditCards, useCreditPurchases, useCreditPayments } from "@/hooks/use-api";
+import { useAccountsWithBalance, useTransactions, useCreditCards, useCreditPurchases, useCreditPayments } from "@/hooks/use-api";
 
 const COLORS = ['#8b5cf6', '#f97316', '#10b981', '#ef4444', '#3b82f6', '#eab308', '#ec4899', '#6366f1', '#14b8a6', '#f43f5e'];
 
@@ -48,7 +48,7 @@ export default function Analytics() {
   
   // Fetch data from API
   const { data: apiTransactions = [], isLoading: transactionsLoading, isSuccess: transactionsSuccess } = useTransactions();
-  const { data: apiAccounts = [], isSuccess: accountsSuccess } = useAccounts();
+  const { data: apiAccounts = [], isSuccess: accountsSuccess } = useAccountsWithBalance();
   const { data: apiCreditCards = [], isSuccess: cardsSuccess } = useCreditCards();
   const { data: apiCreditPurchases = [], isSuccess: purchasesSuccess } = useCreditPurchases();
   const { data: apiCreditPayments = [], isSuccess: paymentsSuccess } = useCreditPayments();
