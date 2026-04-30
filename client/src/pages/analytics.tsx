@@ -506,9 +506,9 @@ export default function Analytics() {
           });
 
           const income = monthTxs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-          
+
           const creditCardExpense = monthTxs
-             .filter(t => t.description.toLowerCase().includes('fatura') || (t.category as string) === 'Cartão de Crédito')
+             .filter(t => t.type === 'expense' && (t.description.toLowerCase().includes('fatura') || (t.category as string) === 'Cartão de Crédito'))
              .reduce((sum, t) => sum + t.amount, 0);
 
           const otherExpense = monthTxs
