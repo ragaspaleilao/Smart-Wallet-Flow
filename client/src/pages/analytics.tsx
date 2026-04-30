@@ -342,11 +342,28 @@ export default function Analytics() {
     const year = parseInt(selectedYear);
     if (!accounts?.length) return 0;
 
-    // For planning, we start from current balances as the baseline for the year.
-    // (Mockup limitation: without backend/history of balances, this is the best available signal.)
+    // Compute the actual start-of-year balance by rolling back all paid
+    // transactions from the selected year onward, starting from the current
+    // account balances. This matches the logic used in the spreadsheet view
+    // so that the consolidation totals stay consistent across both screens.
     const scopeAccounts = accounts.filter((a) => (viewMode === 'personal' ? a.isPersonal : !a.isPersonal));
-    return scopeAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
-  }, [accounts, selectedYear, viewMode]);
+    const currentTotalBalance = scopeAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
+
+    const subsequentPaid = transactions.filter((t) => {
+      const tDate = new Date(t.date);
+      const isContextMatch = viewMode === 'personal' ? t.isPersonal : !t.isPersonal;
+      const isPaid = t.status === 'paid';
+      return isContextMatch && isPaid && tDate.getFullYear() >= year;
+    });
+
+    let initialBalance = currentTotalBalance;
+    subsequentPaid.forEach((t) => {
+      if (t.type === 'income') initialBalance -= t.amount;
+      else initialBalance += t.amount;
+    });
+
+    return initialBalance;
+  }, [accounts, selectedYear, viewMode, transactions]);
 
   const projectionData = useMemo(() => {
       const year = parseInt(selectedYear);
