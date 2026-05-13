@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
+import type { Subscription } from "@/lib/types";
 import { useSubscriptions, useUpdateSubscription, useDeleteSubscription } from "@/hooks/use-api";
 
 interface Subscription {
@@ -30,6 +31,7 @@ export default function Subscriptions() {
     const subscriptions: Subscription[] = apiSubscriptions.map(s => ({
       ...s,
       price: parseFloat(String(s.price)),
+      usage: s.usage as 'high' | 'medium' | 'low' | null | undefined,
     }));
     
     const [expandedId, setExpandedId] = useState<string | null>(null);

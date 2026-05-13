@@ -234,10 +234,10 @@ export class DbStorage implements IStorage {
       query = query.where(eq(schema.transactions.type, filters.type));
     }
     if (filters?.startDate) {
-      query = query.where(gte(schema.transactions.date, filters.startDate.toISOString()));
+      query = query.where(gte(schema.transactions.date, filters.startDate));
     }
     if (filters?.endDate) {
-      query = query.where(lte(schema.transactions.date, filters.endDate.toISOString()));
+      query = query.where(lte(schema.transactions.date, filters.endDate));
     }
     
     return await query.orderBy(desc(schema.transactions.date));

@@ -72,7 +72,7 @@ function Router() {
       <Route path="/voice-entry" component={VoiceEntry} />
       <Route path="/photo-entry" component={PhotoEntry} />
       <Route path="/manual-entry" component={ManualEntry} />
-      <Route path="/simulator" component={Simulator} />
+      <Route path="/simulator" component={() => <Simulator />} />
 
       {/* Main sections */}
       <Route path="/transactions" component={Transactions} />

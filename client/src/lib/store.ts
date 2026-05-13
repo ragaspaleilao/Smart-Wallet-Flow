@@ -1,162 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
+import type { Transaction, Account, Goal, Investment, Vehicle, Subscription } from './types';
 
 export type TransactionType = 'income' | 'expense';
 export type Category = string;
 
 export type AccountType = 'bank' | 'wallet' | 'cash' | 'other' | 'investment';
 
-export interface Account {
-  id: string;
-  name: string;
-  type: AccountType;
-  balance: number;
-  initialBalance: number;
-  color: string;
-  isPersonal: boolean;
-}
-
-export interface Transaction {
-  id: string;
-  amount: number;
-  type: TransactionType;
-  category: Category;
-  description: string;
-  date: string; // ISO string
-  source: 'manual' | 'notification' | 'voice' | 'photo';
-  isPersonal: boolean; // true = personal, false = business
-  accountId?: string; // Optional for backward compatibility, but should be used going forward
-  vehicleId?: string; // Optional link to a vehicle
-  paymentMethod?: 'debit' | 'credit' | 'cash' | 'pix' | 'transfer';
-  creditCardId?: string;
-  
-  // New fields for Spreadsheet View
-  status?: 'paid' | 'pending';
-  tags?: string[];
-  notes?: string;
-}
-
-export interface Goal {
-  id: string;
-  name: string;
-  target: number;
-  current: number;
-  color: string;
-  linkedAccountId?: string; // New field to link to an account
-}
-
-export interface Investment {
-  id: string;
-  name: string;
-  value: number;
-  yield: string; // Display string e.g. "+0.85%"
-  yieldRate?: number; // Numeric monthly rate e.g. 0.85
-  startDate?: string; // ISO date
-  hasTax?: boolean; // Whether IR applies
-  isPersonal: boolean;
-  accountId?: string; // Link to a wallet/account
-  lastYieldAppliedAt?: string; // ISO datetime
-}
-
-export interface Vehicle {
-  id: string;
-  name: string;
-  plate: string;
-  expenses: {
-    name: string;
-    due: string;
-    value: number;
-    status: 'ok' | 'warning' | 'expired';
-  }[];
-}
-
-export interface BusinessProduct {
-  id: string;
-  name: string;
-  category: string;
-  sellingPrice: number;
-  averageMonthlySales: number;
-  directCosts: { id: string; name: string; value: number }[];
-}
-
-export interface BusinessSettings {
-  fixedCosts: { id: string; name: string; value: number }[];
-}
-
-export interface Referral {
-  id: string;
-  name: string;
-  status: 'pending' | 'confirmed';
-  date: string;
-}
-
-export interface Backup {
-  id: string;
-  date: string;
-  size: string;
-  device: string;
-  auto: boolean;
-}
-
-export interface CalendarSettings {
-  isEnabled: boolean;
-  isConnected: boolean; // Simulates Google OAuth connection
-  syncCategories: Category[];
-  reminderDaysBefore: number;
-}
-
-export interface CalendarEvent {
-  id: string;
-  title: string;
-  date: string;
-  amount: number;
-  type: TransactionType;
-  synced: boolean;
-}
-
-// --- Credit Card Module Models ---
-
-export interface CreditCard {
-  id: string;
-  name: string;
-  brand: 'mastercard' | 'visa' | 'amex' | 'elo' | 'hipercard' | 'other';
-  creditLimit: number;
-  closingDay: number;
-  dueDay: number;
-  linkedAccountId?: string;
-  color: string;
-  status: 'active' | 'inactive';
-  hasAnnualFee?: boolean;
-  annualFeeValue?: number;
-}
-
-export interface CreditPurchase {
-  id: string;
-  creditCardId: string;
-  purchaseDate: string; // ISO
-  totalAmount: number;
-  installments: number;
-  installmentValue: number;
-  category: Category;
-  description: string;
-  status: 'active' | 'partial_refund' | 'refunded';
-  createdAt: string;
-  updatedAt: string;
-  refundedAmount?: number;
-  isRecurring?: boolean;
-}
-
-export interface CreditInvoicePayment {
-  id: string;
-  creditCardId: string;
-  month: number; // 0-11
-  year: number;
-  paymentDate: string;
-  amount: number;
-  accountId: string;
-  type: 'total' | 'partial';
-}
+// Note: Types imported from shared schema: Goal, Investment, Vehicle, Subscription, BusinessProduct, etc.
+// Local interfaces kept for store-specific extensions
 
 interface FinancialStore {
   transactions: Transaction[];
@@ -225,7 +78,7 @@ interface FinancialStore {
   connectCalendar: () => void;
   disconnectCalendar: () => void;
 
-  balance: number; // Global balance (sum of all accounts)
+  balance: string; // Global balance (sum of all accounts)
   income: number;
   expense: number;
   
@@ -234,7 +87,7 @@ interface FinancialStore {
   removeTransaction: (id: string) => void;
   
   addAccount: (acc: Omit<Account, 'id'>) => void;
-  updateAccountBalance: (id: string, newBalance: number) => void;
+  updateAccountBalance: (id: string, newBalance: string) => void;
   removeAccount: (id: string) => void;
   
   addGoal: (goal: Omit<Goal, 'id'>) => void;
@@ -663,7 +516,7 @@ export const useFinancialStore = create<FinancialStore>()(
           .reduce((acc, curr) => acc + curr.amount, 0);
 
         // Global balance is sum of all account balances
-        const globalBalance = newAccounts.reduce((acc, curr) => acc + curr.balance, 0);
+        const globalBalance = newAccounts.reduce((acc, curr) => acc + parseFloat(curr.balance), 0).toString();
 
         return {
           transactions: newTransactions,
@@ -771,7 +624,7 @@ export const useFinancialStore = create<FinancialStore>()(
       addAccount: (accData) => set((state) => {
         const newAccount = { ...accData, id: nanoid() };
         const newAccounts = [...state.accounts, newAccount];
-        const globalBalance = newAccounts.reduce((acc, curr) => acc + curr.balance, 0);
+        const globalBalance = newAccounts.reduce((acc, curr) => acc + parseFloat(curr.balance), 0).toString();
         
         return {
           accounts: newAccounts,
@@ -785,16 +638,16 @@ export const useFinancialStore = create<FinancialStore>()(
             // When manually updating balance, we must also update initialBalance
             // to maintain consistency if there are no transactions, or to re-baseline.
             // Simplified Logic: New Initial = Old Initial + (New Balance - Old Balance)
-            const diff = newBalance - acc.balance;
+            const diff = parseFloat(newBalance) - parseFloat(acc.balance);
             return { 
                 ...acc, 
                 balance: newBalance,
-                initialBalance: acc.initialBalance + diff 
+                initialBalance: (parseFloat(acc.initialBalance) + diff).toString()
             };
           }
           return acc;
         });
-        const globalBalance = newAccounts.reduce((acc, curr) => acc + curr.balance, 0);
+        const globalBalance = newAccounts.reduce((acc, curr) => acc + parseFloat(curr.balance), 0).toString();
         return { accounts: newAccounts, balance: globalBalance };
       }),
 

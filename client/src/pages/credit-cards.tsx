@@ -628,7 +628,7 @@ function CreditCardPhotoScanner({ cardId, creditCards: allCreditCards, onPurchas
         </div>
       ) : (
         <div className="space-y-4">
-          <img src={preview} alt="Recibo" className="w-full rounded-lg max-h-48 object-contain" />
+          <img src={preview || ''} alt="Recibo" className="w-full rounded-lg max-h-48 object-contain" />
           {isProcessing ? (
             <div className="flex items-center justify-center gap-2 py-4">
               <Loader2 className="w-5 h-5 animate-spin" />

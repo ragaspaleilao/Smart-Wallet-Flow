@@ -277,7 +277,7 @@ export default function Goals() {
             >
               <div className="flex items-start gap-4">
                 <div className={`p-3 rounded-xl ${goal.color} bg-opacity-10 text-opacity-100 flex items-center justify-center`}>
-                  <Target className={`w-6 h-6 ${goal.color.replace('bg-', 'text-')}`} />
+                  <Target className={`w-6 h-6 ${goal.color?.replace('bg-', 'text-') || 'text-gray-500'}`} />
                 </div>
                 <div className="flex-1 space-y-3">
                   <div className="flex justify-between items-start">

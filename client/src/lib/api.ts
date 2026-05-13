@@ -1,3 +1,17 @@
+import type {
+  Transaction,
+  Account,
+  CreditCard,
+  Goal,
+  Investment,
+  Vehicle,
+  Subscription,
+  BusinessProduct,
+  Category,
+  Budget,
+  User,
+} from './types';
+
 const API_BASE = '/api';
 
 let currentUserId: string | null = null;
@@ -31,6 +45,7 @@ async function apiRequest<T>(
 
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
+    credentials: "include",
     headers: {
       'Content-Type': 'application/json',
       'x-user-id': userId,
@@ -91,40 +106,21 @@ export const accountsApi = {
 
 // ===== TRANSACTIONS =====
 
-export interface Transaction {
-  id: string;
-  userId: string;
-  accountId: string | null;
-  amount: string;
-  type: string;
-  category: string;
-  description: string;
-  date: string;
-  source: string;
-  isPersonal: boolean;
-  status: string;
-  paymentMethod: string | null;
-  creditCardId: string | null;
-  vehicleId: string | null;
-  tags: string[] | null;
-  notes: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+// Note: Transaction type imported from shared schema
 
 export interface CreateTransactionInput {
-  accountId?: string;
-  amount: string;
-  type: string;
+  accountId?: string | null;
+  amount: number;
+  type: 'income' | 'expense';
   category: string;
   description: string;
-  date: string;
-  source: string;
+  date: Date | string;
+  source: 'manual' | 'notification' | 'voice' | 'photo';
   isPersonal: boolean;
-  status?: string;
-  paymentMethod?: string;
-  creditCardId?: string;
-  vehicleId?: string;
+  status?: 'paid' | 'pending';
+  paymentMethod?: 'debit' | 'credit' | 'cash' | 'pix' | 'transfer' | null;
+  creditCardId?: string | null;
+  vehicleId?: string | null;
   tags?: string[];
   notes?: string;
 }

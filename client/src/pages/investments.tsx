@@ -42,8 +42,7 @@ export default function Investments() {
   const investments: Investment[] = apiInvestments.map(i => ({
     ...i,
     value: parseFloat(String(i.value)),
-    yield: parseFloat(String(i.yield || 0)),
-    yieldRate: parseFloat(String(i.yieldRate || 0)),
+    startDate: i.startDate ? new Date(i.startDate) : undefined,
   }));
   const accounts = apiAccounts.map(a => ({ ...a, balance: parseFloat(a.balance) }));
   
@@ -145,7 +144,7 @@ export default function Investments() {
           await updateInvestmentMutation.mutateAsync({ id: editingId, data: {
             name: payload.name,
             value: String(payload.value),
-            yield: String(payload.yield),
+            yieldDisplay: String(payload.yield),
             yieldRate: String(payload.yieldRate),
             startDate: payload.startDate,
             hasTax: payload.hasTax,
@@ -156,7 +155,7 @@ export default function Investments() {
           await createInvestmentMutation.mutateAsync({
             name: payload.name,
             value: String(payload.value),
-            yield: String(payload.yield),
+            yieldDisplay: String(payload.yield),
             yieldRate: String(payload.yieldRate),
             startDate: payload.startDate,
             hasTax: payload.hasTax,
@@ -213,7 +212,7 @@ export default function Investments() {
     setFormData({
         name: inv.name,
         value: formattedValue,
-        yield: inv.yield,
+        yield: parseFloat(inv.yieldDisplay || '0'),
         yieldRate: inv.yieldRate?.toString() || "0.85",
         startDate: inv.startDate || new Date().toISOString().split('T')[0],
         hasTax: !!inv.hasTax,
@@ -502,7 +501,7 @@ export default function Investments() {
                               const inv = investments.find(i => i.id === editingId);
                               if (!inv) return;
 
-                              const result = computeValueWithYieldToNow(inv.value, inv.yieldRate ?? 0, inv.lastYieldAppliedAt || inv.startDate);
+                              const result = computeValueWithYieldToNow(inv.value, inv.yieldRate ?? 0, inv.lastYieldAppliedAt || inv.startDate || new Date());
                               if (result.profit <= 0) {
                                 toast({ title: "Nada para aplicar ainda" });
                                 return;

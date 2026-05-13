@@ -59,14 +59,12 @@ export default function Analytics() {
       return apiTransactions.map(t => ({
         ...t,
         amount: parseFloat(t.amount),
-        date: t.date,
-        isPersonal: t.isPersonal,
-        status: t.status as 'paid' | 'pending',
-        type: t.type as 'income' | 'expense',
+        date: new Date(t.date),
+        source: t.source as 'manual' | 'notification' | 'voice' | 'photo',
       }));
     }
-    return storeData.transactions;
-  }, [apiTransactions, storeData.transactions, transactionsSuccess]);
+    return [];
+  }, [apiTransactions, transactionsSuccess]);
   
   const accounts = useMemo(() => {
     if (accountsSuccess) {

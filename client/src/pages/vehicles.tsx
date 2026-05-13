@@ -42,6 +42,7 @@ export default function Vehicles() {
     type: t.type as 'income' | 'expense',
     status: t.status as 'paid' | 'pending',
     source: t.source as 'manual' | 'notification' | 'voice' | 'photo',
+    accountId: t.accountId || undefined,
   }));
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
