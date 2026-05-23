@@ -28,7 +28,7 @@ import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { useAccounts, useCreateAccount, useUpdateAccount, useDeleteAccount, useTransactions } from "@/hooks/use-api";
+import { useAccounts, useCreateAccount, useUpdateAccount, useDeleteAccount, useTransactions, useInvestments } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
 
 type Account = {
@@ -52,7 +52,8 @@ export default function Accounts() {
   const deleteAccountMutation = useDeleteAccount();
   
   const storeData = useFinancialStore();
-  
+  const { data: apiInvestments = [] } = useInvestments();
+
   useEffect(() => {
     if (!isAuthenticated) {
       setLocation("/");
@@ -94,7 +95,10 @@ export default function Accounts() {
     };
   });
     
-  const investments = storeData.investments;
+  const investments = apiInvestments.map(inv => ({
+    ...inv,
+    value: parseFloat(inv.value),
+  }));
   
   const [open, setOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

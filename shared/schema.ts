@@ -473,6 +473,58 @@ export const updateCreditPaymentSchema = z.object({
   year: z.number().int().min(2000).max(2100).optional(),
 });
 
+// ===== UPDATE SCHEMAS (PATCH) =====
+
+export const updateAccountSchema = createInsertSchema(accounts).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
+
+export const updateCreditCardSchema = createInsertSchema(creditCards).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
+
+export const updateGoalSchema = createInsertSchema(goals).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
+
+export const updateInvestmentSchema = createInsertSchema(investments).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
+
+export const updateVehicleSchema = createInsertSchema(vehicles).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
+
+export const updateSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
+
+export const updateSimulationSchema = createInsertSchema(simulations).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+}).partial().extend({
+  startDate: z.union([z.date(), z.string().transform((str) => new Date(str))]).optional(),
+});
+
 // ===== TYPE EXPORTS =====
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

@@ -68,6 +68,13 @@ import {
   updateReferralSchema,
   insertCalendarSettingsSchema,
   updateCreditPaymentSchema,
+  updateAccountSchema,
+  updateCreditCardSchema,
+  updateGoalSchema,
+  updateInvestmentSchema,
+  updateVehicleSchema,
+  updateSubscriptionSchema,
+  updateSimulationSchema,
 } from "@shared/schema";
 
 interface AuthRequest extends Request {
@@ -114,13 +121,14 @@ export async function registerRoutes(
   app.patch('/api/accounts/:id', authMiddleware, async (req: AuthRequest, res) => {
     try {
       const id = String(req.params.id);
-      const account = await storage.updateAccount(id, req.userId!, req.body);
+      const data = updateAccountSchema.parse(req.body);
+      const account = await storage.updateAccount(id, req.userId!, data);
       if (!account) {
         return res.status(404).json({ error: 'Account not found' });
       }
       res.json(account);
-    } catch (error) {
-      res.status(400).json({ error: 'Failed to update account' });
+    } catch (error: any) {
+      res.status(400).json({ error: 'Invalid account data', details: error?.message });
     }
   });
 
@@ -286,7 +294,6 @@ export async function registerRoutes(
 
   app.post('/api/credit-cards', authMiddleware, async (req: AuthRequest, res) => {
     try {
-      console.log('Credit card request body:', JSON.stringify(req.body));
       const data = insertCreditCardSchema.parse(req.body);
       const card = await storage.createCreditCard(req.userId!, data);
       res.status(201).json(card);
@@ -302,13 +309,14 @@ export async function registerRoutes(
   app.patch('/api/credit-cards/:id', authMiddleware, async (req: AuthRequest, res) => {
     try {
       const id = String(req.params.id);
-      const card = await storage.updateCreditCard(id, req.userId!, req.body);
+      const data = updateCreditCardSchema.parse(req.body);
+      const card = await storage.updateCreditCard(id, req.userId!, data);
       if (!card) {
         return res.status(404).json({ error: 'Credit card not found' });
       }
       res.json(card);
-    } catch (error) {
-      res.status(400).json({ error: 'Failed to update credit card' });
+    } catch (error: any) {
+      res.status(400).json({ error: 'Invalid credit card data', details: error?.message });
     }
   });
 
@@ -548,13 +556,14 @@ export async function registerRoutes(
   app.patch('/api/goals/:id', authMiddleware, async (req: AuthRequest, res) => {
     try {
       const id = String(req.params.id);
-      const goal = await storage.updateGoal(id, req.userId!, req.body);
+      const data = updateGoalSchema.parse(req.body);
+      const goal = await storage.updateGoal(id, req.userId!, data);
       if (!goal) {
         return res.status(404).json({ error: 'Goal not found' });
       }
       res.json(goal);
-    } catch (error) {
-      res.status(400).json({ error: 'Failed to update goal' });
+    } catch (error: any) {
+      res.status(400).json({ error: 'Invalid goal data', details: error?.message });
     }
   });
 
@@ -595,13 +604,14 @@ export async function registerRoutes(
   app.patch('/api/investments/:id', authMiddleware, async (req: AuthRequest, res) => {
     try {
       const id = String(req.params.id);
-      const investment = await storage.updateInvestment(id, req.userId!, req.body);
+      const data = updateInvestmentSchema.parse(req.body);
+      const investment = await storage.updateInvestment(id, req.userId!, data);
       if (!investment) {
         return res.status(404).json({ error: 'Investment not found' });
       }
       res.json(investment);
-    } catch (error) {
-      res.status(400).json({ error: 'Failed to update investment' });
+    } catch (error: any) {
+      res.status(400).json({ error: 'Invalid investment data', details: error?.message });
     }
   });
 
@@ -642,13 +652,14 @@ export async function registerRoutes(
   app.patch('/api/vehicles/:id', authMiddleware, async (req: AuthRequest, res) => {
     try {
       const id = String(req.params.id);
-      const vehicle = await storage.updateVehicle(id, req.userId!, req.body);
+      const data = updateVehicleSchema.parse(req.body);
+      const vehicle = await storage.updateVehicle(id, req.userId!, data);
       if (!vehicle) {
         return res.status(404).json({ error: 'Vehicle not found' });
       }
       res.json(vehicle);
-    } catch (error) {
-      res.status(400).json({ error: 'Failed to update vehicle' });
+    } catch (error: any) {
+      res.status(400).json({ error: 'Invalid vehicle data', details: error?.message });
     }
   });
 
@@ -689,13 +700,14 @@ export async function registerRoutes(
   app.patch('/api/subscriptions/:id', authMiddleware, async (req: AuthRequest, res) => {
     try {
       const id = String(req.params.id);
-      const subscription = await storage.updateSubscription(id, req.userId!, req.body);
+      const data = updateSubscriptionSchema.parse(req.body);
+      const subscription = await storage.updateSubscription(id, req.userId!, data);
       if (!subscription) {
         return res.status(404).json({ error: 'Subscription not found' });
       }
       res.json(subscription);
-    } catch (error) {
-      res.status(400).json({ error: 'Failed to update subscription' });
+    } catch (error: any) {
+      res.status(400).json({ error: 'Invalid subscription data', details: error?.message });
     }
   });
 
@@ -736,13 +748,14 @@ export async function registerRoutes(
   app.patch('/api/simulations/:id', authMiddleware, async (req: AuthRequest, res) => {
     try {
       const id = String(req.params.id);
-      const simulation = await storage.updateSimulation(id, req.userId!, req.body);
+      const data = updateSimulationSchema.parse(req.body);
+      const simulation = await storage.updateSimulation(id, req.userId!, data);
       if (!simulation) {
         return res.status(404).json({ error: 'Simulation not found' });
       }
       res.json(simulation);
-    } catch (error) {
-      res.status(400).json({ error: 'Failed to update simulation' });
+    } catch (error: any) {
+      res.status(400).json({ error: 'Invalid simulation data', details: error?.message });
     }
   });
 

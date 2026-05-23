@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { eq, and, desc, sql, gte, lte } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte, SQL } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
   AuthUser,
@@ -225,22 +225,26 @@ export class DbStorage implements IStorage {
   // ===== TRANSACTION OPERATIONS =====
 
   async getTransactions(userId: string, filters?: { accountId?: string; type?: string; startDate?: Date; endDate?: Date }): Promise<Transaction[]> {
-    let query = this.db.select().from(schema.transactions).where(eq(schema.transactions.userId, userId)).$dynamic();
-    
+    const conditions: SQL[] = [eq(schema.transactions.userId, userId)];
+
     if (filters?.accountId) {
-      query = query.where(eq(schema.transactions.accountId, filters.accountId));
+      conditions.push(eq(schema.transactions.accountId, filters.accountId));
     }
     if (filters?.type) {
-      query = query.where(eq(schema.transactions.type, filters.type));
+      conditions.push(eq(schema.transactions.type, filters.type));
     }
     if (filters?.startDate) {
-      query = query.where(gte(schema.transactions.date, filters.startDate));
+      conditions.push(gte(schema.transactions.date, filters.startDate));
     }
     if (filters?.endDate) {
-      query = query.where(lte(schema.transactions.date, filters.endDate));
+      conditions.push(lte(schema.transactions.date, filters.endDate));
     }
-    
-    return await query.orderBy(desc(schema.transactions.date));
+
+    return await this.db
+      .select()
+      .from(schema.transactions)
+      .where(and(...conditions))
+      .orderBy(desc(schema.transactions.date));
   }
 
   async getTransaction(id: string, userId: string): Promise<Transaction | undefined> {
@@ -313,13 +317,17 @@ export class DbStorage implements IStorage {
   // ===== CREDIT PURCHASE OPERATIONS =====
 
   async getCreditPurchases(userId: string, cardId?: string): Promise<CreditPurchase[]> {
-    let query = this.db.select().from(schema.creditPurchases).where(eq(schema.creditPurchases.userId, userId)).$dynamic();
-    
+    const conditions: SQL[] = [eq(schema.creditPurchases.userId, userId)];
+
     if (cardId) {
-      query = query.where(eq(schema.creditPurchases.creditCardId, cardId));
+      conditions.push(eq(schema.creditPurchases.creditCardId, cardId));
     }
-    
-    return await query.orderBy(desc(schema.creditPurchases.purchaseDate));
+
+    return await this.db
+      .select()
+      .from(schema.creditPurchases)
+      .where(and(...conditions))
+      .orderBy(desc(schema.creditPurchases.purchaseDate));
   }
 
   async getCreditPurchase(id: string, userId: string): Promise<CreditPurchase | undefined> {
@@ -355,13 +363,17 @@ export class DbStorage implements IStorage {
   // ===== CREDIT PAYMENT OPERATIONS =====
 
   async getCreditPayments(userId: string, cardId?: string): Promise<CreditPayment[]> {
-    let query = this.db.select().from(schema.creditPayments).where(eq(schema.creditPayments.userId, userId)).$dynamic();
-    
+    const conditions: SQL[] = [eq(schema.creditPayments.userId, userId)];
+
     if (cardId) {
-      query = query.where(eq(schema.creditPayments.creditCardId, cardId));
+      conditions.push(eq(schema.creditPayments.creditCardId, cardId));
     }
-    
-    return await query.orderBy(desc(schema.creditPayments.paymentDate));
+
+    return await this.db
+      .select()
+      .from(schema.creditPayments)
+      .where(and(...conditions))
+      .orderBy(desc(schema.creditPayments.paymentDate));
   }
 
   async getCreditPayment(id: string, userId: string): Promise<CreditPayment | undefined> {
@@ -380,8 +392,9 @@ export class DbStorage implements IStorage {
   }
 
   async updateCreditPayment(id: string, userId: string, updates: Partial<CreditPayment>): Promise<CreditPayment | undefined> {
+    const { id: _id, userId: _userId, createdAt: _createdAt, ...safeUpdates } = updates as any;
     const result = await this.db.update(schema.creditPayments)
-      .set(updates)
+      .set(safeUpdates)
       .where(and(eq(schema.creditPayments.id, id), eq(schema.creditPayments.userId, userId)))
       .returning();
     return result[0];
@@ -595,13 +608,17 @@ export class DbStorage implements IStorage {
   // ===== CATEGORY OPERATIONS =====
 
   async getCategories(userId: string, type?: string): Promise<Category[]> {
-    let query = this.db.select().from(schema.categories).where(eq(schema.categories.userId, userId)).$dynamic();
-    
+    const conditions: SQL[] = [eq(schema.categories.userId, userId)];
+
     if (type) {
-      query = query.where(eq(schema.categories.type, type));
+      conditions.push(eq(schema.categories.type, type));
     }
-    
-    return await query.orderBy(schema.categories.name);
+
+    return await this.db
+      .select()
+      .from(schema.categories)
+      .where(and(...conditions))
+      .orderBy(schema.categories.name);
   }
 
   async createCategory(userId: string, category: InsertCategory): Promise<Category> {
