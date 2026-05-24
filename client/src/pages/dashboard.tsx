@@ -125,7 +125,7 @@ export default function Dashboard() {
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
-      const d = new Date(t.date);
+      const d = parseLocalDate(t.date);
       return isWithinInterval(d, dateRange);
     });
   }, [transactions, dateRange]);

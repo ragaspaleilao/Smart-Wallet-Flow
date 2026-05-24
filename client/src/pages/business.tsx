@@ -10,7 +10,7 @@ import { Link } from "wouter";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 import { Sparkles, MessageSquare } from "lucide-react";
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -34,21 +34,24 @@ export default function Business() {
   const createBusinessProductMutation = useCreateBusinessProduct();
   const updateBusinessSettingsMutation = useUpdateBusinessSettings();
   
+  const creatingAccountsRef = useRef(false);
+
   // Ensure business accounts exist (for users with old data)
   useEffect(() => {
-    const createBusinessAccounts = async () => {
-      const hasBusinessAccounts = accounts.some(a => !a.isPersonal);
-      if (!hasBusinessAccounts && accounts.length > 0) {
+    const hasBusinessAccounts = accounts.some(a => !a.isPersonal);
+    if (!hasBusinessAccounts && accounts.length > 0 && !creatingAccountsRef.current) {
+      creatingAccountsRef.current = true;
+      (async () => {
         try {
-          await createAccountMutation.mutateAsync({ name: 'Caixa Empresa', type: 'cash', balance: '500.00', initialBalance: '0', color: 'bg-blue-600', isPersonal: false });
-          await createAccountMutation.mutateAsync({ name: 'Banco PJ', type: 'bank', balance: '2500.00', initialBalance: '0', color: 'bg-indigo-600', isPersonal: false });
+          await createAccountMutation.mutateAsync({ name: 'Caixa Empresa', type: 'cash', balance: '0', initialBalance: '0', color: 'bg-blue-600', isPersonal: false });
+          await createAccountMutation.mutateAsync({ name: 'Banco PJ', type: 'bank', balance: '0', initialBalance: '0', color: 'bg-indigo-600', isPersonal: false });
           toast({ title: "Contas empresariais criadas!" });
         } catch (error) {
+          creatingAccountsRef.current = false;
           toast({ title: "Erro ao criar contas empresariais", variant: "destructive" });
         }
-      }
-    };
-    createBusinessAccounts();
+      })();
+    }
   }, [accounts.length]);
 
   // Filter only business related accounts and transactions
@@ -103,7 +106,7 @@ export default function Business() {
 
     try {
       // 1. Withdraw from Business Account
-      await createTransactionMutation.mutateAsync({
+      const outgoing = await createTransactionMutation.mutateAsync({
           type: 'expense',
           amount: transferData.amount,
           description: `Transferência para Pessoal: ${transferData.description}`,
@@ -114,17 +117,23 @@ export default function Business() {
           date: new Date().toISOString().split('T')[0]
       });
 
-      // 2. Deposit into Personal Account
-      await createTransactionMutation.mutateAsync({
-          type: 'income',
-          amount: transferData.amount,
-          description: `Recebido da Empresa: ${transferData.description}`,
-          category: 'Salário',
-          source: 'manual',
-          isPersonal: true,
-          accountId: transferData.toAccountId,
-          date: new Date().toISOString().split('T')[0]
-      });
+      // 2. Deposit into Personal Account — roll back step 1 on failure
+      try {
+        await createTransactionMutation.mutateAsync({
+            type: 'income',
+            amount: transferData.amount,
+            description: `Recebido da Empresa: ${transferData.description}`,
+            category: 'Salário',
+            source: 'manual',
+            isPersonal: true,
+            accountId: transferData.toAccountId,
+            date: new Date().toISOString().split('T')[0]
+        });
+      } catch (secondError) {
+        // Attempt compensating delete of the first transaction
+        await fetch(`/api/transactions/${outgoing.id}`, { method: 'DELETE' }).catch(() => {});
+        throw secondError;
+      }
 
       setTransferOpen(false);
       setTransferData({ amount: "", fromAccountId: "", toAccountId: "", description: "Pro-labore" });

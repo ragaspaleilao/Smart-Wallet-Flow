@@ -48,7 +48,12 @@ export default function Budget() {
     return transactions
       .filter(t => {
         const tDate = new Date(t.date);
-        return t.type === 'expense' && isWithinInterval(tDate, { start, end });
+        return (
+          t.type === 'expense' &&
+          t.status === 'paid' &&
+          t.isPersonal !== false &&
+          isWithinInterval(tDate, { start, end })
+        );
       })
       .reduce((acc, curr) => acc + Number(curr.amount), 0);
   }, [transactions]);

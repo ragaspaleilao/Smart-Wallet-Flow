@@ -355,7 +355,8 @@ export const insertCreditPurchaseSchema = createInsertSchema(creditPurchases).om
 }).extend({
   purchaseDate: z.union([z.date(), z.string().transform((str) => {
     const d = new Date(str);
-    if (d.getFullYear() < 2000) {
+    // Only correct genuinely 2-digit years (0–99), never historical dates
+    if (d.getFullYear() < 100) {
       d.setFullYear(d.getFullYear() + 2000);
     }
     return d;

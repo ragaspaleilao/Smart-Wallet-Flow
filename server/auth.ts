@@ -16,6 +16,15 @@ declare module "express-session" {
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("SESSION_SECRET env var is required in production");
+    }
+    console.warn("[auth] SESSION_SECRET not set — using insecure dev default");
+  }
+
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
@@ -24,7 +33,7 @@ export function getSession() {
     tableName: "sessions",
   });
   return session({
-    secret: process.env.SESSION_SECRET || "dev-secret-change-me",
+    secret: secret || "dev-secret-change-me",
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
@@ -132,7 +141,8 @@ export function registerAuthRoutes(app: Express) {
   });
 
   app.post("/api/logout", (req, res) => {
-    req.session.destroy(() => {
+    req.session.destroy((err) => {
+      if (err) console.error("Session destroy error:", err);
       res.clearCookie("connect.sid");
       res.json({ ok: true });
     });
@@ -140,7 +150,8 @@ export function registerAuthRoutes(app: Express) {
 
   // Backwards-compatible GET logout (redirects)
   app.get("/api/logout", (req, res) => {
-    req.session.destroy(() => {
+    req.session.destroy((err) => {
+      if (err) console.error("Session destroy error:", err);
       res.clearCookie("connect.sid");
       res.redirect("/");
     });

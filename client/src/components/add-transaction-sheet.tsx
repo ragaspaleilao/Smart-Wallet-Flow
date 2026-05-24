@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFinancialStore, Category } from "@/lib/store";
+import { useAccountsWithBalance, useCreateTransaction } from "@/hooks/use-api";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 
@@ -21,7 +22,9 @@ interface AddTransactionSheetProps {
 }
 
 export function AddTransactionSheet({ children, defaultType = 'expense', context = 'personal' }: AddTransactionSheetProps) {
-  const { addTransaction, accounts, transactionCategories } = useFinancialStore();
+  const { transactionCategories } = useFinancialStore();
+  const { data: apiAccounts = [] } = useAccountsWithBalance();
+  const createTransactionMutation = useCreateTransaction();
   const [open, setOpen] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -39,38 +42,42 @@ export function AddTransactionSheet({ children, defaultType = 'expense', context
     return (Number(number) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.description || !formData.amount) {
-        toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
-        return;
+      toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
+      return;
     }
 
     const numericAmount = Number(formData.amount.replace(/\D/g, "")) / 100;
 
-    addTransaction({
-      description: formData.description,
-      amount: numericAmount,
-      category: formData.category,
-      type: formData.type,
-      accountId: formData.accountId || (accounts[0]?.id || ""),
-      date: new Date(formData.date).toISOString(),
-      source: 'manual',
-      isPersonal: context === 'personal',
-      status: formData.status
-    });
-    
-    setOpen(false);
-    setFormData({
+    try {
+      await createTransactionMutation.mutateAsync({
+        description: formData.description,
+        amount: String(numericAmount),
+        category: formData.category,
+        type: formData.type,
+        accountId: formData.accountId || (apiAccounts[0]?.id || ""),
+        date: formData.date,
+        source: 'manual',
+        isPersonal: context === 'personal',
+        status: formData.status,
+      });
+
+      setOpen(false);
+      setFormData({
         description: "",
         amount: "",
         category: "Outros" as Category,
         type: defaultType,
         accountId: "",
         date: new Date().toISOString().split('T')[0],
-        status: 'pending'
-    });
-    
-    toast({ title: "Transação adicionada!" });
+        status: 'pending',
+      });
+
+      toast({ title: "Transação adicionada!" });
+    } catch {
+      toast({ title: "Erro ao adicionar transação", variant: "destructive" });
+    }
   };
 
   return (
@@ -170,7 +177,7 @@ export function AddTransactionSheet({ children, defaultType = 'expense', context
                         <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
-                        {accounts.map(acc => (
+                        {apiAccounts.map(acc => (
                             <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
                         ))}
                     </SelectContent>

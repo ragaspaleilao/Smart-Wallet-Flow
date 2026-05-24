@@ -8,9 +8,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useFinancialStore, BusinessProduct } from "@/lib/store";
+import { BusinessProduct } from "@/lib/store";
+import { useUpdateBusinessProduct, useDeleteBusinessProduct } from "@/hooks/use-api";
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Edit2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { toast } from "@/hooks/use-toast";
 
@@ -20,7 +21,8 @@ interface EditProductDialogProps {
 }
 
 export function EditProductDialog({ product, children }: EditProductDialogProps) {
-  const { updateBusinessProduct, removeBusinessProduct } = useFinancialStore();
+  const updateMutation = useUpdateBusinessProduct();
+  const deleteMutation = useDeleteBusinessProduct();
   const [open, setOpen] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -65,23 +67,34 @@ export function EditProductDialog({ product, children }: EditProductDialogProps)
     }));
   };
 
-  const handleSave = () => {
-    updateBusinessProduct(product.id, {
-        name: formData.name,
-        category: formData.category,
-        sellingPrice: Number(formData.sellingPrice),
-        averageMonthlySales: Number(formData.averageMonthlySales),
-        directCosts: formData.directCosts
-    });
-    setOpen(false);
-    toast({ title: "Produto atualizado!" });
+  const handleSave = async () => {
+    try {
+      await updateMutation.mutateAsync({
+        id: product.id,
+        data: {
+          name: formData.name,
+          category: formData.category,
+          sellingPrice: Number(formData.sellingPrice),
+          averageMonthlySales: Number(formData.averageMonthlySales),
+          directCosts: formData.directCosts,
+        },
+      });
+      setOpen(false);
+      toast({ title: "Produto atualizado!" });
+    } catch {
+      toast({ title: "Erro ao atualizar produto", variant: "destructive" });
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (confirm("Tem certeza que deseja excluir este produto?")) {
-        removeBusinessProduct(product.id);
+      try {
+        await deleteMutation.mutateAsync(product.id);
         setOpen(false);
         toast({ title: "Produto excluído!" });
+      } catch {
+        toast({ title: "Erro ao excluir produto", variant: "destructive" });
+      }
     }
   };
 

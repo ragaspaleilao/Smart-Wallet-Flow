@@ -11,14 +11,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [userId, setUserIdState] = useState<string | null>(null);
-
-  useEffect(() => {
-    const storedUserId = getUserId();
-    if (storedUserId) {
-      setUserIdState(storedUserId);
-    }
-  }, []);
+  // Initialize synchronously from localStorage so isAuthenticated is correct on first render,
+  // preventing a spurious redirect to "/" on page refresh.
+  const [userId, setUserIdState] = useState<string | null>(() => getUserId());
 
   const login = (newUserId: string) => {
     setUserId(newUserId);

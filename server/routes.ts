@@ -154,10 +154,14 @@ export async function registerRoutes(
         type: req.query.type as string | undefined,
       };
       if (req.query.startDate) {
-        filters.startDate = new Date(req.query.startDate as string);
+        const d = new Date(req.query.startDate as string);
+        if (isNaN(d.getTime())) return res.status(400).json({ error: 'startDate inválido' });
+        filters.startDate = d;
       }
       if (req.query.endDate) {
-        filters.endDate = new Date(req.query.endDate as string);
+        const d = new Date(req.query.endDate as string);
+        if (isNaN(d.getTime())) return res.status(400).json({ error: 'endDate inválido' });
+        filters.endDate = d;
       }
       const transactions = await storage.getTransactions(req.userId!, filters);
       res.json(transactions);
@@ -239,6 +243,13 @@ export async function registerRoutes(
       if (fromAccountId === toAccountId) {
         return res.status(400).json({ error: 'As contas de origem e destino devem ser diferentes' });
       }
+
+      const [fromAccount, toAccount] = await Promise.all([
+        storage.getAccount(fromAccountId, req.userId!),
+        storage.getAccount(toAccountId, req.userId!),
+      ]);
+      if (!fromAccount) return res.status(400).json({ error: 'Conta de origem não encontrada' });
+      if (!toAccount) return res.status(400).json({ error: 'Conta de destino não encontrada' });
 
       const parsedDate = new Date(date);
       if (isNaN(parsedDate.getTime())) {
@@ -366,7 +377,13 @@ export async function registerRoutes(
       const id = String(req.params.id);
       // Sanitize the input - remove fields that shouldn't be updated directly
       const { id: _id, userId: _userId, createdAt: _createdAt, updatedAt: _updatedAt, ...updates } = req.body;
-      
+
+      // Verify creditCardId ownership if provided
+      if (updates.creditCardId) {
+        const card = await storage.getCreditCard(updates.creditCardId, req.userId!);
+        if (!card) return res.status(400).json({ error: 'Cartão não pertence ao usuário' });
+      }
+
       // Ensure numeric fields are strings for decimal columns
       if (updates.totalAmount !== undefined) {
         updates.totalAmount = String(updates.totalAmount);
@@ -374,12 +391,12 @@ export async function registerRoutes(
       if (updates.installmentValue !== undefined) {
         updates.installmentValue = String(updates.installmentValue);
       }
-      
+
       // Convert date string to Date object
       if (updates.purchaseDate !== undefined) {
         updates.purchaseDate = new Date(updates.purchaseDate);
       }
-      
+
       const purchase = await storage.updateCreditPurchase(id, req.userId!, updates);
       if (!purchase) {
         return res.status(404).json({ error: 'Credit purchase not found' });
@@ -435,19 +452,25 @@ export async function registerRoutes(
       const cardName = card?.name || 'Cartão';
       const paymentAmount = parseFloat(String(data.amount));
       if (paymentAmount > 0 && data.accountId) {
-        await storage.createTransaction(req.userId!, {
-          accountId: data.accountId,
-          amount: String(paymentAmount),
-          type: 'expense',
-          category: 'Cartão de Crédito',
-          description: `Pagamento fatura ${cardName} #${payment.id.slice(0, 8)}`,
-          date: data.paymentDate,
-          source: 'manual',
-          isPersonal: true,
-          status: 'paid',
-          paymentMethod: 'transfer',
-          creditCardId: data.creditCardId,
-        });
+        try {
+          await storage.createTransaction(req.userId!, {
+            accountId: data.accountId,
+            amount: String(paymentAmount),
+            type: 'expense',
+            category: 'Cartão de Crédito',
+            description: `Pagamento fatura ${cardName} #${payment.id.slice(0, 8)}`,
+            date: data.paymentDate,
+            source: 'manual',
+            isPersonal: true,
+            status: 'paid',
+            paymentMethod: 'transfer',
+            creditCardId: data.creditCardId,
+          });
+        } catch (txError) {
+          // Roll back the payment record so books stay consistent
+          await storage.deleteCreditPayment(payment.id, req.userId!).catch(() => {});
+          throw txError;
+        }
       }
 
       res.status(201).json(payment);
@@ -796,7 +819,14 @@ export async function registerRoutes(
   app.patch('/api/business/products/:id', authMiddleware, async (req: AuthRequest, res) => {
     try {
       const id = String(req.params.id);
-      const product = await storage.updateBusinessProduct(id, req.userId!, req.body);
+      const allowed = ['name', 'category', 'sellingPrice', 'averageMonthlySales', 'directCosts'];
+      const updates: Record<string, any> = {};
+      for (const key of allowed) {
+        if (req.body[key] !== undefined) updates[key] = req.body[key];
+      }
+      if (updates.sellingPrice !== undefined) updates.sellingPrice = String(updates.sellingPrice);
+      if (updates.averageMonthlySales !== undefined) updates.averageMonthlySales = String(updates.averageMonthlySales);
+      const product = await storage.updateBusinessProduct(id, req.userId!, updates);
       if (!product) {
         return res.status(404).json({ error: 'Business product not found' });
       }
@@ -832,7 +862,12 @@ export async function registerRoutes(
 
   app.put('/api/business/settings', authMiddleware, async (req: AuthRequest, res) => {
     try {
-      const settings = await storage.updateBusinessSettings(req.userId!, req.body);
+      const allowed = ['monthlyFixedCosts', 'monthlyGoal', 'taxRate', 'fixedCosts'];
+      const sanitized: Record<string, any> = {};
+      for (const key of allowed) {
+        if (req.body[key] !== undefined) sanitized[key] = req.body[key];
+      }
+      const settings = await storage.updateBusinessSettings(req.userId!, sanitized);
       res.json(settings);
     } catch (error) {
       res.status(400).json({ error: 'Failed to update business settings' });
@@ -1031,10 +1066,20 @@ export async function registerRoutes(
   app.get('/api/calendar/events', authMiddleware, async (req: AuthRequest, res) => {
     try {
       const { calendarId, timeMin, timeMax } = req.query;
+      let parsedMin: Date | undefined;
+      let parsedMax: Date | undefined;
+      if (timeMin) {
+        parsedMin = new Date(timeMin as string);
+        if (isNaN(parsedMin.getTime())) return res.status(400).json({ error: 'timeMin inválido' });
+      }
+      if (timeMax) {
+        parsedMax = new Date(timeMax as string);
+        if (isNaN(parsedMax.getTime())) return res.status(400).json({ error: 'timeMax inválido' });
+      }
       const events = await listEvents(
         calendarId as string || 'primary',
-        timeMin ? new Date(timeMin as string) : undefined,
-        timeMax ? new Date(timeMax as string) : undefined
+        parsedMin,
+        parsedMax
       );
       res.json(events);
     } catch (error) {
