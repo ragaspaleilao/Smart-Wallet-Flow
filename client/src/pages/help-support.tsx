@@ -207,7 +207,7 @@ export default function HelpSupport() {
             <Shield className="w-5 h-5 text-teal-600 shrink-0 mt-0.5" />
             <div className="text-xs text-teal-800 dark:text-teal-300 leading-relaxed">
               <p className="font-bold mb-1">Sobre o App</p>
-              <p>Versão 1.0.0</p>
+              <p>Versão 1.1.0</p>
               <p className="mt-1">Seus dados são protegidos com criptografia e salvos com segurança na nuvem.</p>
               <Link href="/terms-privacy" className="flex items-center gap-1 mt-2 text-teal-600 dark:text-teal-400 hover:text-teal-500">
                 <ExternalLink className="w-3 h-3" />
